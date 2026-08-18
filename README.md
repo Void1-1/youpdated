@@ -346,6 +346,19 @@ PYTHONPATH=$PWD .venv/bin/python -m youpdated check --test -v
 
 Tests run entirely offline: each parser is exercised against real captured payloads in [tests/fixtures/](tests/fixtures/) via `respx`, which fails the test rather than allowing a real request. After changing source code, reinstall with `.venv/bin/pip install .` to update the `youpdated` command itself.
 
+### Contributing
+
+`main` is protected by a branch ruleset, changes arrive by pull request:
+
+```sh
+git switch -c my-change
+# ...work, commit...
+git push -u origin my-change
+gh pr create --fill
+```
+
+The ruleset requires a pull request (no approvals needed), all 13 test jobs green, and the branch up to date with `main`; force-pushes and branch deletion are blocked. See [ADDING_SOURCES.md](ADDING_SOURCES.md) if your change is a new source.
+
 ### Building a release
 
 ```sh
