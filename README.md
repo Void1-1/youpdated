@@ -1,5 +1,7 @@
 # Youpdated
 
+[![tests](https://github.com/Void1-1/youpdated/actions/workflows/tests.yml/badge.svg)](https://github.com/Void1-1/youpdated/actions/workflows/tests.yml)
+
 A dynamic scraper that collects update information about the games, apps, and packages you follow, and reports back what changed.
 
 It is built to be **privacy-preserving, anonymous, and customizable**: no accounts, no API keys required, nothing stored anywhere non-local.
@@ -33,7 +35,8 @@ It is built to be **privacy-preserving, anonymous, and customizable**: no accoun
 
 ## 1. Install
 
-Requires **Python 3.11 or newer** (`python3 --version` to check). Developed and tested on 3.14
+Requires **Python 3.11 or newer** (`python3 --version` to check). CI runs the full suite on
+**Linux, macOS, and Windows** across Python 3.11–3.14.
 
 ```sh
 cd /path/to/Youpdated
@@ -111,7 +114,7 @@ sources:
 | An itch.io game | `https://user.itch.io/game-name` | The game's page URL, exactly as it appears in the address bar. |
 | A YouTube channel | `"@NASA"` | The `@handle` from the channel URL. A `UC…` channel id or full channel URL also works. **Quote it**: YAML treats a leading `@` specially. |
 | A YouTube playlist | `playlist: PLxxxx` | The `list=` parameter in the playlist URL. A full playlist URL also works. |
-| A browser | `chrome`, `brave`, `firefox`, `edge` | Just the name. See [browser options](#browser-platforms-and-channels). |
+| A browser | `chrome`, `brave`, `firefox`, `edge` | Just the name. Add `platform:` and `channel:` to narrow it. See the [full example](#full-example). |
 | Anything else | `https://example.com/feed.xml` | Any RSS or Atom feed URL. Many apps publish one at `/feed.xml`, `/releases.atom`, or `/blog/rss`. |
 
 ### Full example

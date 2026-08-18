@@ -7,7 +7,7 @@ A source is one class with two methods. This guide builds a complete, working on
 - [Step 1: normalize config into targets](#step-1-normalize-config-into-targets)
 - [Step 2: fetch updates](#step-2-fetch-updates)
 - [The complete source](#the-complete-source)
-- [Rules that matter](#rules-that-matter)
+- [Notes](#notes)
 - [Testing it](#testing-it)
 - [Shipping it as a package](#shipping-it-as-a-package)
 - [Checklist](#checklist)
