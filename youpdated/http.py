@@ -73,6 +73,9 @@ class Client:
         self.verbose = verbose
         # Conditional GETs save requests, but a 304 doesn't return items
         self.use_conditional = use_conditional
+        #: Seconds multiplied by the attempt number between retries. Tests set
+        #: this to 0 so a retry path costs no wall-clock time.
+        self.retry_backoff = 1.5
         self._log = logger
         self.requested_urls: list[str] = []
 
@@ -176,7 +179,7 @@ class Client:
                 last_error = exc
                 self.note(f"GET {url} -> {type(exc).__name__}: {exc}")
                 if attempt < retries:
-                    time.sleep(1.5 * (attempt + 1))
+                    time.sleep(self.retry_backoff * (attempt + 1))
                     continue
                 raise FetchError(f"{url}: {type(exc).__name__}: {exc}") from exc
 
@@ -208,7 +211,7 @@ class Client:
                 )
 
             if response.status_code in RETRY_STATUSES and attempt < retries:
-                time.sleep(1.5 * (attempt + 1))
+                time.sleep(self.retry_backoff * (attempt + 1))
                 continue
 
             raise FetchError(f"{url}: HTTP {response.status_code}")
