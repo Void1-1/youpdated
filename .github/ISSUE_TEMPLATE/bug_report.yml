@@ -1,0 +1,91 @@
+name: Bug report
+description: Something behaves differently than documented
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. Before filing, it's worth checking the
+        [Troubleshooting table](https://github.com/Void1-1/youpdated#troubleshooting)
+
+        **Please don't paste API keys or tokens.** If you set `GITHUB_TOKEN` or
+        `YOUTUBE_API_KEY`, say *that* you set it rather than what it is.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you expected, and what you got instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: How to reproduce
+      description: The exact command you ran, and the smallest config that shows it.
+      placeholder: |
+        1. Config (trim it to just the entry that misbehaves):
+           sources:
+             steam:
+               - 440
+        2. Ran: youpdated check --all -v
+        3. Saw: ...
+      render: text
+    validations:
+      required: true
+
+  - type: dropdown
+    id: source
+    attributes:
+      label: Which source
+      description: Leave blank if it isn't source-specific.
+      multiple: true
+      options:
+        - github
+        - npm
+        - steam
+        - itch
+        - youtube
+        - browser
+        - feed
+        - not source-specific / core
+        - a third-party source plugin
+
+  - type: input
+    id: version
+    attributes:
+      label: Youpdated version
+      description: Output of `youpdated --version`.
+      placeholder: youpdated 0.1.0
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: OS and Python version
+      description: Output of `python3 --version`, plus your OS.
+      placeholder: macOS 15.1, Python 3.12.4
+    validations:
+      required: true
+
+  - type: textarea
+    id: verbose-output
+    attributes:
+      label: Verbose output
+      description: |
+        Run the failing command with `-v` and paste the output. This shows each
+        request and its status, which is usually enough to identify the cause.
+        `--test` is a good alternative if the problem is in config handling.
+      render: text
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Before submitting
+      options:
+        - label: I checked the Troubleshooting section
+          required: true
+        - label: I removed any tokens, keys, or personal paths from what I pasted
+          required: true

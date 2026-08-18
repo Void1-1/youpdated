@@ -1,0 +1,42 @@
+name: Feature request
+description: Suggest a change to how Youpdated works
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: |
+        Describe the situation you're in, not just the feature. Knowing what you
+        were trying to do usually helps more than you saying what you want.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What you'd like
+      description: A new flag, an output format, different default behavior, and so on.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What you've tried
+      description: |
+        Existing options that got close but not far enough — `--json` piped into
+        another tool, `--since`, a `feed` entry, a cron wrapper.
+
+  - type: checkboxes
+    id: principles
+    attributes:
+      label: Does it fit the project's constraints?
+      description: |
+        Not a gate! Just useful to know. Anything that requires an account,
+        phones home, or writes outside the local config/data directories needs a
+        strong argument.
+      options:
+        - label: Works without accounts or API keys
+        - label: Sends no data anywhere except the sources being watched
+        - label: Not sure, and happy to discuss

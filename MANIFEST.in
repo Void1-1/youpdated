@@ -1,6 +1,9 @@
 include LICENSE
 include README.md
 include CHANGELOG.md
+include SECURITY.md
+include CONTRIBUTING.md
+include ADDING_SOURCES.md
 include youpdated/py.typed
 
 prune tests

@@ -6,6 +6,12 @@ on:
   pull_request:
   workflow_dispatch:
 
+# Nothing here needs to write to the repo, so the token gets read-only access.
+# Without this, GITHUB_TOKEN inherits the repository default, which may be
+# read-write (CodeQL actions/missing-workflow-permissions).
+permissions:
+  contents: read
+
 jobs:
   test:
     name: ${{ matrix.os }} · py${{ matrix.python-version }}

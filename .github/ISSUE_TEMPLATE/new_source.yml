@@ -1,0 +1,97 @@
+name: New source request
+description: Ask for support for a service Youpdated doesn't track yet
+labels: ["source request"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Before requesting: if the service publishes **any RSS or Atom feed**, the
+        built-in `feed` source already handles it today, with no code needed:
+
+        ```yaml
+        sources:
+          feed:
+            - https://example.com/releases.atom
+        ```
+
+        A dedicated source is worth building when the service has no feed, or when
+        a feed loses information a real API would give you (version numbers,
+        channels, platforms).
+
+        If you'd like to build it yourself, [ADDING_SOURCES.md](https://github.com/Void1-1/youpdated/blob/main/ADDING_SOURCES.md)
+        walks through a complete working source. Contributions are very welcome.
+
+  - type: input
+    id: service
+    attributes:
+      label: Which service
+      placeholder: e.g. Flathub, GOG, F-Droid, Docker Hub
+    validations:
+      required: true
+
+  - type: textarea
+    id: endpoint
+    attributes:
+      label: Where the data lives
+      description: |
+        The single most useful thing you can provide. A public URL that returns
+        the update data, ideally without authentication. A `curl` command and a
+        snippet of its output is ideal.
+      render: text
+    validations:
+      required: true
+
+  - type: dropdown
+    id: affiliation
+    attributes:
+      label: Is this your own site or service?
+      description: |
+        Not a problem at all! It's useful to know, for two reasons.
+        You can tell us what the data actually means instead of us guessing, and
+        you can change the endpoint. If you run it and it has no feed yet, adding
+        an RSS or Atom feed makes it work with the existing `feed` source
+        immediately, with nothing to build or wait for.
+      options:
+        - "Yes, I run it or work on it"
+        - "No, I'm just a user of it"
+        - "Somewhere in between (contributor, maintainer of a client, etc.)"
+    validations:
+      required: true
+
+  - type: textarea
+    id: owner-notes
+    attributes:
+      label: If you run it, is there anything you can offer?
+      description: |
+        Skip this if the new source isn't yours. Otherwise: can you add a feed, expose a
+        stable endpoint, or confirm the response shape won't change drastically?
+        A source is only as reliable as the endpoint behind it, so a maintainer
+        saying "this URL is stable" is worth a ton!
+      render: text
+
+  - type: dropdown
+    id: auth
+    attributes:
+      label: Does it need credentials?
+      description: |
+        Youpdated works without accounts or API keys by default. A source that
+        requires credentials can still be added, but keys must stay optional
+        and read from the environment.
+      options:
+        - No, it's fully public
+        - Optional key raises rate limits
+        - Yes, it requires an account or key
+        - Not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: identity
+    attributes:
+      label: What identifies one item, and one watched thing?
+      description: |
+        Deduplication needs a stable id per item (a version, a release id, a
+        permalink) and a stable key per watched thing (a package name, an app id).
+        If you know what those look like, say so! It's the part that's hardest to
+        guess from the outside.
+      render: text

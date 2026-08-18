@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Adding your own source
+    url: https://github.com/Void1-1/youpdated/blob/main/ADDING_SOURCES.md
+    about: A guide to writing a source, in-tree or as a separate package.
+  - name: Troubleshooting
+    url: https://github.com/Void1-1/youpdated#troubleshooting
+    about: Common symptoms and their causes. Check here before filing a bug.
+  - name: A service with an RSS or Atom feed
+    url: https://github.com/Void1-1/youpdated#full-example
+    about: The built-in `feed` source already tracks any RSS/Atom URL, no code needed.

@@ -319,7 +319,7 @@ If you installed into a dedicated virtualenv, deleting that directory removes th
 
 - **No credentials.** Every source works unauthenticated. `GITHUB_TOKEN` and `YOUTUBE_API_KEY` are read from the environment if set (only for raising rate limits) and are never written to config.
 - **Local only.** Config and history live in your platform's config/data directories. Nothing is sent anywhere except the sources you list.
-- **One HTTP path.** Every request goes through [youpdated/http.py](youpdated/http.py). `privacy.proxy` covers all traffic. To check:
+- **One HTTP path.** Every request goes through [youpdated/http.py](https://github.com/Void1-1/youpdated/blob/main/youpdated/http.py). `privacy.proxy` covers all traffic. To check:
 
   ```sh
   youpdated check --all --no-save    # with privacy.proxy: socks5://127.0.0.1:9
@@ -344,7 +344,7 @@ PYTHONPATH=$PWD .venv/bin/python -m pytest
 PYTHONPATH=$PWD .venv/bin/python -m youpdated check --test -v
 ```
 
-Tests run entirely offline: each parser is exercised against real captured payloads in [tests/fixtures/](tests/fixtures/) via `respx`, which fails the test rather than allowing a real request. After changing source code, reinstall with `.venv/bin/pip install .` to update the `youpdated` command itself.
+Tests run entirely offline: each parser is exercised against real captured payloads in [tests/fixtures/](https://github.com/Void1-1/youpdated/tree/main/tests/fixtures/) via `respx`, which fails the test rather than allowing a real request. After changing source code, reinstall with `.venv/bin/pip install .` to update the `youpdated` command itself.
 
 ### Contributing
 
@@ -357,7 +357,7 @@ git push -u origin my-change
 gh pr create --fill
 ```
 
-The ruleset requires a pull request (no approvals needed), all 13 test jobs green, and the branch up to date with `main`; force-pushes and branch deletion are blocked. See [ADDING_SOURCES.md](ADDING_SOURCES.md) if your change is a new source.
+The ruleset requires a pull request (no approvals needed), all 13 test jobs green, and the branch up to date with `main`; force-pushes and branch deletion are blocked. See [ADDING_SOURCES.md](https://github.com/Void1-1/youpdated/blob/main/ADDING_SOURCES.md) if your change is a new source.
 
 ### Building a release
 
@@ -381,7 +381,7 @@ in `pyproject.toml`; bump it before building, since PyPI refuses to replace an e
 
 ### Adding a source
 
-**See [ADDING_SOURCES.md](ADDING_SOURCES.md)** for the full guide.
+**See [ADDING_SOURCES.md](https://github.com/Void1-1/youpdated/blob/main/ADDING_SOURCES.md)** for the full guide.
 
 The short version: implement `targets()` and `fetch()` from the protocol in
-[youpdated/sources/base.py](youpdated/sources/base.py), decorate the class with `@register`, and import it in [youpdated/sources/\_\_init\_\_.py](youpdated/sources/__init__.py). Reuse `entry_fields()` so your source accepts both the bare-value and mapping config shapes, and `parse_feed()` from [youpdated/sources/feed.py](youpdated/sources/feed.py) if the upstream is RSS/Atom. Third-party packages can register a source through a `youpdated.sources` entry point instead, without modifying this repo.
+[youpdated/sources/base.py](https://github.com/Void1-1/youpdated/blob/main/youpdated/sources/base.py), decorate the class with `@register`, and import it in [youpdated/sources/\_\_init\_\_.py](https://github.com/Void1-1/youpdated/blob/main/youpdated/sources/__init__.py). Reuse `entry_fields()` so your source accepts both the bare-value and mapping config shapes, and `parse_feed()` from [youpdated/sources/feed.py](https://github.com/Void1-1/youpdated/blob/main/youpdated/sources/feed.py) if the upstream is RSS/Atom. Third-party packages can register a source through a `youpdated.sources` entry point instead, without modifying this repo.
