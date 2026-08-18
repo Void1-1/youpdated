@@ -1,0 +1,308 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xml:lang="en">
+    <generator uri="https://blog.rust-lang.org/" version="0.1.0">Rust Blog</generator>
+    <link href="https://blog.rust-lang.org/feed.xml" rel="self" type="application/atom+xml" />
+    <link href="https://blog.rust-lang.org/" rel="alternate" type="text/html" />
+    <id>https://blog.rust-lang.org/</id>
+    <title>Rust Blog</title>
+    <subtitle>Empowering everyone to build reliable and efficient software.</subtitle>
+    <author>
+        <name>Maintained by the Rust Teams.</name>
+        <uri>https://github.com/rust-lang/blog.rust-lang.org/</uri>
+    </author>
+    <updated>2026-08-17T12:05:49+00:00</updated>
+
+    
+    <entry>
+        <title>Enabling the next iteration of the borrow checker on nightly</title>
+        <link rel="alternate" href="https://blog.rust-lang.org/2026/08/04/enabling-polonius-alpha-on-nightly/" type="text/html" title="Enabling the next iteration of the borrow checker on nightly" />
+        <published>2026-08-04T00:00:00+00:00</published>
+        <updated>2026-08-04T00:00:00+00:00</updated>
+        <id>https://blog.rust-lang.org/2026/08/04/enabling-polonius-alpha-on-nightly/</id>
+        <content type="html" xml:base="https://blog.rust-lang.org/2026/08/04/enabling-polonius-alpha-on-nightly/">&lt;p&gt;TL;DR We are enabling the next iteration of the borrow checker (coined Polonius Alpha)
+on nightly in preparation for stabilization in the next few months.&lt;/p&gt;
+&lt;h2 id&#x3D;&quot;whaaaaaat&quot;&gt;&lt;a class&#x3D;&quot;anchor&quot; href&#x3D;&quot;#whaaaaaat&quot; aria-hidden&#x3D;&quot;true&quot;&gt;&lt;/a&gt;
+Whaaaaaat?&lt;/h2&gt;
+&lt;p&gt;Yes! You heard it right! The next iteration of the Rust borrow checker is coming! Rust&#x27;s first borrow checker (&quot;AST borrowck&quot;) was very limited and was phased out &lt;a rel&#x3D;&quot;external&quot; href&#x3D;&quot;https://blog.rust-lang.org/2019/11/01/nll-hard-errors/&quot;&gt;in 2019&lt;/a&gt; in favor of &lt;a rel&#x3D;&quot;external&quot; href&#x3D;&quot;https://rust-lang.github.io/rfcs/2094-nll.html&quot;&gt;NLL&lt;/a&gt;, other than a &quot;migrate mode&quot; that was used to provide nice error messages. That migrate mode was finally removed &lt;a rel&#x3D;&quot;external&quot; href&#x3D;&quot;https://blog.rust-lang.org/2022/08/05/nll-by-default&quot;&gt;in 2022&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;The &lt;a rel&#x3D;&quot;external&quot; href&#x3D;&quot;https://github.com/rust-lang/polonius&quot;&gt;Polonius borrow checker&lt;/a&gt; spun out of the NLL effort in 2018. The &lt;a rel&#x3D;&quot;external&quot; href&#x3D;&quot;https://smallcultfollowing.com/babysteps/blog/2018/04/27/an-alias-based-formulation-of-the-borrow-checker/&quot;&gt;initial formulation&lt;/a&gt; passed the NLL test suite and accepted (sound) code that NLL did not. However, performance was a critically-limiting factor; generally borrow check was slower than NLL, but certain programs were considerably slower than NLL to the extent that using that implementation/formulation of Polonius was a non-starter. &lt;a rel&#x3D;&quot;external&quot; href&#x3D;&quot;https://github.com/nikomatsakis/polonius.next&quot;&gt;Attempts were made&lt;/a&gt; over the years to implement the Polonius formulation in a performant manner, without much luck in addressing the core issues.&lt;/p&gt;
+&lt;p&gt;In 2023, &lt;a rel&#x3D;&quot;external&quot; href&#x3D;&quot;https://smallcultfollowing.com/babysteps/series/polonius-revisited/&quot;&gt;a new formulation&lt;/a&gt; of a Polonius-style borrow checker was imagined that required minimal rearchitecture of the existing NLL implementation and could be extended to allow more code to compile. We &lt;a rel&#x3D;&quot;external&quot; href&#x3D;&quot;https://blog.rust-lang.org/inside-rust/2023/10/06/polonius-update/&quot;&gt;had hoped&lt;/a&gt;, to try to stabilize this new formulation in 2024; but, various things popped up that delayed this.&lt;/p&gt;
+&lt;p&gt;But! We&#x27;re nearly there now! At this point, there are no known remaining issues with the subset coined Polonius Alpha that we intend to stabilize. And, performance is generally acceptable for stabilization (will discuss that a bit below).&lt;/p&gt;
+&lt;p&gt;So, &lt;strong&gt;we are enabling the Polonius Alpha borrow checker on nightly&lt;/strong&gt; for testing until we stabilize fully later in the year. We&#x27;re doing this in order to help find:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Any serious performance regressions we&#x27;re unaware of&lt;/li&gt;
+&lt;li&gt;Unsoundness in the formulation that we haven&#x27;t thought about&lt;/li&gt;
+&lt;li&gt;Any weird diagnostic issues that we need to improve
+&lt;ul&gt;
+&lt;li&gt;Note: we have not &lt;em&gt;yet&lt;/em&gt; seen any diagnostic changes&lt;/li&gt;
+&lt;/ul&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;You can report any issues &lt;a rel&#x3D;&quot;external&quot; href&#x3D;&quot;https://github.com/rust-lang/rust/issues/160456&quot;&gt;on Github&lt;/a&gt; or &lt;a rel&#x3D;&quot;external&quot; href&#x3D;&quot;https://rust-lang.zulipchat.com/#narrow/channel/186049-t-types.2Fpolonius/topic/Polonius.20Alpha.20enabled.20on.20nightly/near/614373312&quot;&gt;on Zulip&lt;/a&gt;.&lt;/p&gt;
+&lt;h2 id&#x3D;&quot;okay-what-s-new&quot;&gt;&lt;a class&#x3D;&quot;anchor&quot; href&#x3D;&quot;#okay-what-s-new&quot; aria-hidden&#x3D;&quot;true&quot;&gt;&lt;/a&gt;
+Okay, what&#x27;s new?&lt;/h2&gt;
+&lt;p&gt;The key thing that Polonius Alpha enables that NLL does not is &lt;em&gt;flow-sensitive&lt;/em&gt; borrow checking of lifetime outlives relationships.&lt;/p&gt;
+&lt;p&gt;Perhaps the smallest example demonstrating what will pass with Polonius Alpha but not the current NLL is:&lt;/p&gt;
+&lt;pre class&#x3D;&quot;giallo z-code&quot;&gt;&lt;code data-lang&#x3D;&quot;rust&quot;&gt;&lt;span class&#x3D;&quot;giallo-l&quot;&gt;&lt;span class&#x3D;&quot;z-keyword&quot;&gt;fn&lt;/span&gt;&lt;span class&#x3D;&quot;z-entity z-name z-function&quot;&gt; reborrow&lt;/span&gt;&lt;span&gt;(&lt;/span&gt;&lt;span class&#x3D;&quot;z-variable&quot;&gt;a&lt;/span&gt;&lt;span class&#x3D;&quot;z-keyword z-operator&quot;&gt;:&lt;/span&gt;&lt;span class&#x3D;&quot;z-keyword z-operator&quot;&gt; &amp;amp;&lt;/span&gt;&lt;span class&#x3D;&quot;z-storage z-storage z-modifier&quot;&gt;mut&lt;/span&gt;&lt;span class&#x3D;&quot;z-entity z-name z-type&quot;&gt; u8&lt;/span&gt;&lt;span&gt;)&lt;/span&gt;&lt;span class&#x3D;&quot;z-keyword z-operator&quot;&gt; -&amp;gt;&lt;/span&gt;&lt;span class&#x3D;&quot;z-keyword z-operator&quot;&gt; &amp;amp;&lt;/span&gt;&lt;span class&#x3D;&quot;z-storage z-storage z-modifier&quot;&gt;mut&lt;/span&gt;&lt;span class&#x3D;&quot;z-entity z-name z-type&quot;&gt; u8&lt;/span&gt;&lt;span&gt; {&lt;/span&gt;&lt;/span&gt;
+&lt;span class&#x3D;&quot;giallo-l&quot;&gt;&lt;span class&#x3D;&quot;z-storage z-type&quot;&gt;    let&lt;/span&gt;&lt;span class&#x3D;&quot;z-variable&quot;&gt; b&lt;/span&gt;&lt;span class&#x3D;&quot;z-keyword z-operator z-assignment z-keyword z-operator&quot;&gt; &#x3D;&lt;/span&gt;&lt;span class&#x3D;&quot;z-keyword z-operator&quot;&gt; &amp;amp;&lt;/span&gt;&lt;span class&#x3D;&quot;z-storage z-storage z-modifier&quot;&gt;mut&lt;/span&gt;&lt;span class&#x3D;&quot;z-keyword z-operator&quot;&gt; *&lt;/span&gt;&lt;span class&#x3D;&quot;z-variable&quot;&gt;a&lt;/span&gt;&lt;span&gt;;&lt;/span&gt;&lt;/span&gt;
+&lt;span class&#x3D;&quot;giallo-l&quot;&gt;&lt;span class&#x3D;&quot;z-keyword z-control&quot;&gt;    if&lt;/span&gt;&lt;span class&#x3D;&quot;z-constant z-language&quot;&gt; true&lt;/span&gt;&lt;span&gt; {&lt;/span&gt;&lt;span class&#x3D;&quot;z-variable&quot;&gt; b&lt;/span&gt;&lt;span&gt; }&lt;/span&gt;&lt;span class&#x3D;&quot;z-keyword z-control&quot;&gt; else&lt;/span&gt;&lt;span&gt; {&lt;/span&gt;&lt;span class&#x3D;&quot;z-variable&quot;&gt; a&lt;/span&gt;&lt;span&gt; }&lt;/span&gt;&lt;/span&gt;
+&lt;span class&#x3D;&quot;giallo-l&quot;&gt;&lt;span&gt;}&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;However, the example you will see more often is:&lt;/p&gt;
+&lt;pre class&#x3D;&quot;giallo z-code&quot;&gt;&lt;code data-lang&#x3D;&quot;rust&quot;&gt;&lt;span class&#x3D;&quot;giallo-l&quot;&gt;&lt;span class&#x3D;&quot;z-keyword&quot;&gt;fn&lt;/span&gt;&lt;span class&#x3D;&quot;z-entity z-name z-function&quot;&gt; get_mut_or_default&lt;/span&gt;&lt;span&gt;&amp;lt;&lt;/span&gt;&lt;span&gt;&amp;#39;&lt;/span&gt;&lt;span class&#x3D;&quot;z-entity z-name z-type&quot;&gt;r&lt;/span&gt;&lt;span&gt;,&lt;/span&gt;&lt;span class&#x3D;&quot;z-entity z-name z-type&quot;&gt; K&lt;/span&gt;&lt;span class&#x3D;&quot;z-keyword z-operator&quot;&gt;:&lt;/span&gt;&lt;span class&#x3D;&quot;z-entity z-name z-type&quot;&gt; Hash&lt;/span&gt;&lt;span class&#x3D;&quot;z-keyword z-operator&quot;&gt; +&lt;/span&gt;&lt;span class&#x3D;&quot;z-entity z-name z-type&quot;&gt; Eq&lt;/span&gt;&lt;span class&#x3D;&quot;z-keyword z-operator&quot;&gt; +&lt;/span&gt;&lt;span class&#x3D;&quot;z-entity z-name z-type&quot;&gt; Copy&lt;/span&gt;&lt;span&gt;,&lt;/span&gt;&lt;span class&#x3D;&quot;z-entity z-name z-type&quot;&gt; V&lt;/span&gt;&lt;span class&#x3D;&quot;z-keyword z-operator&quot;&gt;:&lt;/span&gt;&lt;span class&#x3D;&quot;z-entity z-name z-type&quot;&gt; Default&lt;/span&gt;&lt;span&gt;&amp;gt;&lt;/span&gt;&lt;span&gt;(&lt;/span&gt;&lt;/span&gt;
+&lt;span class&#x3D;&quot;giallo-l&quot;&gt;&lt;span class&#x3D;&quot;z-variable&quot;&gt;    map&lt;/span&gt;&lt;span class&#x3D;&quot;z-keyword z-operator&quot;&gt;:&lt;/span&gt;&lt;span class&#x3D;&quot;z-keyword z-operator&quot;&gt; &amp;amp;&lt;/span&gt;&lt;span&gt;&amp;#39;&lt;/span&gt;&lt;span class&#x3D;&quot;z-entity z-name z-type&quot;&gt;r&lt;/span&gt;&lt;span class&#x3D;&quot;z-storage z-storage z-modifier&quot;&gt; mut&lt;/span&gt;&lt;span class&#x3D;&quot;z-entity z-name z-type&quot;&gt; HashMap&lt;/span&gt;&lt;span&gt;&amp;lt;&lt;/span&gt;&lt;span class&#x3D;&quot;z-entity z-name z-type&quot;&gt;K&lt;/span&gt;&lt;span&gt;,&lt;/span&gt;&lt;span class&#x3D;&quot;z-entity z-name z-type&quot;&gt; V&lt;/span&gt;&lt;span&gt;&amp;gt;&lt;/span&gt;&lt;span&gt;,&lt;/span&gt;&lt;/span&gt;
+&lt;span class&#x3D;&quot;giallo-l&quot;&gt;&lt;span class&#x3D;&quot;z-variable&quot;&gt;    key&lt;/span&gt;&lt;span class&#x3D;&quot;z-keyword z-operator&quot;&gt;:&lt;/span&gt;&lt;span class&#x3D;&quot;z-entity z-name z-type&quot;&gt; K&lt;/span&gt;&lt;span&gt;,&lt;/span&gt;&lt;/span&gt;
+&lt;span class&#x3D;&quot;giallo-l&quot;&gt;&lt;span&gt;)&lt;/span&gt;&lt;span class&#x3D;&quot;z-keyword z-operator&quot;&gt; -&amp;gt;&lt;/span&gt;&lt;span class&#x3D;&quot;z-keyword z-operator&quot;&gt; &amp;amp;&lt;/span&gt;&lt;span&gt;&amp;#39;&lt;/span&gt;&lt;span class&#x3D;&quot;z-entity z-name z-type&quot;&gt;r&lt;/span&gt;&lt;span class&#x3D;&quot;z-storage z-storage z-modifier&quot;&gt; mut&lt;/span&gt;&lt;span class&#x3D;&quot;z-entity z-name z-type&quot;&gt; V&lt;/span&gt;&lt;span&gt; {&lt;/span&gt;&lt;/span&gt;
+&lt;span class&#x3D;&quot;giallo-l&quot;&gt;&lt;span class&#x3D;&quot;z-keyword z-control&quot;&gt;    match&lt;/span&gt;&lt;span class&#x3D;&quot;z-variable&quot;&gt; map&lt;/span&gt;&lt;span class&#x3D;&quot;z-keyword z-operator&quot;&gt;.&lt;/span&gt;&lt;span class&#x3D;&quot;z-entity z-name z-function&quot;&gt;get_mut&lt;/span&gt;&lt;span&gt;(&lt;/span&gt;&lt;span class&#x3D;&quot;z-keyword z-operator&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class&#x3D;&quot;z-variable&quot;&gt;key&lt;/span&gt;&lt;span&gt;)&lt;/span&gt;&lt;span&gt; {&lt;/span&gt;&lt;/span&gt;
+&lt;span class&#x3D;&quot;giallo-l&quot;&gt;&lt;span class&#x3D;&quot;z-entity z-name z-type&quot;&gt;        Some&lt;/span&gt;&lt;span&gt;(&lt;/span&gt;&lt;span class&#x3D;&quot;z-variable&quot;&gt;value&lt;/span&gt;&lt;span&gt;)&lt;/span&gt;&lt;span class&#x3D;&quot;z-keyword z-operator&quot;&gt; &#x3D;&amp;gt;&lt;/span&gt;&lt;span class&#x3D;&quot;z-variable&quot;&gt; value&lt;/span&gt;&lt;span&gt;,&lt;/span&gt;&lt;/span&gt;
+&lt;span class&#x3D;&quot;giallo-l&quot;&gt;&lt;span class&#x3D;&quot;z-entity z-name z-type&quot;&gt;        None&lt;/span&gt;&lt;span class&#x3D;&quot;z-keyword z-operator&quot;&gt; &#x3D;&amp;gt;&lt;/span&gt;&lt;span&gt; {&lt;/span&gt;&lt;/span&gt;
+&lt;span class&#x3D;&quot;giallo-l&quot;&gt;&lt;span class&#x3D;&quot;z-variable&quot;&gt;            map&lt;/span&gt;&lt;span class&#x3D;&quot;z-keyword z-operator&quot;&gt;.&lt;/span&gt;&lt;span class&#x3D;&quot;z-entity z-name z-function&quot;&gt;insert&lt;/span&gt;&lt;span&gt;(&lt;/span&gt;&lt;span class&#x3D;&quot;z-variable&quot;&gt;key&lt;/span&gt;&lt;span&gt;,&lt;/span&gt;&lt;span class&#x3D;&quot;z-entity z-name z-namespace&quot;&gt; V&lt;/span&gt;&lt;span class&#x3D;&quot;z-keyword z-operator&quot;&gt;::&lt;/span&gt;&lt;span class&#x3D;&quot;z-entity z-name z-function&quot;&gt;default&lt;/span&gt;&lt;span&gt;(&lt;/span&gt;&lt;span&gt;)&lt;/span&gt;&lt;span&gt;)&lt;/span&gt;&lt;span&gt;;&lt;/span&gt;&lt;/span&gt;
+&lt;span class&#x3D;&quot;giallo-l&quot;&gt;&lt;span class&#x3D;&quot;z-variable&quot;&gt;            map&lt;/span&gt;&lt;span class&#x3D;&quot;z-keyword z-operator&quot;&gt;.&lt;/span&gt;&lt;span class&#x3D;&quot;z-entity z-name z-function&quot;&gt;get_mut&lt;/span&gt;&lt;span&gt;(&lt;/span&gt;&lt;span class&#x3D;&quot;z-keyword z-operator&quot;&gt;&amp;amp;&lt;/span&gt;&lt;span class&#x3D;&quot;z-variable&quot;&gt;key&lt;/span&gt;&lt;span&gt;)&lt;/span&gt;&lt;span class&#x3D;&quot;z-keyword z-operator&quot;&gt;.&lt;/span&gt;&lt;span class&#x3D;&quot;z-entity z-name z-function&quot;&gt;unwrap&lt;/span&gt;&lt;span&gt;(&lt;/span&gt;&lt;span&gt;)&lt;/span&gt;&lt;/span&gt;
+&lt;span class&#x3D;&quot;giallo-l&quot;&gt;&lt;span&gt;        }&lt;/span&gt;&lt;/span&gt;
+&lt;span class&#x3D;&quot;giallo-l&quot;&gt;&lt;span&gt;    }&lt;/span&gt;&lt;/span&gt;
+&lt;span class&#x3D;&quot;giallo-l&quot;&gt;&lt;span&gt;}&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;The issue is that the &lt;code&gt;Some(value) &#x3D;&amp;gt; value&lt;/code&gt; branch causes the borrow checker to think that the borrow returned by &lt;code&gt;map.get_mut(&amp;amp;key)&lt;/code&gt; lives for the entire function (because of the &lt;code&gt;&amp;amp;&#x27;r mut V&lt;/code&gt; return type), even though that borrow isn&#x27;t live in the &lt;code&gt;None&lt;/code&gt; branch. NLL&#x27;s analysis is &lt;em&gt;flow-insensitive&lt;/em&gt;.&lt;/p&gt;
+&lt;p&gt;Polonius Alpha passes this because its analysis is &lt;em&gt;flow-sensitive&lt;/em&gt;, and it knows that the borrow isn&#x27;t live in the &lt;code&gt;None&lt;/code&gt; branch.&lt;/p&gt;
+&lt;p&gt;Now, Polonius Alpha is not &lt;em&gt;perfect&lt;/em&gt;; some programs that would compile under legacy Polonius (the slow original implementation) don&#x27;t compile with Polonius Alpha. (This is of course why we call it &quot;Polonius Alpha&quot;). For example:&lt;/p&gt;
+&lt;pre class&#x3D;&quot;giallo z-code&quot;&gt;&lt;code data-lang&#x3D;&quot;rust&quot;&gt;&lt;span class&#x3D;&quot;giallo-l&quot;&gt;&lt;span class&#x3D;&quot;z-storage z-type&quot;&gt;struct&lt;/span&gt;&lt;span class&#x3D;&quot;z-entity z-name z-type&quot;&gt; X&lt;/span&gt;&lt;span&gt; {&lt;/span&gt;&lt;span class&#x3D;&quot;z-variable&quot;&gt; next&lt;/span&gt;&lt;span class&#x3D;&quot;z-keyword z-operator&quot;&gt;:&lt;/span&gt;&lt;span class&#x3D;&quot;z-entity z-name z-type&quot;&gt; Option&lt;/span&gt;&lt;span&gt;&amp;lt;&lt;/span&gt;&lt;span class&#x3D;&quot;z-entity z-name z-type&quot;&gt;Box&lt;/span&gt;&lt;span&gt;&amp;lt;&lt;/span&gt;&lt;span class&#x3D;&quot;z-entity z-name z-type&quot;&gt;X&lt;/span&gt;&lt;span&gt;&amp;gt;&lt;/span&gt;&lt;span&gt;&amp;gt;&lt;/span&gt;&lt;span&gt; }&lt;/span&gt;&lt;/span&gt;
+&lt;span class&#x3D;&quot;giallo-l&quot;&gt;&lt;/span&gt;
+&lt;span class&#x3D;&quot;giallo-l&quot;&gt;&lt;span class&#x3D;&quot;z-keyword&quot;&gt;fn&lt;/span&gt;&lt;span class&#x3D;&quot;z-entity z-name z-function&quot;&gt; conditional&lt;/span&gt;&lt;span&gt;(&lt;/span&gt;&lt;span&gt;)&lt;/span&gt;&lt;span&gt; {&lt;/span&gt;&lt;/span&gt;
+&lt;span class&#x3D;&quot;giallo-l&quot;&gt;&lt;span class&#x3D;&quot;z-storage z-type&quot;&gt;    let&lt;/span&gt;&lt;span class&#x3D;&quot;z-storage z-storage z-modifier&quot;&gt; mut&lt;/span&gt;&lt;span class&#x3D;&quot;z-variable&quot;&gt; b&lt;/span&gt;&lt;span class&#x3D;&quot;z-keyword z-operator z-assignment z-keyword z-operator&quot;&gt; &#x3D;&lt;/span&gt;&lt;span class&#x3D;&quot;z-entity z-name z-type&quot;&gt; Some&lt;/span&gt;&lt;span&gt;(&lt;/span&gt;&lt;span class&#x3D;&quot;z-entity z-name z-type&quot;&gt;Box&lt;/span&gt;&lt;span class&#x3D;&quot;z-keyword z-operator&quot;&gt;::&lt;/span&gt;&lt;span class&#x3D;&quot;z-entity z-name z-function&quot;&gt;new&lt;/span&gt;&lt;span&gt;(&lt;/span&gt;&lt;span class&#x3D;&quot;z-entity z-name z-type&quot;&gt;X&lt;/span&gt;&lt;span&gt; {&lt;/span&gt;&lt;span class&#x3D;&quot;z-variable&quot;&gt; next&lt;/span&gt;&lt;span class&#x3D;&quot;z-keyword z-operator&quot;&gt;:&lt;/span&gt;&lt;span class&#x3D;&quot;z-entity z-name z-type&quot;&gt; None&lt;/span&gt;&lt;span&gt; }&lt;/span&gt;&lt;span&gt;)&lt;/span&gt;&lt;span&gt;)&lt;/span&gt;&lt;span&gt;;&lt;/span&gt;&lt;/span&gt;
+&lt;span class&#x3D;&quot;giallo-l&quot;&gt;&lt;span class&#x3D;&quot;z-storage z-type&quot;&gt;    let&lt;/span&gt;&lt;span class&#x3D;&quot;z-storage z-storage z-modifier&quot;&gt; mut&lt;/span&gt;&lt;span class&#x3D;&quot;z-variable&quot;&gt; p&lt;/span&gt;&lt;span class&#x3D;&quot;z-keyword z-operator z-assignment z-keyword z-operator&quot;&gt; &#x3D;&lt;/span&gt;&lt;span class&#x3D;&quot;z-keyword z-operator&quot;&gt; &amp;amp;&lt;/span&gt;&lt;span class&#x3D;&quot;z-storage z-storage z-modifier&quot;&gt;mut&lt;/span&gt;&lt;span class&#x3D;&quot;z-variable&quot;&gt; b&lt;/span&gt;&lt;span&gt;;&lt;/span&gt;&lt;/span&gt;
+&lt;span class&#x3D;&quot;giallo-l&quot;&gt;&lt;span class&#x3D;&quot;z-keyword z-control&quot;&gt;    while&lt;/span&gt;&lt;span class&#x3D;&quot;z-storage z-type&quot;&gt; let&lt;/span&gt;&lt;span class&#x3D;&quot;z-entity z-name z-type&quot;&gt; Some&lt;/span&gt;&lt;span&gt;(&lt;/span&gt;&lt;span class&#x3D;&quot;z-variable&quot;&gt;now&lt;/span&gt;&lt;span&gt;)&lt;/span&gt;&lt;span class&#x3D;&quot;z-keyword z-operator z-assignment z-keyword z-operator&quot;&gt; &#x3D;&lt;/span&gt;&lt;span class&#x3D;&quot;z-variable&quot;&gt; p&lt;/span&gt;&lt;span&gt; {&lt;/span&gt;&lt;/span&gt;
+&lt;span class&#x3D;&quot;giallo-l&quot;&gt;&lt;span class&#x3D;&quot;z-keyword z-control&quot;&gt;        if&lt;/span&gt;&lt;span class&#x3D;&quot;z-constant z-language&quot;&gt; true&lt;/span&gt;&lt;span&gt; {&lt;/span&gt;&lt;/span&gt;
+&lt;span class&#x3D;&quot;giallo-l&quot;&gt;&lt;span class&#x3D;&quot;z-variable&quot;&gt;            p&lt;/span&gt;&lt;span class&#x3D;&quot;z-keyword z-operator z-assignment z-keyword z-operator&quot;&gt; &#x3D;&lt;/span&gt;&lt;span class&#x3D;&quot;z-keyword z-operator&quot;&gt; &amp;amp;&lt;/span&gt;&lt;span class&#x3D;&quot;z-storage z-storage z-modifier&quot;&gt;mut&lt;/span&gt;&lt;span class&#x3D;&quot;z-variable&quot;&gt; now&lt;/span&gt;&lt;span class&#x3D;&quot;z-keyword z-operator&quot;&gt;.&lt;/span&gt;&lt;span&gt;next&lt;/span&gt;&lt;span&gt;;&lt;/span&gt;&lt;/span&gt;
+&lt;span class&#x3D;&quot;giallo-l&quot;&gt;&lt;span&gt;        }&lt;/span&gt;&lt;/span&gt;
+&lt;span class&#x3D;&quot;giallo-l&quot;&gt;&lt;span&gt;    }&lt;/span&gt;&lt;/span&gt;
+&lt;span class&#x3D;&quot;giallo-l&quot;&gt;&lt;span&gt;}&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;(As a slight note: we have also found programs that compile with Polonius Alpha but not legacy Polonius, so it&#x27;s not really a full subset.)&lt;/p&gt;
+&lt;h2 id&#x3D;&quot;so-what-about-performance&quot;&gt;&lt;a class&#x3D;&quot;anchor&quot; href&#x3D;&quot;#so-what-about-performance&quot; aria-hidden&#x3D;&quot;true&quot;&gt;&lt;/a&gt;
+So, what about performance?&lt;/h2&gt;
+&lt;p&gt;Polonius Alpha currently does strictly equal or more work compared to NLL, so we have been paying particular attention to potential performance regressions.&lt;/p&gt;
+&lt;p&gt;From the top ten thousand crates by downloads on crates.io, we have seen relatively few &quot;significant&quot; regressions, and even crates that have a &quot;significant&quot; regression are typically &lt;em&gt;relatively&lt;/em&gt; minimal:&lt;/p&gt;
+&lt;p&gt;&lt;img src&#x3D;&quot;https://blog.rust-lang.org/2026/08/04/enabling-polonius-alpha-on-nightly/polonius_top10k_leaf.png&quot; alt&#x3D;&quot;top10k_leaf_graph&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;&lt;em&gt;Each point represents a crate within the 10,000 most-downloaded crates. The black line is an arbitrary threshold of significance, set to a 1% regression and quadratically scaled below 30 seconds. Red points are crates that pass this arbitrary regression threshold. X-axis is compile time (for the leaf crate only without dependencies) under NLL; Y-axis is the ratio of compile time under Polonius Time compared to NLL.&lt;/em&gt;&lt;/p&gt;
+&lt;p&gt;If you look at the top five crates, they are:&lt;/p&gt;
+&lt;p&gt;&lt;img src&#x3D;&quot;https://blog.rust-lang.org/2026/08/04/enabling-polonius-alpha-on-nightly/polonius_top10k_leaf_table.png&quot; alt&#x3D;&quot;top10k_leaf_table&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;Outside the top ten thousand crates, we have focused mainly on crates with many borrows. The worst case we&#x27;ve seen is a 2-3x regression.&lt;/p&gt;
+&lt;p&gt;We have done some initial triage of the causes of these regressions and are thinking about the best way to fix them. Though, overall we think these regressions are fairly reasonable even if we &lt;em&gt;can&#x27;t&lt;/em&gt; fix them, given how rare and relatively minimal they are compared to the additional power Polonius Alpha brings over NLL.&lt;/p&gt;
+&lt;h2 id&#x3D;&quot;i-really-don-t-want-this-how-do-i-opt-out&quot;&gt;&lt;a class&#x3D;&quot;anchor&quot; href&#x3D;&quot;#i-really-don-t-want-this-how-do-i-opt-out&quot; aria-hidden&#x3D;&quot;true&quot;&gt;&lt;/a&gt;
+I really don&#x27;t want this. How do I opt-out?&lt;/h2&gt;
+&lt;p&gt;To reiterate: this is only being enabled on nightly. But if you want to disable Polonius Alpha, and only use the stable NLL, you can pass &lt;code&gt;-Zpolonius&#x3D;off&lt;/code&gt; to &lt;code&gt;rustc&lt;/code&gt;, use &lt;code&gt;RUSTFLAGS&#x3D;-Zpolonius&#x3D;off&lt;/code&gt;, or with a project&#x27;s &lt;a rel&#x3D;&quot;external&quot; href&#x3D;&quot;https://doc.rust-lang.org/cargo/reference/config.html&quot;&gt;&lt;code&gt;.cargo/config.toml&lt;/code&gt;&lt;/a&gt; configuration file:&lt;/p&gt;
+&lt;pre class&#x3D;&quot;giallo z-code&quot;&gt;&lt;code data-lang&#x3D;&quot;toml&quot;&gt;&lt;span class&#x3D;&quot;giallo-l&quot;&gt;&lt;span&gt;[&lt;/span&gt;&lt;span&gt;target&lt;/span&gt;&lt;span&gt;.&lt;/span&gt;&lt;span&gt;x86_64-unknown-linux-gnu&lt;/span&gt;&lt;span&gt;]&lt;/span&gt;&lt;/span&gt;
+&lt;span class&#x3D;&quot;giallo-l&quot;&gt;&lt;span class&#x3D;&quot;z-variable&quot;&gt;rustflags&lt;/span&gt;&lt;span&gt; &#x3D;&lt;/span&gt;&lt;span class&#x3D;&quot;z-punctuation z-definition z-array&quot;&gt; [&lt;/span&gt;&lt;span class&#x3D;&quot;z-punctuation z-definition z-string z-string&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span class&#x3D;&quot;z-string z-quoted z-string&quot;&gt;-Zpolonius&#x3D;off&lt;/span&gt;&lt;span class&#x3D;&quot;z-punctuation z-definition z-string z-string&quot;&gt;&amp;quot;&lt;/span&gt;&lt;span class&#x3D;&quot;z-punctuation z-definition z-array&quot;&gt;]&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;If you have to do this, for some reason, please do tell us why &lt;a rel&#x3D;&quot;external&quot; href&#x3D;&quot;https://github.com/rust-lang/rust/issues/160456&quot;&gt;on Github&lt;/a&gt; or &lt;a rel&#x3D;&quot;external&quot; href&#x3D;&quot;https://rust-lang.zulipchat.com/#narrow/channel/186049-t-types.2Fpolonius/topic/Polonius.20Alpha.20enabled.20on.20nightly/near/614373312&quot;&gt;on Zulip&lt;/a&gt;.&lt;/p&gt;
+&lt;h2 id&#x3D;&quot;what-s-next&quot;&gt;&lt;a class&#x3D;&quot;anchor&quot; href&#x3D;&quot;#what-s-next&quot; aria-hidden&#x3D;&quot;true&quot;&gt;&lt;/a&gt;
+What&#x27;s next?&lt;/h2&gt;
+&lt;p&gt;Over the next few months, we will be monitoring Github and Zulip for any reported issues about Polonius Alpha. We will also be working to address known performance regressions. Finally, we will be working on internal documentation about the implementation. All prior to stabilization. Then, we are aiming to stabilize prior to the end of the year!&lt;/p&gt;
+&lt;p&gt;Although some programs that we &lt;em&gt;want&lt;/em&gt; to compile don&#x27;t work with Polonius Alpha (nor NLL today), we don&#x27;t currently have any concrete plans to continue active feature work on the Polonius implementation after the stabilization of Polonius Alpha. We expect to continue to optimize the implementation and address any performance regressions for a little while. We will likely come back to Polonius feature-work &lt;em&gt;at some point&lt;/em&gt;, but given that Polonius Alpha solves the most-encountered borrow-check issues, we are shifting our time to other high-priority work for the near future.&lt;/p&gt;
+</content>
+
+        <author>
+            <name>Jack Huey</name>
+        </author>
+    </entry>
+    <entry>
+        <title>Announcing Rust 1.97.1</title>
+        <link rel="alternate" href="https://blog.rust-lang.org/2026/07/16/Rust-1.97.1/" type="text/html" title="Announcing Rust 1.97.1" />
+        <published>2026-07-16T00:00:00+00:00</published>
+        <updated>2026-07-16T00:00:00+00:00</updated>
+        <id>https://blog.rust-lang.org/2026/07/16/Rust-1.97.1/</id>
+        <content type="html" xml:base="https://blog.rust-lang.org/2026/07/16/Rust-1.97.1/">&lt;p&gt;The Rust team has published a new point release of Rust, 1.97.1. Rust is a programming language that is empowering everyone to build reliable and efficient software.&lt;/p&gt;
+&lt;p&gt;If you have a previous version of Rust installed via rustup, getting Rust 1.97.1 is as easy as:&lt;/p&gt;
+&lt;pre class&#x3D;&quot;giallo z-code&quot;&gt;&lt;code data-lang&#x3D;&quot;plain&quot;&gt;&lt;span class&#x3D;&quot;giallo-l&quot;&gt;&lt;span&gt;rustup update stable&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;If you don&#x27;t have it already, you can &lt;a rel&#x3D;&quot;external&quot; href&#x3D;&quot;https://www.rust-lang.org/install.html&quot;&gt;get &lt;code&gt;rustup&lt;/code&gt;&lt;/a&gt; from the appropriate page on our website.&lt;/p&gt;
+&lt;h2 id&#x3D;&quot;what-s-in-1-97-1&quot;&gt;&lt;a class&#x3D;&quot;anchor&quot; href&#x3D;&quot;#what-s-in-1-97-1&quot; aria-hidden&#x3D;&quot;true&quot;&gt;&lt;/a&gt;
+What&#x27;s in 1.97.1&lt;/h2&gt;
+&lt;p&gt;Rust 1.97.1 fixes a &lt;a rel&#x3D;&quot;external&quot; href&#x3D;&quot;https://github.com/rust-lang/rust/issues/159035&quot;&gt;miscompilation in an LLVM optimization&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;We have backported both an LLVM fix and a disable of the underlying change in Rust 1.97.0 of
+Rust&#x27;s generated IR that increased the likelihood of this happening. However,
+note that the underlying miscompilation has been present since at least Rust
+1.87.&lt;/p&gt;
+&lt;p&gt;If you&#x27;d like to help us out by testing future releases, you might consider
+running your code&#x27;s CI or locally using the beta channel (&lt;code&gt;rustup default beta&lt;/code&gt;) or the nightly
+channel (&lt;code&gt;rustup default nightly&lt;/code&gt;). Please
+&lt;a rel&#x3D;&quot;external&quot; href&#x3D;&quot;https://github.com/rust-lang/rust/issues/new/choose&quot;&gt;report&lt;/a&gt; any bugs you
+might come across!&lt;/p&gt;
+&lt;h3 id&#x3D;&quot;contributors-to-1-97-1&quot;&gt;&lt;a class&#x3D;&quot;anchor&quot; href&#x3D;&quot;#contributors-to-1-97-1&quot; aria-hidden&#x3D;&quot;true&quot;&gt;&lt;/a&gt;
+Contributors to 1.97.1&lt;/h3&gt;
+&lt;p&gt;Many people came together to create Rust 1.97.1. We couldn&#x27;t have done it without all of you. &lt;a rel&#x3D;&quot;external&quot; href&#x3D;&quot;https://thanks.rust-lang.org/rust/1.97.1/&quot;&gt;Thanks!&lt;/a&gt;&lt;/p&gt;
+</content>
+
+        <author>
+            <name>The Rust Release Team</name>
+        </author>
+    </entry>
+    <entry>
+        <title>crates.io: development update</title>
+        <link rel="alternate" href="https://blog.rust-lang.org/2026/07/13/crates-io-development-update/" type="text/html" title="crates.io: development update" />
+        <published>2026-07-13T00:00:00+00:00</published>
+        <updated>2026-07-13T00:00:00+00:00</updated>
+        <id>https://blog.rust-lang.org/2026/07/13/crates-io-development-update/</id>
+        <content type="html" xml:base="https://blog.rust-lang.org/2026/07/13/crates-io-development-update/">&lt;p&gt;Another six months have passed since our &lt;a rel&#x3D;&quot;external&quot; href&#x3D;&quot;https://blog.rust-lang.org/2026/01/21/crates-io-development-update/&quot;&gt;last development update&lt;/a&gt;, and the crates.io team has been busy. Here&#x27;s a summary of the most notable changes and improvements made to &lt;a rel&#x3D;&quot;external&quot; href&#x3D;&quot;https://crates.io/&quot;&gt;crates.io&lt;/a&gt; since then.&lt;/p&gt;
+&lt;h2 id&#x3D;&quot;source-code-viewer&quot;&gt;&lt;a class&#x3D;&quot;anchor&quot; href&#x3D;&quot;#source-code-viewer&quot; aria-hidden&#x3D;&quot;true&quot;&gt;&lt;/a&gt;
+Source Code Viewer&lt;/h2&gt;
+&lt;p&gt;Crate pages now have a &quot;Code&quot; tab that lets you browse the contents of published crate versions directly on crates.io. This shows you the exact files that &lt;code&gt;cargo&lt;/code&gt; downloads when you add a crate as a dependency, which might differ from the linked repository. This makes it much easier to audit your dependencies, including files that never appear in the repository, like the normalized &lt;code&gt;Cargo.toml&lt;/code&gt; files that &lt;code&gt;cargo&lt;/code&gt; generates.&lt;/p&gt;
+&lt;p&gt;&lt;img src&#x3D;&quot;https://blog.rust-lang.org/2026/07/13/crates-io-development-update/code-tab.png&quot; alt&#x3D;&quot;Source code viewer showing the &amp;quot;Code&amp;quot; tab of the serde crate&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;The viewer comes with a file tree sidebar with search functionality, syntax highlighting, and GitHub-style line selection, where clicking or dragging line numbers produces shareable &lt;code&gt;#L10-L20&lt;/code&gt; URLs.&lt;/p&gt;
+&lt;p&gt;Under the hood, the server now builds a zip file for every published version. Since the &lt;code&gt;.crate&lt;/code&gt; files that &lt;code&gt;cargo&lt;/code&gt; consumes are gzipped tarballs without random access support, a background job re-packs each of them into a seekable zip archive plus a JSON manifest describing the contained files. Both are served from our static CDN. The frontend then fetches only the manifest and loads each file on demand with an HTTP range request. Because of this architecture, browsing crate sources essentially adds no load on the crates.io API servers. Existing crate versions have been backfilled, so this works for old releases too.&lt;/p&gt;
+&lt;p&gt;The rendering library behind the code viewer is a diff renderer at heart, and that&#x27;s no accident: a version-to-version diff viewer built on the same infrastructure is currently in the works. This will allow you to review exactly what changed between two published versions, right on crates.io. Stay tuned!&lt;/p&gt;
+&lt;h2 id&#x3D;&quot;untangling-crates-io-accounts-from-github&quot;&gt;&lt;a class&#x3D;&quot;anchor&quot; href&#x3D;&quot;#untangling-crates-io-accounts-from-github&quot; aria-hidden&#x3D;&quot;true&quot;&gt;&lt;/a&gt;
+Untangling crates.io Accounts from GitHub&lt;/h2&gt;
+&lt;p&gt;At the end of May, the crates.io team accepted &lt;a rel&#x3D;&quot;external&quot; href&#x3D;&quot;https://github.com/rust-lang/rfcs/pull/3946&quot;&gt;RFC #3946&lt;/a&gt;. Crates.io accounts always have been tightly coupled to GitHub: signing in means &quot;Log in with GitHub&quot;, and your crates.io identity is your GitHub username. The RFC changes that. It introduces usernames that are native to crates.io and independent of linked GitHub accounts, as a prerequisite for eventually supporting login via other identity providers.&lt;/p&gt;
+&lt;p&gt;The implementation of crates.io usernames has started, but there is still a lot left to do, most visibly the ability to change your crates.io username. After that is complete, there will be future RFCs and implementation for signing in with identity providers other than GitHub. Since all of this touches authentication and account security, we are deliberately taking it slow and rolling these changes out in small, carefully reviewed steps.&lt;/p&gt;
+&lt;h2 id&#x3D;&quot;advisories-and-suggestions&quot;&gt;&lt;a class&#x3D;&quot;anchor&quot; href&#x3D;&quot;#advisories-and-suggestions&quot; aria-hidden&#x3D;&quot;true&quot;&gt;&lt;/a&gt;
+Advisories and Suggestions&lt;/h2&gt;
+&lt;p&gt;In our &lt;a rel&#x3D;&quot;external&quot; href&#x3D;&quot;https://blog.rust-lang.org/2026/01/21/crates-io-development-update/&quot;&gt;January update&lt;/a&gt; we introduced the &quot;Security&quot; tab, which shows security advisories from the &lt;a rel&#x3D;&quot;external&quot; href&#x3D;&quot;https://rustsec.org/&quot;&gt;RustSec&lt;/a&gt; database. We have since taken this integration one step further: crates that RustSec has flagged as unmaintained now show a warning banner directly on their crate pages, linking to the corresponding advisory for details and possible alternatives. Thanks to &lt;a rel&#x3D;&quot;external&quot; href&#x3D;&quot;https://github.com/djc&quot;&gt;Dirkjan Ochtman&lt;/a&gt; for implementing this feature!&lt;/p&gt;
+&lt;p&gt;&lt;img src&#x3D;&quot;https://blog.rust-lang.org/2026/07/13/crates-io-development-update/unmaintained-banner.png&quot; alt&#x3D;&quot;Unmaintained warning banner on the ansi_term crate page&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;Related to this, some popular crates have been largely absorbed into the Rust standard library over the years, like &lt;code&gt;lazy_static&lt;/code&gt;, which has been superseded by &lt;code&gt;std::sync::LazyLock&lt;/code&gt; since Rust 1.80. Crate pages of such crates now show a friendly &quot;You might not need this dependency&quot; banner describing the standard library replacement, and superseded crates in dependency lists get a small light bulb icon with a similar hint.&lt;/p&gt;
+&lt;p&gt;&lt;img src&#x3D;&quot;https://blog.rust-lang.org/2026/07/13/crates-io-development-update/std-replacement-banner.png&quot; alt&#x3D;&quot;&amp;quot;You might not need this dependency&amp;quot; banner on the lazy_static crate page&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;The dataset behind this feature lives in the new &lt;a rel&#x3D;&quot;external&quot; href&#x3D;&quot;https://github.com/rust-lang/std-replacement-data&quot;&gt;rust-lang/std-replacement-data&lt;/a&gt; repository, together with a documented inclusion policy: standard library replacements only, every entry must cite the stable &lt;code&gt;std&lt;/code&gt;, &lt;code&gt;core&lt;/code&gt;, or &lt;code&gt;alloc&lt;/code&gt; API and Rust version, and crate maintainers get a notice-and-comment window before an entry is added. New entries can be proposed upstream and can benefit other tools too.&lt;/p&gt;
+&lt;h2 id&#x3D;&quot;ferris&quot;&gt;&lt;a class&#x3D;&quot;anchor&quot; href&#x3D;&quot;#ferris&quot; aria-hidden&#x3D;&quot;true&quot;&gt;&lt;/a&gt;
+Ferris&lt;/h2&gt;
+&lt;p&gt;The most delightful change of this cycle: the Ferris on our error pages now follows your mouse cursor with its eyes:&lt;/p&gt;
+&lt;p&gt;&lt;img src&#x3D;&quot;https://blog.rust-lang.org/2026/07/13/crates-io-development-update/ferris.gif&quot; alt&#x3D;&quot;Ferris&amp;#39; eyes following the mouse cursor on the error page&quot; /&gt;&lt;/p&gt;
+&lt;p&gt;Getting a 404 error on crates.io is now slightly less sad.&lt;/p&gt;
+&lt;h2 id&#x3D;&quot;svelte-frontend-migration-completed&quot;&gt;&lt;a class&#x3D;&quot;anchor&quot; href&#x3D;&quot;#svelte-frontend-migration-completed&quot; aria-hidden&#x3D;&quot;true&quot;&gt;&lt;/a&gt;
+Svelte Frontend Migration Completed&lt;/h2&gt;
+&lt;p&gt;In our &lt;a rel&#x3D;&quot;external&quot; href&#x3D;&quot;https://blog.rust-lang.org/2026/01/21/crates-io-development-update/&quot;&gt;January update&lt;/a&gt;, we announced that we were experimenting with porting the crates.io frontend from Ember.js to &lt;a rel&#x3D;&quot;external&quot; href&#x3D;&quot;https://svelte.dev/&quot;&gt;Svelte&lt;/a&gt;. This experiment has concluded successfully: the new frontend reached feature parity, went through a &lt;a rel&#x3D;&quot;external&quot; href&#x3D;&quot;https://blog.rust-lang.org/inside-rust/2026/04/17/crates-io-svelte-public-testing/&quot;&gt;public testing phase&lt;/a&gt; in April, became the default at the beginning of May, and the Ember.js app has been removed from our repository.&lt;/p&gt;
+&lt;p&gt;We designed this change to be invisible for our users, since the new frontend is a 1:1 port of the previous design and functionality. For the team and our contributors, however, it is a big deal: the frontend is now built on a more modern framework, which should make it easier for new contributors to get started. It also allows us to iterate faster, as the source code viewer above demonstrates.&lt;/p&gt;
+&lt;p&gt;We want to thank the &lt;a rel&#x3D;&quot;external&quot; href&#x3D;&quot;https://emberjs.com/teams/&quot;&gt;Ember.js team&lt;/a&gt; for a framework that served crates.io well for many years, and the Svelte team for making the transition so enjoyable.&lt;/p&gt;
+&lt;h2 id&#x3D;&quot;miscellaneous&quot;&gt;&lt;a class&#x3D;&quot;anchor&quot; href&#x3D;&quot;#miscellaneous&quot; aria-hidden&#x3D;&quot;true&quot;&gt;&lt;/a&gt;
+Miscellaneous&lt;/h2&gt;
+&lt;p&gt;These were some of the more visible changes to crates.io over the past six months, but a lot has happened &quot;under the hood&quot; as well:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Search performance&lt;/strong&gt;: Relevance-sorted search queries previously ranked every crate matching the query, which could take 1-2 seconds for short or common search terms. Ranking is now bounded to the 1,000 matching crates with the highest recent download counts.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Reverse dependencies performance&lt;/strong&gt;: The reverse dependencies endpoint no longer recomputes the full dependent set on every request. It is now served from a precomputed table kept in sync by database triggers, turning an expensive join into a bounded index scan and greatly reducing the chance of getting a timeout error.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;New ARCHITECTURE.md&lt;/strong&gt;: If you&#x27;ve ever wondered how crates.io actually works, our &lt;a rel&#x3D;&quot;external&quot; href&#x3D;&quot;https://github.com/rust-lang/crates.io/blob/main/docs/ARCHITECTURE.md&quot;&gt;&lt;code&gt;ARCHITECTURE.md&lt;/code&gt;&lt;/a&gt; document got a complete rewrite. It is now organized around the high-level systems that make up crates.io and how they fit together, and includes walkthroughs of what happens when you run &lt;code&gt;cargo publish&lt;/code&gt;, why a typical crate download never touches our API servers, and how download counts are derived from CDN access logs.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Definition lists&lt;/strong&gt;: READMEs now render Markdown &lt;a rel&#x3D;&quot;external&quot; href&#x3D;&quot;https://github.com/rust-lang/crates.io/pull/13950&quot;&gt;definition lists&lt;/a&gt;, a widely used Markdown extension. Our markdown renderer &lt;a rel&#x3D;&quot;external&quot; href&#x3D;&quot;https://crates.io/crates/comrak&quot;&gt;comrak&lt;/a&gt; already supported them, the extension just wasn&#x27;t enabled yet. Thanks to &lt;a rel&#x3D;&quot;external&quot; href&#x3D;&quot;https://github.com/mistaste&quot;&gt;@mistaste&lt;/a&gt; for this contribution!&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;CDN cache tags&lt;/strong&gt;: Files uploaded to our static CDN now carry cache-tag metadata, allowing us to invalidate all cached files of a crate or a specific release in a single operation, instead of issuing one invalidation per file URL.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Caching improvements&lt;/strong&gt;: We removed a global &lt;code&gt;Vary: Cookie&lt;/code&gt; response header that was preventing our CDNs from caching public API responses and frontend assets effectively. Per-user responses now use &lt;code&gt;Cache-Control: no-store&lt;/code&gt; instead, resulting in better cache hit rates at the CDN edge.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Accessibility&lt;/strong&gt;: We have made crates.io friendlier to screen readers: decorative icons are now hidden from the accessibility tree, heading hierarchies have been fixed, and lists are marked up as proper lists. ARIA snapshot tests now ensure that regressions can&#x27;t slip in unnoticed. We plan to continue to improve crates.io accessibility over the coming months.&lt;/p&gt;
+&lt;/li&gt;
+&lt;li&gt;
+&lt;p&gt;&lt;strong&gt;Git index performance&lt;/strong&gt;: The background worker&#x27;s local clone of the git index is now a bare and shallow repository, eliminating roughly 250,000 checked-out files and the full commit history from its disk, improving its performance as we see increased rates of crate publication. The periodic index squashing now goes through the GitHub API instead of generating large git packs locally, which had previously caused out-of-memory failures on the production worker.&lt;/p&gt;
+&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h2 id&#x3D;&quot;feedback&quot;&gt;&lt;a class&#x3D;&quot;anchor&quot; href&#x3D;&quot;#feedback&quot; aria-hidden&#x3D;&quot;true&quot;&gt;&lt;/a&gt;
+Feedback&lt;/h2&gt;
+&lt;p&gt;We hope you enjoyed this update on the development of crates.io. If you have any feedback or questions, please let us know on &lt;a rel&#x3D;&quot;external&quot; href&#x3D;&quot;https://rust-lang.zulipchat.com/#narrow/stream/318791-t-crates-io&quot;&gt;Zulip&lt;/a&gt; or &lt;a rel&#x3D;&quot;external&quot; href&#x3D;&quot;https://github.com/rust-lang/crates.io/discussions&quot;&gt;GitHub&lt;/a&gt;. We are always happy to hear from you and are looking forward to your feedback!&lt;/p&gt;
+</content>
+
+        <author>
+            <name>Tobias Bieniek</name>
+        </author>
+    </entry>
+    <entry>
+        <title>Announcing Rust 1.97.0</title>
+        <link rel="alternate" href="https://blog.rust-lang.org/2026/07/09/Rust-1.97.0/" type="text/html" title="Announcing Rust 1.97.0" />
+        <published>2026-07-09T00:00:00+00:00</published>
+        <updated>2026-07-09T00:00:00+00:00</updated>
+        <id>https://blog.rust-lang.org/2026/07/09/Rust-1.97.0/</id>
+        <content type="html" xml:base="https://blog.rust-lang.org/2026/07/09/Rust-1.97.0/">&lt;p&gt;The Rust team is happy to announce a new version of Rust, 1.97.0. Rust is a programming language empowering everyone to build reliable and efficient software.&lt;/p&gt;
+&lt;p&gt;If you have a previous version of Rust installed via &lt;code&gt;rustup&lt;/code&gt;, you can get 1.97.0 with:&lt;/p&gt;
+&lt;pre class&#x3D;&quot;giallo z-code&quot;&gt;&lt;code data-lang&#x3D;&quot;shellsession&quot;&gt;&lt;span class&#x3D;&quot;giallo-l&quot;&gt;&lt;span&gt;$&lt;/span&gt;&lt;span&gt; rustup update stable&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;If you don&#x27;t have it already, you can get &lt;a rel&#x3D;&quot;external&quot; href&#x3D;&quot;https://www.rust-lang.org/install.html&quot;&gt;&lt;code&gt;rustup&lt;/code&gt;&lt;/a&gt; from the appropriate page on our website, and check out the &lt;a rel&#x3D;&quot;external&quot; href&#x3D;&quot;https://doc.rust-lang.org/stable/releases.html#version-1970-2026-07-09&quot;&gt;detailed release notes for 1.97.0&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;If you&#x27;d like to help us out by testing future releases, you might consider updating locally to use the beta channel (&lt;code&gt;rustup default beta&lt;/code&gt;) or the nightly channel (&lt;code&gt;rustup default nightly&lt;/code&gt;). Please &lt;a rel&#x3D;&quot;external&quot; href&#x3D;&quot;https://github.com/rust-lang/rust/issues/new/choose&quot;&gt;report&lt;/a&gt; any bugs you might come across!&lt;/p&gt;
+&lt;h2 id&#x3D;&quot;what-s-in-1-97-0-stable&quot;&gt;&lt;a class&#x3D;&quot;anchor&quot; href&#x3D;&quot;#what-s-in-1-97-0-stable&quot; aria-hidden&#x3D;&quot;true&quot;&gt;&lt;/a&gt;
+What&#x27;s in 1.97.0 stable&lt;/h2&gt;
+&lt;h3 id&#x3D;&quot;symbol-mangling-v0-enabled-by-default&quot;&gt;&lt;a class&#x3D;&quot;anchor&quot; href&#x3D;&quot;#symbol-mangling-v0-enabled-by-default&quot; aria-hidden&#x3D;&quot;true&quot;&gt;&lt;/a&gt;
+Symbol mangling v0 enabled by default&lt;/h3&gt;
+&lt;p&gt;When Rust is compiled into object files and binaries, each item (functions,
+statics, etc) must have a globally unique &quot;symbol&quot; identifying it. To avoid
+conflicts when linking together different Rust programs, Rust mangles the
+original name of items to include additional context such as the module path,
+defining crate, generics, and more. Historically, this mangling was based on
+the &lt;a rel&#x3D;&quot;external&quot; href&#x3D;&quot;https://refspecs.linuxbase.org/cxxabi-1.86.html#mangling&quot;&gt;Itanium ABI&lt;/a&gt;,
+also (sometimes) used by C++.&lt;/p&gt;
+&lt;p&gt;The new mangling scheme resolves a number of drawbacks from the previous one:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;Generic parameter instantiations preserve their values, rather than being tracked solely behind a hash&lt;/li&gt;
+&lt;li&gt;Inconsistencies: not all parts used the Itanium ABI, meaning that custom demangling was still necessary&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Since Rust 1.59, the compiler has supported opting into a Rust-specific
+mangling scheme via &lt;code&gt;-Csymbol-mangling-version&#x3D;v0&lt;/code&gt;. Since November 2025, this
+scheme has been enabled by default on nightly, and 1.97 is now enabling it on
+stable Rust. The legacy mangling scheme can only be enabled on nightly, and the
+current plan is to fully remove it.&lt;/p&gt;
+&lt;p&gt;See the previous &lt;a rel&#x3D;&quot;external&quot; href&#x3D;&quot;https://blog.rust-lang.org/2025/11/20/switching-to-v0-mangling-on-nightly/&quot;&gt;blog post&lt;/a&gt; for more details.&lt;/p&gt;
+&lt;h3 id&#x3D;&quot;cargo-support-for-denying-warnings&quot;&gt;&lt;a class&#x3D;&quot;anchor&quot; href&#x3D;&quot;#cargo-support-for-denying-warnings&quot; aria-hidden&#x3D;&quot;true&quot;&gt;&lt;/a&gt;
+Cargo support for denying warnings&lt;/h3&gt;
+&lt;p&gt;It&#x27;s common practice to deny warnings in CI. Historically, doing so is
+typically done through &lt;code&gt;RUSTFLAGS&#x3D;-Dwarnings&lt;/code&gt;. With Rust 1.97, Cargo controls
+how warnings interact with build success: either silencing them (via &lt;code&gt;allow&lt;/code&gt;
+level), rendering without failing (default, &lt;code&gt;warn&lt;/code&gt;), or denying them (via &lt;code&gt;deny&lt;/code&gt;).&lt;/p&gt;
+&lt;p&gt;As a  result of Cargo configuration determining the behavior, using this
+feature doesn&#x27;t invalidate the underlying build cache, meaning that it&#x27;s easy
+to temporarily opt-in. For example, if warnings are adding unwanted noise while
+working through fixing errors after a refactor, you can run
+&lt;code&gt;CARGO_BUILD_WARNINGS&#x3D;allow cargo check&lt;/code&gt;, temporarily silencing them.&lt;/p&gt;
+&lt;p&gt;In CI, jobs can instead set &lt;code&gt;CARGO_BUILD_WARNINGS&#x3D;deny&lt;/code&gt; to deny warnings. This
+can be combined with &lt;code&gt;--keep-going&lt;/code&gt; to collect all errors and warnings rather
+than stopping on the first failing package.&lt;/p&gt;
+&lt;p&gt;See the &lt;a rel&#x3D;&quot;external&quot; href&#x3D;&quot;https://doc.rust-lang.org/cargo/reference/config.html#buildwarnings&quot;&gt;documentation&lt;/a&gt; for more details.&lt;/p&gt;
+&lt;h3 id&#x3D;&quot;linker-output-no-longer-hidden-by-default&quot;&gt;&lt;a class&#x3D;&quot;anchor&quot; href&#x3D;&quot;#linker-output-no-longer-hidden-by-default&quot; aria-hidden&#x3D;&quot;true&quot;&gt;&lt;/a&gt;
+Linker output no longer hidden by default&lt;/h3&gt;
+&lt;p&gt;rustc invokes a linker on behalf of users. Historically, rustc has silenced
+linker output by default if the link completes successfully. This can mask real
+problems, though, so in Rust 1.97 we are enabling linker messages by default.
+These are emitted as a warning lint, for example:&lt;/p&gt;
+&lt;pre class&#x3D;&quot;giallo z-code&quot;&gt;&lt;code data-lang&#x3D;&quot;plain&quot;&gt;&lt;span class&#x3D;&quot;giallo-l&quot;&gt;&lt;span&gt;warning: linker stderr: ignoring deprecated linker optimization setting &amp;#39;1&amp;#39;&lt;/span&gt;&lt;/span&gt;
+&lt;span class&#x3D;&quot;giallo-l&quot;&gt;&lt;span&gt;  |&lt;/span&gt;&lt;/span&gt;
+&lt;span class&#x3D;&quot;giallo-l&quot;&gt;&lt;span&gt;  &#x3D; note: &#x60;#[warn(linker_messages)]&#x60; on by default&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;
+&lt;p&gt;Common linker messages that have been diagnosed as false positives or intentional behavior
+are filtered out by rustc. Several defects have already been fixed as a result
+of no longer hiding this output on nightly.&lt;/p&gt;
+&lt;p&gt;Note that currently, &lt;code&gt;linker_messages&lt;/code&gt; is a special lint that is &lt;em&gt;not&lt;/em&gt; affected
+by the &lt;code&gt;warnings&lt;/code&gt; lint group. This is intentional as rustc generally doesn&#x27;t
+control linker output as precisely, and it&#x27;s not uncommon for output to only
+appear on some platforms. If you are seeing what you think is a false positive
+output from the linker, please &lt;a rel&#x3D;&quot;external&quot; href&#x3D;&quot;https://github.com/rust-lang/rust/issues/new/choose&quot;&gt;file an issue&lt;/a&gt;.&lt;/p&gt;
+&lt;p&gt;To silence the warning in the mean time, you can configure the lint level to
+allow. This can be done through &lt;code&gt;Cargo.toml&lt;/code&gt; by adding a &lt;a rel&#x3D;&quot;external&quot; href&#x3D;&quot;https://doc.rust-lang.org/nightly/cargo/reference/manifest.html#the-lints-section&quot;&gt;lints section&lt;/a&gt; like this:&lt;/p&gt;
+&lt;pre class&#x3D;&quot;giallo z-code&quot;&gt;&lt;code data-lang&#x3D;&quot;toml&quot;&gt;&lt;span class&#x3D;&quot;giallo-l&quot;&gt;&lt;span&gt;[&lt;/span&gt;&lt;span&gt;lints&lt;/span&gt;&lt;span&gt;.&lt;/span&gt;&lt;span&gt;rust&lt;/span&gt;&lt;span&gt;]&lt;/span&gt;&lt;/span&gt;
+&lt;span class&#x3D;&quot;giallo-l&quot;&gt;&lt;span class&#x3D;&quot;z-variable&quot;&gt;linker_messages&lt;/span&gt;&lt;span&gt; &#x3D;&lt;/span&gt;&lt;span class&#x3D;&quot;z-punctuation z-definition z-string z-string&quot;&gt; &amp;quot;&lt;/span&gt;&lt;span class&#x3D;&quot;z-string z-quoted z-string&quot;&gt;allow&lt;/span&gt;&lt;span class&#x3D;&quot;z-punctuation z-definition z-string z-string&quot;&gt;&amp;quot;&lt;/span&gt;&lt;/span&gt;&lt;/code&gt;&lt;/pre&gt;&lt;h3 id&#x3D;&quot;stabilized-apis&quot;&gt;&lt;a class&#x3D;&quot;anchor&quot; href&#x3D;&quot;#stabilized-apis&quot; aria-hidden&#x3D;&quot;true&quot;&gt;&lt;/a&gt;
+Stabilized APIs&lt;/h3&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a rel&#x3D;&quot;external&quot; href&#x3D;&quot;https://doc.rust-lang.org/stable/std/iter/struct.RepeatN.html#impl-Default-for-RepeatN%3CA%3E&quot;&gt;&lt;code&gt;Default for RepeatN&lt;/code&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a rel&#x3D;&quot;external&quot; href&#x3D;&quot;https://doc.rust-lang.org/stable/std/ffi/struct.FromBytesUntilNulError.html#impl-Copy-for-FromBytesUntilNulError&quot;&gt;&lt;code&gt;Copy for ffi::FromBytesUntilNulError&lt;/code&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a rel&#x3D;&quot;external&quot; href&#x3D;&quot;https://github.com/rust-lang/rust/pull/154003&quot;&gt;&lt;code&gt;Send for std::fs::File&lt;/code&gt; on UEFI&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a rel&#x3D;&quot;external&quot; href&#x3D;&quot;https://doc.rust-lang.org/stable/std/primitive.u32.html#method.isolate_highest_one&quot;&gt;&lt;code&gt;&amp;lt;{integer}&amp;gt;::isolate_highest_one&lt;/code&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a rel&#x3D;&quot;external&quot; href&#x3D;&quot;https://doc.rust-lang.org/stable/std/primitive.u32.html#method.isolate_lowest_one&quot;&gt;&lt;code&gt;&amp;lt;{integer}&amp;gt;::isolate_lowest_one&lt;/code&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a rel&#x3D;&quot;external&quot; href&#x3D;&quot;https://doc.rust-lang.org/stable/std/primitive.u32.html#method.highest_one&quot;&gt;&lt;code&gt;&amp;lt;{integer}&amp;gt;::highest_one&lt;/code&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a rel&#x3D;&quot;external&quot; href&#x3D;&quot;https://doc.rust-lang.org/stable/std/primitive.u32.html#method.lowest_one&quot;&gt;&lt;code&gt;&amp;lt;{integer}&amp;gt;::lowest_one&lt;/code&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a rel&#x3D;&quot;external&quot; href&#x3D;&quot;https://doc.rust-lang.org/stable/std/primitive.u32.html#method.bit_width&quot;&gt;&lt;code&gt;&amp;lt;{uN}&amp;gt;::bit_width&lt;/code&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a rel&#x3D;&quot;external&quot; href&#x3D;&quot;https://doc.rust-lang.org/stable/std/num/struct.NonZero.html#method.isolate_highest_one&quot;&gt;&lt;code&gt;NonZero&amp;lt;{integer}&amp;gt;::isolate_highest_one&lt;/code&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a rel&#x3D;&quot;external&quot; href&#x3D;&quot;https://doc.rust-lang.org/stable/std/num/struct.NonZero.html#method.isolate_lowest_one&quot;&gt;&lt;code&gt;NonZero&amp;lt;{integer}&amp;gt;::isolate_lowest_one&lt;/code&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a rel&#x3D;&quot;external&quot; href&#x3D;&quot;https://doc.rust-lang.org/stable/std/num/struct.NonZero.html#method.highest_one&quot;&gt;&lt;code&gt;NonZero&amp;lt;{integer}&amp;gt;::highest_one&lt;/code&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a rel&#x3D;&quot;external&quot; href&#x3D;&quot;https://doc.rust-lang.org/stable/std/num/struct.NonZero.html#method.lowest_one&quot;&gt;&lt;code&gt;NonZero&amp;lt;{integer}&amp;gt;::lowest_one&lt;/code&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;li&gt;&lt;a rel&#x3D;&quot;external&quot; href&#x3D;&quot;https://doc.rust-lang.org/stable/std/num/struct.NonZero.html#method.bit_width&quot;&gt;&lt;code&gt;NonZero&amp;lt;{uN}&amp;gt;::bit_width&lt;/code&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;These previously stable APIs are now stable in const contexts:&lt;/p&gt;
+&lt;ul&gt;
+&lt;li&gt;&lt;a rel&#x3D;&quot;external&quot; href&#x3D;&quot;https://doc.rust-lang.org/stable/std/primitive.char.html#method.is_control&quot;&gt;&lt;code&gt;char::is_control&lt;/code&gt;&lt;/a&gt;&lt;/li&gt;
+&lt;/ul&gt;
+&lt;h3 id&#x3D;&quot;other-changes&quot;&gt;&lt;a class&#x3D;&quot;anchor&quot; href&#x3D;&quot;#other-changes&quot; aria-hidden&#x3D;&quot;true&quot;&gt;&lt;/a&gt;
+Other changes&lt;/h3&gt;
+&lt;p&gt;Check out everything that changed in &lt;a rel&#x3D;&quot;external&quot; href&#x3D;&quot;https://github.com/rust-lang/rust/releases/tag/1.97.0&quot;&gt;Rust&lt;/a&gt;, &lt;a rel&#x3D;&quot;external&quot; href&#x3D;&quot;https://doc.rust-lang.org/nightly/cargo/CHANGELOG.html#cargo-197-2026-07-09&quot;&gt;Cargo&lt;/a&gt;, and &lt;a rel&#x3D;&quot;external&quot; href&#x3D;&quot;https://github.com/rust-lang/rust-clippy/blob/master/CHANGELOG.md#rust-197&quot;&gt;Clippy&lt;/a&gt;.&lt;/p&gt;
+&lt;h2 id&#x3D;&quot;contributors-to-1-97-0&quot;&gt;&lt;a class&#x3D;&quot;anchor&quot; href&#x3D;&quot;#contributors-to-1-97-0&quot; aria-hidden&#x3D;&quot;true&quot;&gt;&lt;/a&gt;
+Contributors to 1.97.0&lt;/h2&gt;
+&lt;p&gt;Many people came together to create Rust 1.97.0. We couldn&#x27;t have done it without all of you. &lt;a rel&#x3D;&quot;external&quot; href&#x3D;&quot;https://thanks.rust-lang.org/rust/1.97.0/&quot;&gt;Thanks!&lt;/a&gt;&lt;/p&gt;
+</content>
+
+        <author>
+            <name>The Rust Release Team</name>
+        </author>
+    </entry>
+</feed>

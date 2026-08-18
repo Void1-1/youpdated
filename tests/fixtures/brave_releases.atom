@@ -1,0 +1,253 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xmlns:media="http://search.yahoo.com/mrss/" xml:lang="en-US">
+  <id>tag:github.com,2008:https://github.com/brave/brave-browser/releases</id>
+  <link type="text/html" rel="alternate" href="https://github.com/brave/brave-browser/releases"/>
+  <link type="application/atom+xml" rel="self" href="https://github.com/brave/brave-browser/releases.atom"/>
+  <title>Release notes from brave-browser</title>
+  <updated>2026-08-18T07:20:18Z</updated>
+  <entry>
+    <id>tag:github.com,2008:Repository/110178895/v1.95.79</id>
+    <updated>2026-08-18T07:20:18Z</updated>
+    <link rel="alternate" type="text/html" href="https://github.com/brave/brave-browser/releases/tag/v1.95.79"/>
+    <title>v1.95.79</title>
+    <content type="html">&lt;p&gt;v1.95.79&lt;/p&gt;</content>
+    <author>
+      <name>brave-builds</name>
+    </author>
+    <media:thumbnail height="30" width="30" url="https://avatars.githubusercontent.com/u/45370463?s=60&amp;v=4"/>
+  </entry>
+  <entry>
+    <id>tag:github.com,2008:Repository/110178895/v1.95.78</id>
+    <updated>2026-08-18T06:50:06Z</updated>
+    <link rel="alternate" type="text/html" href="https://github.com/brave/brave-browser/releases/tag/v1.95.78"/>
+    <title>Nightly v1.95.78 (Chromium 152.0.7977.42) 
+
+</title>
+    <content type="html">&lt;p&gt;Nightly v1.95.78 (Chromium 152.0.7977.42)&lt;/p&gt;
+&lt;p&gt;*This is NOT the release (stable) channel version of Brave.&lt;/p&gt;
+&lt;h1&gt;Android&lt;/h1&gt;
+&lt;p&gt;Pick the &lt;code&gt;APK&lt;/code&gt; suitable for your device&#39;s architecture.&lt;/p&gt;
+&lt;h1&gt;iOS&lt;/h1&gt;
+&lt;p&gt;&lt;code&gt;brave-core-ios-1.95.78.*&lt;/code&gt; contains Brave for iOS.&lt;/p&gt;
+&lt;h1&gt;Linux&lt;/h1&gt;
+&lt;p&gt;&lt;code&gt;DEB&lt;/code&gt; and &lt;code&gt;RPM&lt;/code&gt; packages attached below, details at &lt;a href=&quot;https://brave.com/linux&quot; rel=&quot;nofollow&quot;&gt;https://brave.com/linux&lt;/a&gt;&lt;/p&gt;
+&lt;h1&gt;macOS&lt;/h1&gt;
+&lt;p&gt;&lt;code&gt;Brave-*-Nightly-*.dmg&lt;/code&gt; or &lt;code&gt;Brave-*-Nightly-*.pkg&lt;/code&gt; will install this version.&lt;br&gt;
+macOS 12 and above are supported as per &lt;a href=&quot;https://support.brave.app/hc/en-us/articles/360021357112-What-are-the-system-requirements-to-install-Brave&quot; rel=&quot;nofollow&quot;&gt;https://support.brave.app/hc/en-us/articles/360021357112-What-are-the-system-requirements-to-install-Brave&lt;/a&gt;&lt;/p&gt;
+&lt;h1&gt;Windows&lt;/h1&gt;
+&lt;p&gt;&lt;code&gt;Brave*NightlySetup.exe&lt;/code&gt; will fetch and install the latest available version for your CPU architecture from our update servers.&lt;br&gt;
+Windows 10 and above are supported as per &lt;a href=&quot;https://support.brave.app/hc/en-us/articles/360021357112-What-are-the-system-requirements-to-install-Brave&quot; rel=&quot;nofollow&quot;&gt;https://support.brave.app/hc/en-us/articles/360021357112-What-are-the-system-requirements-to-install-Brave&lt;/a&gt;&lt;/p&gt;</content>
+    <author>
+      <name>brave-builds</name>
+    </author>
+    <media:thumbnail height="30" width="30" url="https://avatars.githubusercontent.com/u/45370463?s=60&amp;v=4"/>
+  </entry>
+  <entry>
+    <id>tag:github.com,2008:Repository/110178895/v1.94.112</id>
+    <updated>2026-08-18T07:15:46Z</updated>
+    <link rel="alternate" type="text/html" href="https://github.com/brave/brave-browser/releases/tag/v1.94.112"/>
+    <title>Beta v1.94.112 (Chromium 151.0.7922.137) 
+
+</title>
+    <content type="html">&lt;p&gt;Beta v1.94.112 (Chromium 151.0.7922.137)&lt;/p&gt;
+&lt;p&gt;*This is NOT the release (stable) channel version of Brave.&lt;/p&gt;
+&lt;h1&gt;Android&lt;/h1&gt;
+&lt;p&gt;Pick the &lt;code&gt;APK&lt;/code&gt; suitable for your device&#39;s architecture.&lt;/p&gt;
+&lt;h1&gt;iOS&lt;/h1&gt;
+&lt;p&gt;&lt;code&gt;brave-core-ios-1.94.112.*&lt;/code&gt; contains Brave for iOS.&lt;/p&gt;
+&lt;h1&gt;Linux&lt;/h1&gt;
+&lt;p&gt;&lt;code&gt;DEB&lt;/code&gt; and &lt;code&gt;RPM&lt;/code&gt; packages attached below, details at &lt;a href=&quot;https://brave.com/linux&quot; rel=&quot;nofollow&quot;&gt;https://brave.com/linux&lt;/a&gt;&lt;/p&gt;
+&lt;h1&gt;macOS&lt;/h1&gt;
+&lt;p&gt;&lt;code&gt;Brave-*-Beta-*.dmg&lt;/code&gt; or &lt;code&gt;Brave-*-Beta-*.pkg&lt;/code&gt; will install this version.&lt;br&gt;
+macOS 12 and above are supported as per &lt;a href=&quot;https://support.brave.app/hc/en-us/articles/360021357112-What-are-the-system-requirements-to-install-Brave&quot; rel=&quot;nofollow&quot;&gt;https://support.brave.app/hc/en-us/articles/360021357112-What-are-the-system-requirements-to-install-Brave&lt;/a&gt;&lt;/p&gt;
+&lt;h1&gt;Windows&lt;/h1&gt;
+&lt;p&gt;&lt;code&gt;Brave*BetaSetup.exe&lt;/code&gt; will fetch and install the latest available version for your CPU architecture from our update servers.&lt;br&gt;
+Windows 10 and above are supported as per &lt;a href=&quot;https://support.brave.app/hc/en-us/articles/360021357112-What-are-the-system-requirements-to-install-Brave&quot; rel=&quot;nofollow&quot;&gt;https://support.brave.app/hc/en-us/articles/360021357112-What-are-the-system-requirements-to-install-Brave&lt;/a&gt;&lt;/p&gt;</content>
+    <author>
+      <name>brave-builds</name>
+    </author>
+    <media:thumbnail height="30" width="30" url="https://avatars.githubusercontent.com/u/45370463?s=60&amp;v=4"/>
+  </entry>
+  <entry>
+    <id>tag:github.com,2008:Repository/110178895/v1.95.77</id>
+    <updated>2026-08-18T00:44:22Z</updated>
+    <link rel="alternate" type="text/html" href="https://github.com/brave/brave-browser/releases/tag/v1.95.77"/>
+    <title>Nightly v1.95.77 (Chromium 152.0.7977.42) 
+
+</title>
+    <content type="html">&lt;p&gt;Nightly v1.95.77 (Chromium 152.0.7977.42)&lt;/p&gt;
+&lt;p&gt;*This is NOT the release (stable) channel version of Brave.&lt;/p&gt;
+&lt;h1&gt;Android&lt;/h1&gt;
+&lt;p&gt;Pick the &lt;code&gt;APK&lt;/code&gt; suitable for your device&#39;s architecture.&lt;/p&gt;
+&lt;h1&gt;iOS&lt;/h1&gt;
+&lt;p&gt;&lt;code&gt;brave-core-ios-1.95.77.*&lt;/code&gt; contains Brave for iOS.&lt;/p&gt;
+&lt;h1&gt;Linux&lt;/h1&gt;
+&lt;p&gt;&lt;code&gt;DEB&lt;/code&gt; and &lt;code&gt;RPM&lt;/code&gt; packages attached below, details at &lt;a href=&quot;https://brave.com/linux&quot; rel=&quot;nofollow&quot;&gt;https://brave.com/linux&lt;/a&gt;&lt;/p&gt;
+&lt;h1&gt;macOS&lt;/h1&gt;
+&lt;p&gt;&lt;code&gt;Brave-*-Nightly-*.dmg&lt;/code&gt; or &lt;code&gt;Brave-*-Nightly-*.pkg&lt;/code&gt; will install this version.&lt;br&gt;
+macOS 12 and above are supported as per &lt;a href=&quot;https://support.brave.app/hc/en-us/articles/360021357112-What-are-the-system-requirements-to-install-Brave&quot; rel=&quot;nofollow&quot;&gt;https://support.brave.app/hc/en-us/articles/360021357112-What-are-the-system-requirements-to-install-Brave&lt;/a&gt;&lt;/p&gt;
+&lt;h1&gt;Windows&lt;/h1&gt;
+&lt;p&gt;&lt;code&gt;Brave*NightlySetup.exe&lt;/code&gt; will fetch and install the latest available version for your CPU architecture from our update servers.&lt;br&gt;
+Windows 10 and above are supported as per &lt;a href=&quot;https://support.brave.app/hc/en-us/articles/360021357112-What-are-the-system-requirements-to-install-Brave&quot; rel=&quot;nofollow&quot;&gt;https://support.brave.app/hc/en-us/articles/360021357112-What-are-the-system-requirements-to-install-Brave&lt;/a&gt;&lt;/p&gt;</content>
+    <author>
+      <name>brave-builds</name>
+    </author>
+    <media:thumbnail height="30" width="30" url="https://avatars.githubusercontent.com/u/45370463?s=60&amp;v=4"/>
+  </entry>
+  <entry>
+    <id>tag:github.com,2008:Repository/110178895/v1.95.76</id>
+    <updated>2026-08-17T13:54:38Z</updated>
+    <link rel="alternate" type="text/html" href="https://github.com/brave/brave-browser/releases/tag/v1.95.76"/>
+    <title>Nightly v1.95.76 (Chromium 152.0.7977.42) 
+
+</title>
+    <content type="html">&lt;p&gt;Nightly v1.95.76 (Chromium 152.0.7977.42)&lt;/p&gt;
+&lt;p&gt;*This is NOT the release (stable) channel version of Brave.&lt;/p&gt;
+&lt;h1&gt;Android&lt;/h1&gt;
+&lt;p&gt;Pick the &lt;code&gt;APK&lt;/code&gt; suitable for your device&#39;s architecture.&lt;/p&gt;
+&lt;h1&gt;iOS&lt;/h1&gt;
+&lt;p&gt;&lt;code&gt;brave-core-ios-1.95.76.*&lt;/code&gt; contains Brave for iOS.&lt;/p&gt;
+&lt;h1&gt;Linux&lt;/h1&gt;
+&lt;p&gt;&lt;code&gt;DEB&lt;/code&gt; and &lt;code&gt;RPM&lt;/code&gt; packages attached below, details at &lt;a href=&quot;https://brave.com/linux&quot; rel=&quot;nofollow&quot;&gt;https://brave.com/linux&lt;/a&gt;&lt;/p&gt;
+&lt;h1&gt;macOS&lt;/h1&gt;
+&lt;p&gt;&lt;code&gt;Brave-*-Nightly-*.dmg&lt;/code&gt; or &lt;code&gt;Brave-*-Nightly-*.pkg&lt;/code&gt; will install this version.&lt;br&gt;
+macOS 12 and above are supported as per &lt;a href=&quot;https://support.brave.app/hc/en-us/articles/360021357112-What-are-the-system-requirements-to-install-Brave&quot; rel=&quot;nofollow&quot;&gt;https://support.brave.app/hc/en-us/articles/360021357112-What-are-the-system-requirements-to-install-Brave&lt;/a&gt;&lt;/p&gt;
+&lt;h1&gt;Windows&lt;/h1&gt;
+&lt;p&gt;&lt;code&gt;Brave*NightlySetup.exe&lt;/code&gt; will fetch and install the latest available version for your CPU architecture from our update servers.&lt;br&gt;
+Windows 10 and above are supported as per &lt;a href=&quot;https://support.brave.app/hc/en-us/articles/360021357112-What-are-the-system-requirements-to-install-Brave&quot; rel=&quot;nofollow&quot;&gt;https://support.brave.app/hc/en-us/articles/360021357112-What-are-the-system-requirements-to-install-Brave&lt;/a&gt;&lt;/p&gt;</content>
+    <author>
+      <name>brave-builds</name>
+    </author>
+    <media:thumbnail height="30" width="30" url="https://avatars.githubusercontent.com/u/45370463?s=60&amp;v=4"/>
+  </entry>
+  <entry>
+    <id>tag:github.com,2008:Repository/110178895/v1.95.75</id>
+    <updated>2026-08-17T20:19:58Z</updated>
+    <link rel="alternate" type="text/html" href="https://github.com/brave/brave-browser/releases/tag/v1.95.75"/>
+    <title>Nightly v1.95.75 (Chromium 152.0.7977.42) 
+
+</title>
+    <content type="html">&lt;p&gt;Nightly v1.95.75 (Chromium 152.0.7977.42)&lt;/p&gt;
+&lt;p&gt;*This is NOT the release (stable) channel version of Brave.&lt;/p&gt;
+&lt;h1&gt;Android&lt;/h1&gt;
+&lt;p&gt;Pick the &lt;code&gt;APK&lt;/code&gt; suitable for your device&#39;s architecture.&lt;/p&gt;
+&lt;h1&gt;iOS&lt;/h1&gt;
+&lt;p&gt;&lt;code&gt;brave-core-ios-1.95.75.*&lt;/code&gt; contains Brave for iOS.&lt;/p&gt;
+&lt;h1&gt;Linux&lt;/h1&gt;
+&lt;p&gt;&lt;code&gt;DEB&lt;/code&gt; and &lt;code&gt;RPM&lt;/code&gt; packages attached below, details at &lt;a href=&quot;https://brave.com/linux&quot; rel=&quot;nofollow&quot;&gt;https://brave.com/linux&lt;/a&gt;&lt;/p&gt;
+&lt;h1&gt;macOS&lt;/h1&gt;
+&lt;p&gt;&lt;code&gt;Brave-*-Nightly-*.dmg&lt;/code&gt; or &lt;code&gt;Brave-*-Nightly-*.pkg&lt;/code&gt; will install this version.&lt;br&gt;
+macOS 12 and above are supported as per &lt;a href=&quot;https://support.brave.app/hc/en-us/articles/360021357112-What-are-the-system-requirements-to-install-Brave&quot; rel=&quot;nofollow&quot;&gt;https://support.brave.app/hc/en-us/articles/360021357112-What-are-the-system-requirements-to-install-Brave&lt;/a&gt;&lt;/p&gt;
+&lt;h1&gt;Windows&lt;/h1&gt;
+&lt;p&gt;&lt;code&gt;Brave*NightlySetup.exe&lt;/code&gt; will fetch and install the latest available version for your CPU architecture from our update servers.&lt;br&gt;
+Windows 10 and above are supported as per &lt;a href=&quot;https://support.brave.app/hc/en-us/articles/360021357112-What-are-the-system-requirements-to-install-Brave&quot; rel=&quot;nofollow&quot;&gt;https://support.brave.app/hc/en-us/articles/360021357112-What-are-the-system-requirements-to-install-Brave&lt;/a&gt;&lt;/p&gt;</content>
+    <author>
+      <name>brave-builds</name>
+    </author>
+    <media:thumbnail height="30" width="30" url="https://avatars.githubusercontent.com/u/45370463?s=60&amp;v=4"/>
+  </entry>
+  <entry>
+    <id>tag:github.com,2008:Repository/110178895/v1.95.74</id>
+    <updated>2026-08-17T08:35:10Z</updated>
+    <link rel="alternate" type="text/html" href="https://github.com/brave/brave-browser/releases/tag/v1.95.74"/>
+    <title>Nightly v1.95.74 (Chromium 152.0.7977.42) 
+
+</title>
+    <content type="html">&lt;p&gt;Nightly v1.95.74 (Chromium 152.0.7977.42)&lt;/p&gt;
+&lt;p&gt;*This is NOT the release (stable) channel version of Brave.&lt;/p&gt;
+&lt;h1&gt;Android&lt;/h1&gt;
+&lt;p&gt;Pick the &lt;code&gt;APK&lt;/code&gt; suitable for your device&#39;s architecture.&lt;/p&gt;
+&lt;h1&gt;iOS&lt;/h1&gt;
+&lt;p&gt;&lt;code&gt;brave-core-ios-1.95.74.*&lt;/code&gt; contains Brave for iOS.&lt;/p&gt;
+&lt;h1&gt;Linux&lt;/h1&gt;
+&lt;p&gt;&lt;code&gt;DEB&lt;/code&gt; and &lt;code&gt;RPM&lt;/code&gt; packages attached below, details at &lt;a href=&quot;https://brave.com/linux&quot; rel=&quot;nofollow&quot;&gt;https://brave.com/linux&lt;/a&gt;&lt;/p&gt;
+&lt;h1&gt;macOS&lt;/h1&gt;
+&lt;p&gt;&lt;code&gt;Brave-*-Nightly-*.dmg&lt;/code&gt; or &lt;code&gt;Brave-*-Nightly-*.pkg&lt;/code&gt; will install this version.&lt;br&gt;
+macOS 12 and above are supported as per &lt;a href=&quot;https://support.brave.app/hc/en-us/articles/360021357112-What-are-the-system-requirements-to-install-Brave&quot; rel=&quot;nofollow&quot;&gt;https://support.brave.app/hc/en-us/articles/360021357112-What-are-the-system-requirements-to-install-Brave&lt;/a&gt;&lt;/p&gt;
+&lt;h1&gt;Windows&lt;/h1&gt;
+&lt;p&gt;&lt;code&gt;Brave*NightlySetup.exe&lt;/code&gt; will fetch and install the latest available version for your CPU architecture from our update servers.&lt;br&gt;
+Windows 10 and above are supported as per &lt;a href=&quot;https://support.brave.app/hc/en-us/articles/360021357112-What-are-the-system-requirements-to-install-Brave&quot; rel=&quot;nofollow&quot;&gt;https://support.brave.app/hc/en-us/articles/360021357112-What-are-the-system-requirements-to-install-Brave&lt;/a&gt;&lt;/p&gt;</content>
+    <author>
+      <name>brave-builds</name>
+    </author>
+    <media:thumbnail height="30" width="30" url="https://avatars.githubusercontent.com/u/45370463?s=60&amp;v=4"/>
+  </entry>
+  <entry>
+    <id>tag:github.com,2008:Repository/110178895/v1.94.111</id>
+    <updated>2026-08-17T12:33:38Z</updated>
+    <link rel="alternate" type="text/html" href="https://github.com/brave/brave-browser/releases/tag/v1.94.111"/>
+    <title>Beta v1.94.111 (Chromium 151.0.7922.137) 
+
+</title>
+    <content type="html">&lt;p&gt;Beta v1.94.111 (Chromium 151.0.7922.137)&lt;/p&gt;
+&lt;p&gt;*This is NOT the release (stable) channel version of Brave.&lt;/p&gt;
+&lt;h1&gt;Android&lt;/h1&gt;
+&lt;p&gt;Pick the &lt;code&gt;APK&lt;/code&gt; suitable for your device&#39;s architecture.&lt;/p&gt;
+&lt;h1&gt;iOS&lt;/h1&gt;
+&lt;p&gt;&lt;code&gt;brave-core-ios-1.94.111.*&lt;/code&gt; contains Brave for iOS.&lt;/p&gt;
+&lt;h1&gt;Linux&lt;/h1&gt;
+&lt;p&gt;&lt;code&gt;DEB&lt;/code&gt; and &lt;code&gt;RPM&lt;/code&gt; packages attached below, details at &lt;a href=&quot;https://brave.com/linux&quot; rel=&quot;nofollow&quot;&gt;https://brave.com/linux&lt;/a&gt;&lt;/p&gt;
+&lt;h1&gt;macOS&lt;/h1&gt;
+&lt;p&gt;&lt;code&gt;Brave-*-Beta-*.dmg&lt;/code&gt; or &lt;code&gt;Brave-*-Beta-*.pkg&lt;/code&gt; will install this version.&lt;br&gt;
+macOS 12 and above are supported as per &lt;a href=&quot;https://support.brave.app/hc/en-us/articles/360021357112-What-are-the-system-requirements-to-install-Brave&quot; rel=&quot;nofollow&quot;&gt;https://support.brave.app/hc/en-us/articles/360021357112-What-are-the-system-requirements-to-install-Brave&lt;/a&gt;&lt;/p&gt;
+&lt;h1&gt;Windows&lt;/h1&gt;
+&lt;p&gt;&lt;code&gt;Brave*BetaSetup.exe&lt;/code&gt; will fetch and install the latest available version for your CPU architecture from our update servers.&lt;br&gt;
+Windows 10 and above are supported as per &lt;a href=&quot;https://support.brave.app/hc/en-us/articles/360021357112-What-are-the-system-requirements-to-install-Brave&quot; rel=&quot;nofollow&quot;&gt;https://support.brave.app/hc/en-us/articles/360021357112-What-are-the-system-requirements-to-install-Brave&lt;/a&gt;&lt;/p&gt;</content>
+    <author>
+      <name>brave-builds</name>
+    </author>
+    <media:thumbnail height="30" width="30" url="https://avatars.githubusercontent.com/u/45370463?s=60&amp;v=4"/>
+  </entry>
+  <entry>
+    <id>tag:github.com,2008:Repository/110178895/v1.95.73</id>
+    <updated>2026-08-15T01:32:41Z</updated>
+    <link rel="alternate" type="text/html" href="https://github.com/brave/brave-browser/releases/tag/v1.95.73"/>
+    <title>Nightly v1.95.73 (Chromium 152.0.7977.42) 
+
+</title>
+    <content type="html">&lt;p&gt;Nightly v1.95.73 (Chromium 152.0.7977.42)&lt;/p&gt;
+&lt;p&gt;*This is NOT the release (stable) channel version of Brave.&lt;/p&gt;
+&lt;h1&gt;Android&lt;/h1&gt;
+&lt;p&gt;Pick the &lt;code&gt;APK&lt;/code&gt; suitable for your device&#39;s architecture.&lt;/p&gt;
+&lt;h1&gt;iOS&lt;/h1&gt;
+&lt;p&gt;&lt;code&gt;brave-core-ios-1.95.73.*&lt;/code&gt; contains Brave for iOS.&lt;/p&gt;
+&lt;h1&gt;Linux&lt;/h1&gt;
+&lt;p&gt;&lt;code&gt;DEB&lt;/code&gt; and &lt;code&gt;RPM&lt;/code&gt; packages attached below, details at &lt;a href=&quot;https://brave.com/linux&quot; rel=&quot;nofollow&quot;&gt;https://brave.com/linux&lt;/a&gt;&lt;/p&gt;
+&lt;h1&gt;macOS&lt;/h1&gt;
+&lt;p&gt;&lt;code&gt;Brave-*-Nightly-*.dmg&lt;/code&gt; or &lt;code&gt;Brave-*-Nightly-*.pkg&lt;/code&gt; will install this version.&lt;br&gt;
+macOS 12 and above are supported as per &lt;a href=&quot;https://support.brave.app/hc/en-us/articles/360021357112-What-are-the-system-requirements-to-install-Brave&quot; rel=&quot;nofollow&quot;&gt;https://support.brave.app/hc/en-us/articles/360021357112-What-are-the-system-requirements-to-install-Brave&lt;/a&gt;&lt;/p&gt;
+&lt;h1&gt;Windows&lt;/h1&gt;
+&lt;p&gt;&lt;code&gt;Brave*NightlySetup.exe&lt;/code&gt; will fetch and install the latest available version for your CPU architecture from our update servers.&lt;br&gt;
+Windows 10 and above are supported as per &lt;a href=&quot;https://support.brave.app/hc/en-us/articles/360021357112-What-are-the-system-requirements-to-install-Brave&quot; rel=&quot;nofollow&quot;&gt;https://support.brave.app/hc/en-us/articles/360021357112-What-are-the-system-requirements-to-install-Brave&lt;/a&gt;&lt;/p&gt;</content>
+    <author>
+      <name>brave-builds</name>
+    </author>
+    <media:thumbnail height="30" width="30" url="https://avatars.githubusercontent.com/u/45370463?s=60&amp;v=4"/>
+  </entry>
+  <entry>
+    <id>tag:github.com,2008:Repository/110178895/v1.95.72</id>
+    <updated>2026-08-14T14:00:36Z</updated>
+    <link rel="alternate" type="text/html" href="https://github.com/brave/brave-browser/releases/tag/v1.95.72"/>
+    <title>Nightly v1.95.72 (Chromium 152.0.7977.42) 
+
+</title>
+    <content type="html">&lt;p&gt;Nightly v1.95.72 (Chromium 152.0.7977.42)&lt;/p&gt;
+&lt;p&gt;*This is NOT the release (stable) channel version of Brave.&lt;/p&gt;
+&lt;h1&gt;Android&lt;/h1&gt;
+&lt;p&gt;Pick the &lt;code&gt;APK&lt;/code&gt; suitable for your device&#39;s architecture.&lt;/p&gt;
+&lt;h1&gt;iOS&lt;/h1&gt;
+&lt;p&gt;&lt;code&gt;brave-core-ios-1.95.72.*&lt;/code&gt; contains Brave for iOS.&lt;/p&gt;
+&lt;h1&gt;Linux&lt;/h1&gt;
+&lt;p&gt;&lt;code&gt;DEB&lt;/code&gt; and &lt;code&gt;RPM&lt;/code&gt; packages attached below, details at &lt;a href=&quot;https://brave.com/linux&quot; rel=&quot;nofollow&quot;&gt;https://brave.com/linux&lt;/a&gt;&lt;/p&gt;
+&lt;h1&gt;macOS&lt;/h1&gt;
+&lt;p&gt;&lt;code&gt;Brave-*-Nightly-*.dmg&lt;/code&gt; or &lt;code&gt;Brave-*-Nightly-*.pkg&lt;/code&gt; will install this version.&lt;br&gt;
+macOS 12 and above are supported as per &lt;a href=&quot;https://support.brave.app/hc/en-us/articles/360021357112-What-are-the-system-requirements-to-install-Brave&quot; rel=&quot;nofollow&quot;&gt;https://support.brave.app/hc/en-us/articles/360021357112-What-are-the-system-requirements-to-install-Brave&lt;/a&gt;&lt;/p&gt;
+&lt;h1&gt;Windows&lt;/h1&gt;
+&lt;p&gt;&lt;code&gt;Brave*NightlySetup.exe&lt;/code&gt; will fetch and install the latest available version for your CPU architecture from our update servers.&lt;br&gt;
+Windows 10 and above are supported as per &lt;a href=&quot;https://support.brave.app/hc/en-us/articles/360021357112-What-are-the-system-requirements-to-install-Brave&quot; rel=&quot;nofollow&quot;&gt;https://support.brave.app/hc/en-us/articles/360021357112-What-are-the-system-requirements-to-install-Brave&lt;/a&gt;&lt;/p&gt;</content>
+    <author>
+      <name>brave-builds</name>
+    </author>
+    <media:thumbnail height="30" width="30" url="https://avatars.githubusercontent.com/u/45370463?s=60&amp;v=4"/>
+  </entry>
+</feed>

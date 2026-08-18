@@ -1,0 +1,384 @@
+{
+ "releases": [
+  {
+   "name": "chrome/platforms/mac/channels/stable/versions/151.0.7922.138/releases/1786657120",
+   "serving": {
+    "startTime": "2026-08-13T21:38:40.667708Z"
+   },
+   "fraction": 0.99,
+   "version": "151.0.7922.138",
+   "fractionGroup": "195",
+   "pinnable": false,
+   "rolloutData": []
+  },
+  {
+   "name": "chrome/platforms/mac/channels/stable/versions/151.0.7922.109/releases/1786568834",
+   "serving": {
+    "startTime": "2026-08-12T21:07:14.556719Z",
+    "endTime": "2026-08-13T21:38:40.667708Z"
+   },
+   "fraction": 0.495,
+   "version": "151.0.7922.109",
+   "fractionGroup": "195",
+   "pinnable": false,
+   "rolloutData": []
+  },
+  {
+   "name": "chrome/platforms/mac/channels/stable/versions/151.0.7922.110/releases/1786568834",
+   "serving": {
+    "startTime": "2026-08-12T21:07:14.556719Z",
+    "endTime": "2026-08-13T21:38:40.667708Z"
+   },
+   "fraction": 0.2475,
+   "version": "151.0.7922.110",
+   "fractionGroup": "195",
+   "pinnable": false,
+   "rolloutData": [
+    {
+     "rolloutName": "151.0.7922.137 Rollout",
+     "tag": [
+      "control"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "chrome/platforms/mac/channels/stable/versions/151.0.7922.137/releases/1786568834",
+   "serving": {
+    "startTime": "2026-08-12T21:07:14.556719Z",
+    "endTime": "2026-08-13T21:38:40.667708Z"
+   },
+   "fraction": 0.2475,
+   "version": "151.0.7922.137",
+   "fractionGroup": "195",
+   "pinnable": false,
+   "rolloutData": [
+    {
+     "rolloutName": "151.0.7922.137 Rollout",
+     "tag": [
+      "rollout"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "chrome/platforms/mac/channels/stable/versions/151.0.7922.139/releases/1786568834",
+   "serving": {
+    "startTime": "2026-08-12T21:07:14.556719Z"
+   },
+   "fraction": 0.005,
+   "version": "151.0.7922.139",
+   "fractionGroup": "195",
+   "pinnable": false,
+   "rolloutData": [
+    {
+     "rolloutName": "152.0.7977.42 Rollout",
+     "tag": [
+      "control"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "chrome/platforms/mac/channels/stable/versions/152.0.7977.42/releases/1786568834",
+   "serving": {
+    "startTime": "2026-08-12T21:07:14.556719Z"
+   },
+   "fraction": 0.005,
+   "version": "152.0.7977.42",
+   "fractionGroup": "195",
+   "pinnable": false,
+   "rolloutData": [
+    {
+     "rolloutName": "152.0.7977.42 Rollout",
+     "tag": [
+      "rollout"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "chrome/platforms/mac/channels/stable/versions/151.0.7922.109/releases/1786483161",
+   "serving": {
+    "startTime": "2026-08-11T21:19:21.053477Z",
+    "endTime": "2026-08-12T21:07:14.556719Z"
+   },
+   "fraction": 0.5,
+   "version": "151.0.7922.109",
+   "fractionGroup": "195",
+   "pinnable": false,
+   "rolloutData": []
+  },
+  {
+   "name": "chrome/platforms/mac/channels/stable/versions/151.0.7922.110/releases/1786483161",
+   "serving": {
+    "startTime": "2026-08-11T21:19:21.053477Z",
+    "endTime": "2026-08-12T21:07:14.556719Z"
+   },
+   "fraction": 0.25,
+   "version": "151.0.7922.110",
+   "fractionGroup": "195",
+   "pinnable": false,
+   "rolloutData": [
+    {
+     "rolloutName": "151.0.7922.137 Rollout",
+     "tag": [
+      "control"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "chrome/platforms/mac/channels/stable/versions/151.0.7922.137/releases/1786483161",
+   "serving": {
+    "startTime": "2026-08-11T21:19:21.053477Z",
+    "endTime": "2026-08-12T21:07:14.556719Z"
+   },
+   "fraction": 0.25,
+   "version": "151.0.7922.137",
+   "fractionGroup": "195",
+   "pinnable": false,
+   "rolloutData": [
+    {
+     "rolloutName": "151.0.7922.137 Rollout",
+     "tag": [
+      "rollout"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "chrome/platforms/mac/channels/stable/versions/151.0.7922.138/releases/1786483161",
+   "serving": {
+    "startTime": "2026-08-11T21:19:21.053477Z"
+   },
+   "fraction": 1,
+   "version": "151.0.7922.138",
+   "fractionGroup": "194",
+   "pinnable": true,
+   "rolloutData": []
+  },
+  {
+   "name": "chrome/platforms/mac/channels/stable/versions/151.0.7922.109/releases/1786482618",
+   "serving": {
+    "startTime": "2026-08-11T21:10:18.136474Z",
+    "endTime": "2026-08-11T21:19:21.053477Z"
+   },
+   "fraction": 1,
+   "version": "151.0.7922.109",
+   "fractionGroup": "195",
+   "pinnable": false,
+   "rolloutData": []
+  },
+  {
+   "name": "chrome/platforms/mac/channels/stable/versions/151.0.7922.108/releases/1786046668",
+   "serving": {
+    "startTime": "2026-08-06T20:04:28.383593Z",
+    "endTime": "2026-08-11T21:10:18.136474Z"
+   },
+   "fraction": 0.25,
+   "version": "151.0.7922.108",
+   "fractionGroup": "195",
+   "pinnable": false,
+   "rolloutData": [
+    {
+     "rolloutName": "151.0.7922.108 Rollout",
+     "tag": [
+      "rollout"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "chrome/platforms/mac/channels/stable/versions/151.0.7922.109/releases/1786046668",
+   "serving": {
+    "startTime": "2026-08-06T20:04:28.383593Z",
+    "endTime": "2026-08-11T21:19:21.053477Z"
+   },
+   "fraction": 1,
+   "version": "151.0.7922.109",
+   "fractionGroup": "194",
+   "pinnable": true,
+   "rolloutData": []
+  },
+  {
+   "name": "chrome/platforms/mac/channels/stable/versions/151.0.7922.76/releases/1786046668",
+   "serving": {
+    "startTime": "2026-08-06T20:04:28.383593Z",
+    "endTime": "2026-08-11T21:10:18.136474Z"
+   },
+   "fraction": 0.5,
+   "version": "151.0.7922.76",
+   "fractionGroup": "195",
+   "pinnable": false,
+   "rolloutData": []
+  },
+  {
+   "name": "chrome/platforms/mac/channels/stable/versions/151.0.7922.77/releases/1786046668",
+   "serving": {
+    "startTime": "2026-08-06T20:04:28.383593Z",
+    "endTime": "2026-08-11T21:10:18.136474Z"
+   },
+   "fraction": 0.25,
+   "version": "151.0.7922.77",
+   "fractionGroup": "195",
+   "pinnable": false,
+   "rolloutData": [
+    {
+     "rolloutName": "151.0.7922.108 Rollout",
+     "tag": [
+      "control"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "chrome/platforms/mac/channels/stable/versions/151.0.7922.76/releases/1786045889",
+   "serving": {
+    "startTime": "2026-08-06T19:51:29.801504Z",
+    "endTime": "2026-08-06T20:04:28.383593Z"
+   },
+   "fraction": 1,
+   "version": "151.0.7922.76",
+   "fractionGroup": "195",
+   "pinnable": false,
+   "rolloutData": []
+  },
+  {
+   "name": "chrome/platforms/mac/channels/stable/versions/150.0.7871.187/releases/1785874059",
+   "serving": {
+    "startTime": "2026-08-04T20:07:39.692943Z",
+    "endTime": "2026-08-06T19:51:29.801504Z"
+   },
+   "fraction": 0.5,
+   "version": "150.0.7871.187",
+   "fractionGroup": "195",
+   "pinnable": false,
+   "rolloutData": []
+  },
+  {
+   "name": "chrome/platforms/mac/channels/stable/versions/150.0.7871.189/releases/1785874059",
+   "serving": {
+    "startTime": "2026-08-04T20:07:39.692943Z",
+    "endTime": "2026-08-06T19:51:29.801504Z"
+   },
+   "fraction": 0.25,
+   "version": "150.0.7871.189",
+   "fractionGroup": "195",
+   "pinnable": false,
+   "rolloutData": [
+    {
+     "rolloutName": "151.0.7922.75 Rollout",
+     "tag": [
+      "control"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "chrome/platforms/mac/channels/stable/versions/151.0.7922.75/releases/1785874059",
+   "serving": {
+    "startTime": "2026-08-04T20:07:39.692943Z",
+    "endTime": "2026-08-06T19:51:29.801504Z"
+   },
+   "fraction": 0.25,
+   "version": "151.0.7922.75",
+   "fractionGroup": "195",
+   "pinnable": false,
+   "rolloutData": [
+    {
+     "rolloutName": "151.0.7922.75 Rollout",
+     "tag": [
+      "rollout"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "chrome/platforms/mac/channels/stable/versions/151.0.7922.76/releases/1785874059",
+   "serving": {
+    "startTime": "2026-08-04T20:07:39.692943Z",
+    "endTime": "2026-08-06T20:04:28.383593Z"
+   },
+   "fraction": 1,
+   "version": "151.0.7922.76",
+   "fractionGroup": "194",
+   "pinnable": true,
+   "rolloutData": []
+  },
+  {
+   "name": "chrome/platforms/mac/channels/stable/versions/150.0.7871.187/releases/1785863716",
+   "serving": {
+    "startTime": "2026-08-04T17:15:16.878773Z",
+    "endTime": "2026-08-04T20:07:39.692943Z"
+   },
+   "fraction": 1,
+   "version": "150.0.7871.187",
+   "fractionGroup": "195",
+   "pinnable": false,
+   "rolloutData": []
+  },
+  {
+   "name": "chrome/platforms/mac/channels/stable/versions/150.0.7871.187/releases/1785357705",
+   "serving": {
+    "startTime": "2026-07-29T20:41:45.398811Z",
+    "endTime": "2026-08-04T17:15:16.878773Z"
+   },
+   "fraction": 0.8,
+   "version": "150.0.7871.187",
+   "fractionGroup": "195",
+   "pinnable": false,
+   "rolloutData": []
+  },
+  {
+   "name": "chrome/platforms/mac/channels/stable/versions/150.0.7871.188/releases/1785357705",
+   "serving": {
+    "startTime": "2026-07-29T20:41:45.398811Z",
+    "endTime": "2026-08-04T17:15:16.878773Z"
+   },
+   "fraction": 0.1,
+   "version": "150.0.7871.188",
+   "fractionGroup": "195",
+   "pinnable": false,
+   "rolloutData": [
+    {
+     "rolloutName": "151.0.7922.71 Rollout",
+     "tag": [
+      "control"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "chrome/platforms/mac/channels/stable/versions/151.0.7922.71/releases/1785357705",
+   "serving": {
+    "startTime": "2026-07-29T20:41:45.398811Z",
+    "endTime": "2026-08-04T17:15:16.878773Z"
+   },
+   "fraction": 0.1,
+   "version": "151.0.7922.71",
+   "fractionGroup": "195",
+   "pinnable": false,
+   "rolloutData": [
+    {
+     "rolloutName": "151.0.7922.71 Rollout",
+     "tag": [
+      "rollout"
+     ]
+    }
+   ]
+  },
+  {
+   "name": "chrome/platforms/mac/channels/stable/versions/151.0.7922.72/releases/1785357705",
+   "serving": {
+    "startTime": "2026-07-29T20:41:45.398811Z",
+    "endTime": "2026-08-04T20:07:39.692943Z"
+   },
+   "fraction": 1,
+   "version": "151.0.7922.72",
+   "fractionGroup": "194",
+   "pinnable": true,
+   "rolloutData": []
+  }
+ ]
+}

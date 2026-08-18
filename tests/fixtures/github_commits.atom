@@ -1,0 +1,582 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xmlns:media="http://search.yahoo.com/mrss/" xml:lang="en-US">
+  <id>tag:github.com,2008:/astral-sh/uv/commits/main</id>
+  <link type="text/html" rel="alternate" href="https://github.com/astral-sh/uv/commits/main"/>
+  <link type="application/atom+xml" rel="self" href="https://github.com/astral-sh/uv/commits/main.atom"/>
+  <title>Recent Commits to uv:main</title>
+  <updated>2026-08-17T22:20:40Z</updated>
+  <entry>
+    <id>tag:github.com,2008:Grit::Commit/5cc226096ea4424d021be17259bae51d761a827b</id>
+    <link type="text/html" rel="alternate" href="https://github.com/astral-sh/uv/commit/5cc226096ea4424d021be17259bae51d761a827b"/>
+    <title>
+        Disable known GitHub cache clients in release workflows (#21168)
+    </title>
+    <updated>2026-08-17T22:20:40Z</updated>
+    <media:thumbnail height="30" width="30" url="https://avatars.githubusercontent.com/in/4307167?s=30&amp;v=4"/>
+    <author>
+      <name>astral-automations-bot</name>
+      <uri>https://github.com/astral-automations-bot</uri>
+    </author>
+    <content type="html">
+      &lt;pre style=&#39;white-space:pre-wrap;width:81ex&#39;&gt;Disable known GitHub cache clients in release workflows (#21168)
+
+Co-authored-by: Zanie Blue &amp;lt;contact@zanie.dev&amp;gt;&lt;/pre&gt;
+    </content>
+  </entry>
+  <entry>
+    <id>tag:github.com,2008:Grit::Commit/c508e509cbafcca9de39d6c5106a108fb1e7340c</id>
+    <link type="text/html" rel="alternate" href="https://github.com/astral-sh/uv/commit/c508e509cbafcca9de39d6c5106a108fb1e7340c"/>
+    <title>
+        Add SOCKS proxy support for publish tests (#21167)
+    </title>
+    <updated>2026-08-17T21:16:39Z</updated>
+    <media:thumbnail height="30" width="30" url="https://avatars.githubusercontent.com/u/6826232?s=30&amp;v=4"/>
+    <author>
+      <name>konstin</name>
+      <uri>https://github.com/konstin</uri>
+    </author>
+    <content type="html">
+      &lt;pre style=&#39;white-space:pre-wrap;width:81ex&#39;&gt;Add SOCKS proxy support for publish tests (#21167)
+
+Enable the HTTPX SOCKS extra in the publish integration script and
+update its lockfile.&lt;/pre&gt;
+    </content>
+  </entry>
+  <entry>
+    <id>tag:github.com,2008:Grit::Commit/e3215db22262263638ddeabb5b643068a1cdf876</id>
+    <link type="text/html" rel="alternate" href="https://github.com/astral-sh/uv/commit/e3215db22262263638ddeabb5b643068a1cdf876"/>
+    <title>
+        Use zizmor annotations outside the upstream repository (#21172)
+    </title>
+    <updated>2026-08-17T20:49:29Z</updated>
+    <media:thumbnail height="30" width="30" url="https://avatars.githubusercontent.com/in/4307167?s=30&amp;v=4"/>
+    <author>
+      <name>astral-automations-bot</name>
+      <uri>https://github.com/astral-automations-bot</uri>
+    </author>
+    <content type="html">
+      &lt;pre style=&#39;white-space:pre-wrap;width:81ex&#39;&gt;Use zizmor annotations outside the upstream repository (#21172)
+
+`zizmor-action` uploads findings to GitHub code scanning by default,
+which is unavailable in private copies without Code Security enabled.
+Keep code-scanning uploads for `astral-sh/uv` and report findings as
+workflow annotations elsewhere. Check the repository name instead of
+GitHub&amp;#39;s `fork` flag so independently created private copies are covered
+too.
+
+---------
+
+Co-authored-by: zaniebot &amp;lt;242828183+zaniebot@users.noreply.github.com&amp;gt;
+Co-authored-by: Zanie Blue &amp;lt;contact@zanie.dev&amp;gt;
+Co-authored-by: William Woodruff &amp;lt;william@astral.sh&amp;gt;&lt;/pre&gt;
+    </content>
+  </entry>
+  <entry>
+    <id>tag:github.com,2008:Grit::Commit/e5103349438bb2746c809f842586922ab91ed296</id>
+    <link type="text/html" rel="alternate" href="https://github.com/astral-sh/uv/commit/e5103349438bb2746c809f842586922ab91ed296"/>
+    <title>
+        Add dependency cooldown to PGO build script (#21173)
+    </title>
+    <updated>2026-08-17T20:46:17Z</updated>
+    <media:thumbnail height="30" width="30" url="https://avatars.githubusercontent.com/u/1309177?s=30&amp;v=4"/>
+    <author>
+      <name>charliermarsh</name>
+      <uri>https://github.com/charliermarsh</uri>
+    </author>
+    <content type="html">
+      &lt;pre style=&#39;white-space:pre-wrap;width:81ex&#39;&gt;Add dependency cooldown to PGO build script (#21173)
+
+## Summary
+
+The PGO build script was introduced after we added seven-day dependency
+cooldowns to our PEP 723 scripts, so its inline metadata and lockfile
+did not include the repository-wide `exclude-newer` setting. As a
+result, script lockfile validation and locked script type checking both
+fail on `main`.
+
+Declare the same `P7D` cooldown as the other scripts and regenerate the
+script lockfile so both CI checks accept it.
+
+Closes https://github.com/astral-sh/uv-dev/issues/777.&lt;/pre&gt;
+    </content>
+  </entry>
+  <entry>
+    <id>tag:github.com,2008:Grit::Commit/bc75f6cf6a745103cc1147f80cc35fb5b2fdcc20</id>
+    <link type="text/html" rel="alternate" href="https://github.com/astral-sh/uv/commit/bc75f6cf6a745103cc1147f80cc35fb5b2fdcc20"/>
+    <title>
+        Enable PGO for Linux ARM64 uv releases (#21004)
+    </title>
+    <updated>2026-08-17T19:43:45Z</updated>
+    <media:thumbnail height="30" width="30" url="https://avatars.githubusercontent.com/u/1309177?s=30&amp;v=4"/>
+    <author>
+      <name>charliermarsh</name>
+      <uri>https://github.com/charliermarsh</uri>
+    </author>
+    <content type="html">
+      &lt;pre style=&#39;white-space:pre-wrap;width:81ex&#39;&gt;Enable PGO for Linux ARM64 uv releases (#21004)
+
+## Summary
+
+This PR enables PGO for uv&amp;#39;s Linux ARM64 releases, following the
+approach outlined in https://github.com/astral-sh/uv/pull/21001. (To
+enable PGO, we also move to a native ARM64 runner.)&lt;/pre&gt;
+    </content>
+  </entry>
+  <entry>
+    <id>tag:github.com,2008:Grit::Commit/03b5af44ab98abfd89f65800b1dfb97e88e8d441</id>
+    <link type="text/html" rel="alternate" href="https://github.com/astral-sh/uv/commit/03b5af44ab98abfd89f65800b1dfb97e88e8d441"/>
+    <title>
+        Enable PGO for Windows x86-64 uv releases (#21003)
+    </title>
+    <updated>2026-08-17T19:43:44Z</updated>
+    <media:thumbnail height="30" width="30" url="https://avatars.githubusercontent.com/u/1309177?s=30&amp;v=4"/>
+    <author>
+      <name>charliermarsh</name>
+      <uri>https://github.com/charliermarsh</uri>
+    </author>
+    <content type="html">
+      &lt;pre style=&#39;white-space:pre-wrap;width:81ex&#39;&gt;Enable PGO for Windows x86-64 uv releases (#21003)
+
+## Summary
+
+This PR enables PGO for uv&amp;#39;s Windows x86-64 releases, following the
+approach outlined in https://github.com/astral-sh/uv/pull/21001. The
+existing static-CRT configuration is preserved.&lt;/pre&gt;
+    </content>
+  </entry>
+  <entry>
+    <id>tag:github.com,2008:Grit::Commit/84a89308dae885de80df52c0ab462cbcfd8b4d1b</id>
+    <link type="text/html" rel="alternate" href="https://github.com/astral-sh/uv/commit/84a89308dae885de80df52c0ab462cbcfd8b4d1b"/>
+    <title>
+        Enable PGO for macOS ARM64 uv releases (#21002)
+    </title>
+    <updated>2026-08-17T19:43:44Z</updated>
+    <media:thumbnail height="30" width="30" url="https://avatars.githubusercontent.com/u/1309177?s=30&amp;v=4"/>
+    <author>
+      <name>charliermarsh</name>
+      <uri>https://github.com/charliermarsh</uri>
+    </author>
+    <content type="html">
+      &lt;pre style=&#39;white-space:pre-wrap;width:81ex&#39;&gt;Enable PGO for macOS ARM64 uv releases (#21002)
+
+## Summary
+
+This PR enables PGO for uv&amp;#39;s macOS ARM64 releases, following the
+approach outlined in https://github.com/astral-sh/uv/pull/21001.&lt;/pre&gt;
+    </content>
+  </entry>
+  <entry>
+    <id>tag:github.com,2008:Grit::Commit/b6beccc03fd040122979220fc67944e72006cdc5</id>
+    <link type="text/html" rel="alternate" href="https://github.com/astral-sh/uv/commit/b6beccc03fd040122979220fc67944e72006cdc5"/>
+    <title>
+        Enable PGO for Linux x86-64 uv releases (#21001)
+    </title>
+    <updated>2026-08-17T19:43:43Z</updated>
+    <media:thumbnail height="30" width="30" url="https://avatars.githubusercontent.com/u/1309177?s=30&amp;v=4"/>
+    <author>
+      <name>charliermarsh</name>
+      <uri>https://github.com/charliermarsh</uri>
+    </author>
+    <content type="html">
+      &lt;pre style=&#39;white-space:pre-wrap;width:81ex&#39;&gt;Enable PGO for Linux x86-64 uv releases (#21001)
+
+## Summary
+
+This PR enables PGO for uv releases, starting with Linux x86-64.
+
+### Design
+
+The release pipeline is modified as follows:
+
+- We build instrumented `uv` and `uvx` release binaries inside the
+existing manylinux container.
+- We train directly on eleven shared `test/ecosystem` fixtures:
+cibuildwheel, Cookiecutter, Flask, HTTPX, LLM, the OpenAI Python SDK,
+Poetry, pytest-cov, Sentry, Zulip, and the 38-project pyx workspace.
+- Every project exercises cold and warm `uv pip compile` resolution,
+cold and warm `uv lock` resolution, `uv export`, `uv pip` installation,
+and `uv sync` installation on every release platform.
+- Per-project `exclude-dependencies` settings omit packages without
+compatible release-platform wheels while preserving the rest of each
+real dependency graph.
+- Raw profiles are merged online by workload family, then merged with
+`llvm-profdata` and fed back into the existing `maturin` build.
+- JupyterLab, Saleor, Semantic Kernel, Transformers, and Warehouse
+remain separate, held-out evaluation projects.
+
+### Results
+
+We benchmarked the builds on Linux x86-64 using the expanded corpus for
+training and five separate held-out ecosystem projects for evaluation.
+
+| Held-out project | Dependency resolution | Wheel installation |
+Project locking | Lockfile export |
+| ---------------- | --------------------: | -----------------: |
+---------------: | --------------: |
+| JupyterLab | 11.2% faster | 0.0% | 10.1% faster | 10.6% faster |
+| Semantic Kernel | 9.3% faster | 7.1% faster | 12.5% faster | 8.7%
+faster |
+| Transformers | 11.7% faster | 4.1% faster | 9.5% faster | 11.0% faster
+|
+| Saleor | — | — | 9.7% faster | 10.0% faster |
+| Warehouse | — | — | 9.7% faster | 7.6% faster |
+| Geometric mean | **10.7% faster** | **3.7% faster** | **10.3% faster**
+| **9.6% faster** |
+
+Across all sixteen held-out workloads, wall time decreased by **8.9%**
+(95% CI: 8.4–9.8%) and CPU time decreased by **8.4%** (95% CI:
+7.9–9.0%). The matched Linux executable was **13.3% smaller** (58.91 MB
+to 51.05 MB), or **12.3% smaller** after gzip compression (22.68 MB to
+19.90 MB).
+
+(Saleor and Warehouse include source-only dependencies, so they are
+benchmarked on locking and export rather than wheel-only installation.)
+
+### Stack
+
+Additional platforms are covered in subsequent PRs in the stack: macOS
+ARM64, Windows x86-64, and Linux ARM64.
+
+Ruff and ty follow the same approach; see the stacks here:
+
+- https://github.com/astral-sh/ruff/pull/27570
+- https://github.com/astral-sh/ty/pull/4213&lt;/pre&gt;
+    </content>
+  </entry>
+  <entry>
+    <id>tag:github.com,2008:Grit::Commit/3ef314688c536e33831de5471078461dd24d01c5</id>
+    <link type="text/html" rel="alternate" href="https://github.com/astral-sh/uv/commit/3ef314688c536e33831de5471078461dd24d01c5"/>
+    <title>
+        Remediate `uv audit` findings (#21153)
+    </title>
+    <updated>2026-08-17T19:36:51Z</updated>
+    <media:thumbnail height="30" width="30" url="https://avatars.githubusercontent.com/u/3059210?s=30&amp;v=4"/>
+    <author>
+      <name>woodruffw</name>
+      <uri>https://github.com/woodruffw</uri>
+    </author>
+    <content type="html">
+      &lt;pre style=&#39;white-space:pre-wrap;width:81ex&#39;&gt;Remediate `uv audit` findings (#21153)
+
+&amp;lt;!--
+Thank you for contributing to uv! To help us out with reviewing, please
+consider the following:
+
+- Does this pull request include a summary of the change? (See below.)
+- Does this pull request include a descriptive title?
+- Does this pull request include references to any relevant issues?
+--&amp;gt;
+
+## Summary
+
+Each of the commits in this PR addresses a different group of `uv audit`
+findings, in different lockfiles.
+
+&amp;lt;!-- What&amp;#39;s the purpose of the change? What does it do, and why? --&amp;gt;
+
+## Test Plan
+
+NFC.
+
+&amp;lt;!-- How was it tested? --&amp;gt;
+
+---
+
+&amp;lt;sub&amp;gt;Stack created with &amp;lt;a
+href=&amp;quot;https://github.com/github/gh-stack&amp;quot;&amp;gt;GitHub Stacks CLI&amp;lt;/a&amp;gt; • &amp;lt;a
+href=&amp;quot;https://gh.io/stacks-feedback&amp;quot;&amp;gt;Give Feedback 💬&amp;lt;/a&amp;gt;&amp;lt;/sub&amp;gt;&lt;/pre&gt;
+    </content>
+  </entry>
+  <entry>
+    <id>tag:github.com,2008:Grit::Commit/665fa39c7c90f8ff872ac21993c1a4af2afad571</id>
+    <link type="text/html" rel="alternate" href="https://github.com/astral-sh/uv/commit/665fa39c7c90f8ff872ac21993c1a4af2afad571"/>
+    <title>
+        Add dependency cooldowns to all PEP 723 scripts (#21152)
+    </title>
+    <updated>2026-08-17T19:36:50Z</updated>
+    <media:thumbnail height="30" width="30" url="https://avatars.githubusercontent.com/u/3059210?s=30&amp;v=4"/>
+    <author>
+      <name>woodruffw</name>
+      <uri>https://github.com/woodruffw</uri>
+    </author>
+    <content type="html">
+      &lt;pre style=&#39;white-space:pre-wrap;width:81ex&#39;&gt;Add dependency cooldowns to all PEP 723 scripts (#21152)
+
+&amp;lt;!--
+Thank you for contributing to uv! To help us out with reviewing, please
+consider the following:
+
+- Does this pull request include a summary of the change? (See below.)
+- Does this pull request include a descriptive title?
+- Does this pull request include references to any relevant issues?
+--&amp;gt;
+
+## Summary
+
+Adds a 7 day cooldown to all of our PEP 723 style scripts.
+
+&amp;lt;!-- What&amp;#39;s the purpose of the change? What does it do, and why? --&amp;gt;
+
+## Test Plan
+
+NFC.
+
+&amp;lt;!-- How was it tested? --&amp;gt;
+
+---
+
+&amp;lt;sub&amp;gt;Stack created with &amp;lt;a
+href=&amp;quot;https://github.com/github/gh-stack&amp;quot;&amp;gt;GitHub Stacks CLI&amp;lt;/a&amp;gt; • &amp;lt;a
+href=&amp;quot;https://gh.io/stacks-feedback&amp;quot;&amp;gt;Give Feedback 💬&amp;lt;/a&amp;gt;&amp;lt;/sub&amp;gt;&lt;/pre&gt;
+    </content>
+  </entry>
+  <entry>
+    <id>tag:github.com,2008:Grit::Commit/c334d099909406fdebf69f4d1a870bda1a308291</id>
+    <link type="text/html" rel="alternate" href="https://github.com/astral-sh/uv/commit/c334d099909406fdebf69f4d1a870bda1a308291"/>
+    <title>
+        Grant CI workflows read-only repository access (#21171)
+    </title>
+    <updated>2026-08-17T19:13:27Z</updated>
+    <media:thumbnail height="30" width="30" url="https://avatars.githubusercontent.com/in/4307167?s=30&amp;v=4"/>
+    <author>
+      <name>astral-automations-bot</name>
+      <uri>https://github.com/astral-automations-bot</uri>
+    </author>
+    <content type="html">
+      &lt;pre style=&#39;white-space:pre-wrap;width:81ex&#39;&gt;Grant CI workflows read-only repository access (#21171)
+
+CI fails to check out the repository in private copies of uv because the
+workflows explicitly remove `GITHUB_TOKEN` repository access. Public
+checkouts work without that access, which hides the problem upstream.
+Grant `contents: read` to the CI entry point and affected reusable
+workflows, including jobs that override their inherited permissions, so
+private CI can read its own source without granting repository write
+access.
+
+Co-authored-by: zaniebot &amp;lt;242828183+zaniebot@users.noreply.github.com&amp;gt;&lt;/pre&gt;
+    </content>
+  </entry>
+  <entry>
+    <id>tag:github.com,2008:Grit::Commit/73ea1451573ac90b736ffab5f27d716b5fa6113b</id>
+    <link type="text/html" rel="alternate" href="https://github.com/astral-sh/uv/commit/73ea1451573ac90b736ffab5f27d716b5fa6113b"/>
+    <title>
+        Disable pyx integration tests (#21166)
+    </title>
+    <updated>2026-08-17T19:12:40Z</updated>
+    <media:thumbnail height="30" width="30" url="https://avatars.githubusercontent.com/u/1200832?s=30&amp;v=4"/>
+    <author>
+      <name>ewdurbin</name>
+      <uri>https://github.com/ewdurbin</uri>
+    </author>
+    <content type="html">
+      &lt;pre style=&#39;white-space:pre-wrap;width:81ex&#39;&gt;Disable pyx integration tests (#21166)
+
+`pyx` has ended service. disable publication tests targeting pyx.&lt;/pre&gt;
+    </content>
+  </entry>
+  <entry>
+    <id>tag:github.com,2008:Grit::Commit/39b988171a83fe6d742bf69cd5806f5a9ea88fb1</id>
+    <link type="text/html" rel="alternate" href="https://github.com/astral-sh/uv/commit/39b988171a83fe6d742bf69cd5806f5a9ea88fb1"/>
+    <title>
+        Use dev groups to manage our tooling (#21169)
+    </title>
+    <updated>2026-08-17T19:07:50Z</updated>
+    <media:thumbnail height="30" width="30" url="https://avatars.githubusercontent.com/u/3059210?s=30&amp;v=4"/>
+    <author>
+      <name>woodruffw</name>
+      <uri>https://github.com/woodruffw</uri>
+    </author>
+    <content type="html">
+      &lt;pre style=&#39;white-space:pre-wrap;width:81ex&#39;&gt;Use dev groups to manage our tooling (#21169)
+
+Signed-off-by: William Woodruff &amp;lt;william@yossarian.net&amp;gt;&lt;/pre&gt;
+    </content>
+  </entry>
+  <entry>
+    <id>tag:github.com,2008:Grit::Commit/a6e0ff10b3f438202ccd3ab025dcba4c161c897b</id>
+    <link type="text/html" rel="alternate" href="https://github.com/astral-sh/uv/commit/a6e0ff10b3f438202ccd3ab025dcba4c161c897b"/>
+    <title>
+        Require the approved revision during pull request promotion (#21164)
+    </title>
+    <updated>2026-08-17T16:49:03Z</updated>
+    <media:thumbnail height="30" width="30" url="https://avatars.githubusercontent.com/in/4307167?s=30&amp;v=4"/>
+    <author>
+      <name>astral-automations-bot</name>
+      <uri>https://github.com/astral-automations-bot</uri>
+    </author>
+    <content type="html">
+      &lt;pre style=&#39;white-space:pre-wrap;width:81ex&#39;&gt;Require the approved revision during pull request promotion (#21164)
+
+Promotion currently accepts the latest head of a ready `uv-dev` pull
+request, so commits pushed after it was marked ready can be promoted
+without another approval. Require the `head_sha` from `ready_for_review`
+and stop dispatching promotion on `synchronize`. If the source or
+promoted head no longer matches, leave the source open, return it to
+draft, explain the mismatch, and assign the human who marked it ready.
+
+Co-authored-by: zaniebot &amp;lt;242828183+zaniebot@users.noreply.github.com&amp;gt;&lt;/pre&gt;
+    </content>
+  </entry>
+  <entry>
+    <id>tag:github.com,2008:Grit::Commit/74dcf37c18a235f5d7525a93168dd8686e1a03ee</id>
+    <link type="text/html" rel="alternate" href="https://github.com/astral-sh/uv/commit/74dcf37c18a235f5d7525a93168dd8686e1a03ee"/>
+    <title>
+        Update dependency astral-sh/uv to v0.12.5 (#21159)
+    </title>
+    <updated>2026-08-17T10:57:51Z</updated>
+    <media:thumbnail height="30" width="30" url="https://avatars.githubusercontent.com/in/2740?s=30&amp;v=4"/>
+    <author>
+      <name>renovate</name>
+      <uri>https://github.com/renovate</uri>
+    </author>
+    <content type="html">
+      &lt;pre style=&#39;white-space:pre-wrap;width:81ex&#39;&gt;Update dependency astral-sh/uv to v0.12.5 (#21159)&lt;/pre&gt;
+    </content>
+  </entry>
+  <entry>
+    <id>tag:github.com,2008:Grit::Commit/0adcef9a15e97899a193a261357b1a7534eb9c1a</id>
+    <link type="text/html" rel="alternate" href="https://github.com/astral-sh/uv/commit/0adcef9a15e97899a193a261357b1a7534eb9c1a"/>
+    <title>
+        Update pre-commit hook astral-sh/ruff-pre-commit to v0.16.3 (#21160)
+    </title>
+    <updated>2026-08-17T10:57:47Z</updated>
+    <media:thumbnail height="30" width="30" url="https://avatars.githubusercontent.com/in/2740?s=30&amp;v=4"/>
+    <author>
+      <name>renovate</name>
+      <uri>https://github.com/renovate</uri>
+    </author>
+    <content type="html">
+      &lt;pre style=&#39;white-space:pre-wrap;width:81ex&#39;&gt;Update pre-commit hook astral-sh/ruff-pre-commit to v0.16.3 (#21160)&lt;/pre&gt;
+    </content>
+  </entry>
+  <entry>
+    <id>tag:github.com,2008:Grit::Commit/44d2188cbee7969f67264249b9075993ba91e151</id>
+    <link type="text/html" rel="alternate" href="https://github.com/astral-sh/uv/commit/44d2188cbee7969f67264249b9075993ba91e151"/>
+    <title>
+        Update astral-sh/setup-uv action to v10 (#21161)
+    </title>
+    <updated>2026-08-17T10:57:44Z</updated>
+    <media:thumbnail height="30" width="30" url="https://avatars.githubusercontent.com/in/2740?s=30&amp;v=4"/>
+    <author>
+      <name>renovate</name>
+      <uri>https://github.com/renovate</uri>
+    </author>
+    <content type="html">
+      &lt;pre style=&#39;white-space:pre-wrap;width:81ex&#39;&gt;Update astral-sh/setup-uv action to v10 (#21161)&lt;/pre&gt;
+    </content>
+  </entry>
+  <entry>
+    <id>tag:github.com,2008:Grit::Commit/ef8654f48715fd5a6c65438be3db4d2a5d572ed4</id>
+    <link type="text/html" rel="alternate" href="https://github.com/astral-sh/uv/commit/ef8654f48715fd5a6c65438be3db4d2a5d572ed4"/>
+    <title>
+        Add exact sync support to workspace metadata (#21117)
+    </title>
+    <updated>2026-08-16T21:52:00Z</updated>
+    <media:thumbnail height="30" width="30" url="https://avatars.githubusercontent.com/in/4307167?s=30&amp;v=4"/>
+    <author>
+      <name>astral-automations-bot</name>
+      <uri>https://github.com/astral-automations-bot</uri>
+    </author>
+    <content type="html">
+      &lt;pre style=&#39;white-space:pre-wrap;width:81ex&#39;&gt;Add exact sync support to workspace metadata (#21117)
+
+Allow `uv workspace metadata --sync --exact` to remove packages outside
+the selected resolution while preserving the existing inexact behavior
+of `--sync`. Match `uv run --exact` semantics and ensure exact
+synchronization also cleans environments for scripts without
+dependencies.
+
+Co-authored-by: Zanie Blue &amp;lt;contact@zanie.dev&amp;gt;&lt;/pre&gt;
+    </content>
+  </entry>
+  <entry>
+    <id>tag:github.com,2008:Grit::Commit/ba3f90c22b083edc37955b9dc1156e565d64419f</id>
+    <link type="text/html" rel="alternate" href="https://github.com/astral-sh/uv/commit/ba3f90c22b083edc37955b9dc1156e565d64419f"/>
+    <title>
+        Consistently use creation time for directory `cache-keys` entries reg…
+    </title>
+    <updated>2026-08-16T18:57:43Z</updated>
+    <media:thumbnail height="30" width="30" url="https://avatars.githubusercontent.com/u/4272014?s=30&amp;v=4"/>
+    <author>
+      <name>EliteTK</name>
+      <uri>https://github.com/EliteTK</uri>
+    </author>
+    <content type="html">
+      &lt;pre style=&#39;white-space:pre-wrap;width:81ex&#39;&gt;Consistently use creation time for directory `cache-keys` entries regardless of libc (#21137)
+
+## Summary
+
+When using musl we would fall back to using the inode, which would cause
+churn when going between musl backed and glibc backed uv versions on the
+same host.
+
+Using rustix, this remains consistent as long as the underlying OS
+supports the call for the specific filesystem.
+
+This will cause a small bit of churn on musl systems, but that churn
+will just be in the form of a cache invalidation when updating uv.
+
+## Test Plan
+
+Existing coverage for the functionality. Manual tests for checking musl
+and linux now work the same (but we bypass glibc/musl so it didn&amp;#39;t feel
+worth it to try to come up with an automated regression test here).&lt;/pre&gt;
+    </content>
+  </entry>
+  <entry>
+    <id>tag:github.com,2008:Grit::Commit/155db7c0b3a06b8c5d2a1b8315609ea7e200a6a7</id>
+    <link type="text/html" rel="alternate" href="https://github.com/astral-sh/uv/commit/155db7c0b3a06b8c5d2a1b8315609ea7e200a6a7"/>
+    <title>
+        Do not treat a URL ending in `.py` as a script path (#21144)
+    </title>
+    <updated>2026-08-16T17:50:47Z</updated>
+    <media:thumbnail height="30" width="30" url="https://avatars.githubusercontent.com/u/123409429?s=30&amp;v=4"/>
+    <author>
+      <name>Kayvan-Zahiri</name>
+      <uri>https://github.com/Kayvan-Zahiri</uri>
+    </author>
+    <content type="html">
+      &lt;pre style=&#39;white-space:pre-wrap;width:81ex&#39;&gt;Do not treat a URL ending in `.py` as a script path (#21144)
+
+`uvx git+https://github.com/uPesy/easyeda2kicad.py` fails with &amp;quot;Not a
+valid package or extra name&amp;quot;.
+
+`has_python_script_ext` calls `Path::extension()` on the raw argument,
+so any URL whose last segment ends in `.py` is read as a script path. uv
+then parses the whole URL as a package name, which is where the message
+comes from.
+
+This skips the script check when the argument carries a scheme
+`Scheme::parse` recognises. Pairing `split_scheme` with `Scheme::parse`
+is deliberate and matches the existing use in `verbatim_url.rs`: a bare
+`split_scheme` would read the `C:` in `C:\script.py` as a scheme and
+break script detection on Windows.
+
+Before:
+
+```console
+$ uv tool run --offline git+https://github.com/uPesy/easyeda2kicad.py
+error: Not a valid package or extra name: &amp;quot;git+https://github.com/uPesy/easyeda2kicad.py&amp;quot;
+```
+
+After, it reaches the git fetch and stops only on `--offline`:
+
+```console
+Updating https://github.com/uPesy/easyeda2kicad.py (HEAD)
+error: ... Remote Git fetches are not allowed because network connectivity is disabled
+```
+
+Two tests added beside the existing script tests. They use `--offline`,
+so they exercise the parse without touching the network. Both fail
+without the change with the exact error above. The existing `script.py`,
+missing-`script.py` and `--from script.py` behaviours are unchanged.
+
+Closes #21141
+
+---------
+
+Co-authored-by: Claude Opus 5 (1M context) &amp;lt;noreply@anthropic.com&amp;gt;
+Co-authored-by: Charlie Marsh &amp;lt;charlie.r.marsh@gmail.com&amp;gt;&lt;/pre&gt;
+    </content>
+  </entry>
+</feed>

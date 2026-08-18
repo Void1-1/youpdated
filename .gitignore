@@ -1,0 +1,19 @@
+# Environments and build output
+.venv/
+venv/
+build/
+dist/
+*.egg-info/
+
+# Python caches
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Local config
+youpdated.yaml
+youpdated.yml
+*.sqlite3
+
+# macOS
+.DS_Store

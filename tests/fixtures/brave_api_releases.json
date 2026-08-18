@@ -1,0 +1,402 @@
+[
+ {
+  "id": 372036532,
+  "name": "Nightly v1.95.78 (Chromium 152.0.7977.42) \n\n",
+  "tag_name": "v1.95.78",
+  "html_url": "https://github.com/brave/brave-browser/releases/tag/v1.95.78",
+  "published_at": "2026-08-18T01:25:38Z",
+  "draft": false,
+  "prerelease": true,
+  "body": "Nightly v1.95.78 (Chromium 152.0.7977.42) \n\n*This is NOT the release (stable) channel version of Brave.\n\n# Android\nPick the `APK` suitable for your device's architecture.\n\n# iOS\n`brave-core-ios-1.95.7"
+ },
+ {
+  "id": 372106692,
+  "name": "Beta v1.94.112 (Chromium 151.0.7922.137) \n\n",
+  "tag_name": "v1.94.112",
+  "html_url": "https://github.com/brave/brave-browser/releases/tag/v1.94.112",
+  "published_at": "2026-08-18T05:26:29Z",
+  "draft": false,
+  "prerelease": false,
+  "body": "Beta v1.94.112 (Chromium 151.0.7922.137) \n\n*This is NOT the release (stable) channel version of Brave.\n\n# Android\nPick the `APK` suitable for your device's architecture.\n\n# iOS\n`brave-core-ios-1.94.11"
+ },
+ {
+  "id": 371885008,
+  "name": "Nightly v1.95.77 (Chromium 152.0.7977.42) \n\n",
+  "tag_name": "v1.95.77",
+  "html_url": "https://github.com/brave/brave-browser/releases/tag/v1.95.77",
+  "published_at": "2026-08-17T18:56:51Z",
+  "draft": false,
+  "prerelease": false,
+  "body": "Nightly v1.95.77 (Chromium 152.0.7977.42) \n\n*This is NOT the release (stable) channel version of Brave.\n\n# Android\nPick the `APK` suitable for your device's architecture.\n\n# iOS\n`brave-core-ios-1.95.7"
+ },
+ {
+  "id": 371784465,
+  "name": "Nightly v1.95.76 (Chromium 152.0.7977.42) \n\n",
+  "tag_name": "v1.95.76",
+  "html_url": "https://github.com/brave/brave-browser/releases/tag/v1.95.76",
+  "published_at": "2026-08-17T13:54:38Z",
+  "draft": false,
+  "prerelease": false,
+  "body": "Nightly v1.95.76 (Chromium 152.0.7977.42) \n\n*This is NOT the release (stable) channel version of Brave.\n\n# Android\nPick the `APK` suitable for your device's architecture.\n\n# iOS\n`brave-core-ios-1.95.7"
+ },
+ {
+  "id": 371784151,
+  "name": "Nightly v1.95.75 (Chromium 152.0.7977.42) \n\n",
+  "tag_name": "v1.95.75",
+  "html_url": "https://github.com/brave/brave-browser/releases/tag/v1.95.75",
+  "published_at": "2026-08-17T13:53:13Z",
+  "draft": false,
+  "prerelease": false,
+  "body": "Nightly v1.95.75 (Chromium 152.0.7977.42) \n\n*This is NOT the release (stable) channel version of Brave.\n\n# Android\nPick the `APK` suitable for your device's architecture.\n\n# iOS\n`brave-core-ios-1.95.7"
+ },
+ {
+  "id": 371503059,
+  "name": "Nightly v1.95.74 (Chromium 152.0.7977.42) \n\n",
+  "tag_name": "v1.95.74",
+  "html_url": "https://github.com/brave/brave-browser/releases/tag/v1.95.74",
+  "published_at": "2026-08-17T02:54:09Z",
+  "draft": false,
+  "prerelease": true,
+  "body": "Nightly v1.95.74 (Chromium 152.0.7977.42) \n\n*This is NOT the release (stable) channel version of Brave.\n\n# Android\nPick the `APK` suitable for your device's architecture.\n\n# iOS\n`brave-core-ios-1.95.7"
+ },
+ {
+  "id": 371541313,
+  "name": "Beta v1.94.111 (Chromium 151.0.7922.137) \n\n",
+  "tag_name": "v1.94.111",
+  "html_url": "https://github.com/brave/brave-browser/releases/tag/v1.94.111",
+  "published_at": "2026-08-17T05:24:10Z",
+  "draft": false,
+  "prerelease": true,
+  "body": "Beta v1.94.111 (Chromium 151.0.7922.137) \n\n*This is NOT the release (stable) channel version of Brave.\n\n# Android\nPick the `APK` suitable for your device's architecture.\n\n# iOS\n`brave-core-ios-1.94.11"
+ },
+ {
+  "id": 370725423,
+  "name": "Nightly v1.95.73 (Chromium 152.0.7977.42) \n\n",
+  "tag_name": "v1.95.73",
+  "html_url": "https://github.com/brave/brave-browser/releases/tag/v1.95.73",
+  "published_at": "2026-08-14T17:31:33Z",
+  "draft": false,
+  "prerelease": false,
+  "body": "Nightly v1.95.73 (Chromium 152.0.7977.42) \n\n*This is NOT the release (stable) channel version of Brave.\n\n# Android\nPick the `APK` suitable for your device's architecture.\n\n# iOS\n`brave-core-ios-1.95.7"
+ },
+ {
+  "id": 370609568,
+  "name": "Nightly v1.95.72 (Chromium 152.0.7977.42) \n\n",
+  "tag_name": "v1.95.72",
+  "html_url": "https://github.com/brave/brave-browser/releases/tag/v1.95.72",
+  "published_at": "2026-08-14T13:58:50Z",
+  "draft": false,
+  "prerelease": true,
+  "body": "Nightly v1.95.72 (Chromium 152.0.7977.42) \n\n*This is NOT the release (stable) channel version of Brave.\n\n# Android\nPick the `APK` suitable for your device's architecture.\n\n# iOS\n`brave-core-ios-1.95.7"
+ },
+ {
+  "id": 370608831,
+  "name": "Nightly v1.95.71 (Chromium 152.0.7977.42) \n\n",
+  "tag_name": "v1.95.71",
+  "html_url": "https://github.com/brave/brave-browser/releases/tag/v1.95.71",
+  "published_at": "2026-08-14T13:57:35Z",
+  "draft": false,
+  "prerelease": false,
+  "body": "Nightly v1.95.71 (Chromium 152.0.7977.42) \n\n*This is NOT the release (stable) channel version of Brave.\n\n# Android\nPick the `APK` suitable for your device's architecture.\n\n# iOS\n`brave-core-ios-1.95.7"
+ },
+ {
+  "id": 370298287,
+  "name": "Nightly v1.95.70 (Chromium 152.0.7977.42) \n\n",
+  "tag_name": "v1.95.70",
+  "html_url": "https://github.com/brave/brave-browser/releases/tag/v1.95.70",
+  "published_at": "2026-08-14T01:31:42Z",
+  "draft": false,
+  "prerelease": false,
+  "body": "Nightly v1.95.70 (Chromium 152.0.7977.42) \n\n*This is NOT the release (stable) channel version of Brave.\n\n# Android\nPick the `APK` suitable for your device's architecture.\n\n# iOS\n`brave-core-ios-1.95.7"
+ },
+ {
+  "id": 370371410,
+  "name": "Beta v1.94.110 (Chromium 151.0.7922.137) \n\n",
+  "tag_name": "v1.94.110",
+  "html_url": "https://github.com/brave/brave-browser/releases/tag/v1.94.110",
+  "published_at": "2026-08-14T05:29:23Z",
+  "draft": false,
+  "prerelease": true,
+  "body": "Beta v1.94.110 (Chromium 151.0.7922.137) \n\n*This is NOT the release (stable) channel version of Brave.\n\n# Android\nPick the `APK` suitable for your device's architecture.\n\n# iOS\n`brave-core-ios-1.94.11"
+ },
+ {
+  "id": 370091056,
+  "name": "Nightly v1.95.69 (Chromium 152.0.7977.42) \n\n",
+  "tag_name": "v1.95.69",
+  "html_url": "https://github.com/brave/brave-browser/releases/tag/v1.95.69",
+  "published_at": "2026-08-13T17:29:29Z",
+  "draft": false,
+  "prerelease": true,
+  "body": "Nightly v1.95.69 (Chromium 152.0.7977.42) \n\n*This is NOT the release (stable) channel version of Brave.\n\n# Android\nPick the `APK` suitable for your device's architecture.\n\n# iOS\n`brave-core-ios-1.95.6"
+ },
+ {
+  "id": 369954986,
+  "name": "Nightly v1.95.68 (Chromium 152.0.7977.42) \n\n",
+  "tag_name": "v1.95.68",
+  "html_url": "https://github.com/brave/brave-browser/releases/tag/v1.95.68",
+  "published_at": "2026-08-13T13:53:31Z",
+  "draft": false,
+  "prerelease": false,
+  "body": "Nightly v1.95.68 (Chromium 152.0.7977.42) \n\n*This is NOT the release (stable) channel version of Brave.\n\n# Android\nPick the `APK` suitable for your device's architecture.\n\n# iOS\n`brave-core-ios-1.95.6"
+ },
+ {
+  "id": 369956368,
+  "name": "Nightly v1.95.67 (Chromium 152.0.7977.42) \n\n",
+  "tag_name": "v1.95.67",
+  "html_url": "https://github.com/brave/brave-browser/releases/tag/v1.95.67",
+  "published_at": "2026-08-13T13:55:39Z",
+  "draft": false,
+  "prerelease": false,
+  "body": "Nightly v1.95.67 (Chromium 152.0.7977.42) \n\n*This is NOT the release (stable) channel version of Brave.\n\n# Android\nPick the `APK` suitable for your device's architecture.\n\n# iOS\n`brave-core-ios-1.95.6"
+ },
+ {
+  "id": 369615461,
+  "name": "Nightly v1.95.66 (Chromium 151.0.7922.137) \n\n",
+  "tag_name": "v1.95.66",
+  "html_url": "https://github.com/brave/brave-browser/releases/tag/v1.95.66",
+  "published_at": "2026-08-13T01:27:18Z",
+  "draft": false,
+  "prerelease": true,
+  "body": "Nightly v1.95.66 (Chromium 151.0.7922.137) \n\n*This is NOT the release (stable) channel version of Brave.\n\n# Android\nPick the `APK` suitable for your device's architecture.\n\n# iOS\n`brave-core-ios-1.95."
+ },
+ {
+  "id": 369684938,
+  "name": "Beta v1.94.109 (Chromium 151.0.7922.137) \n\n",
+  "tag_name": "v1.94.109",
+  "html_url": "https://github.com/brave/brave-browser/releases/tag/v1.94.109",
+  "published_at": "2026-08-13T05:27:45Z",
+  "draft": false,
+  "prerelease": false,
+  "body": "Beta v1.94.109 (Chromium 151.0.7922.137) \n\n*This is NOT the release (stable) channel version of Brave.\n\n# Android\nPick the `APK` suitable for your device's architecture.\n\n# iOS\n`brave-core-ios-1.94.10"
+ },
+ {
+  "id": 369433555,
+  "name": "Nightly v1.95.65 (Chromium 151.0.7922.137) \n\n",
+  "tag_name": "v1.95.65",
+  "html_url": "https://github.com/brave/brave-browser/releases/tag/v1.95.65",
+  "published_at": "2026-08-12T18:00:47Z",
+  "draft": false,
+  "prerelease": false,
+  "body": "Nightly v1.95.65 (Chromium 151.0.7922.137) \n\n*This is NOT the release (stable) channel version of Brave.\n\n# Android\nPick the `APK` suitable for your device's architecture.\n\n# iOS\n`brave-core-ios-1.95."
+ },
+ {
+  "id": 369279242,
+  "name": "Nightly v1.95.63 (Chromium 151.0.7922.137) \n\n",
+  "tag_name": "v1.95.63",
+  "html_url": "https://github.com/brave/brave-browser/releases/tag/v1.95.63",
+  "published_at": "2026-08-12T13:54:33Z",
+  "draft": false,
+  "prerelease": true,
+  "body": "Nightly v1.95.63 (Chromium 151.0.7922.137) \n\n*This is NOT the release (stable) channel version of Brave.\n\n# Android\nPick the `APK` suitable for your device's architecture.\n\n# iOS\n`brave-core-ios-1.95."
+ },
+ {
+  "id": 369274362,
+  "name": "Nightly v1.95.62 (Chromium 151.0.7922.137) \n\n",
+  "tag_name": "v1.95.62",
+  "html_url": "https://github.com/brave/brave-browser/releases/tag/v1.95.62",
+  "published_at": "2026-08-12T13:47:29Z",
+  "draft": false,
+  "prerelease": false,
+  "body": "Nightly v1.95.62 (Chromium 151.0.7922.137) \n\n*This is NOT the release (stable) channel version of Brave.\n\n# Android\nPick the `APK` suitable for your device's architecture.\n\n# iOS\n`brave-core-ios-1.95."
+ },
+ {
+  "id": 368942729,
+  "name": "Nightly v1.95.61 (Chromium 151.0.7922.108) \n\n",
+  "tag_name": "v1.95.61",
+  "html_url": "https://github.com/brave/brave-browser/releases/tag/v1.95.61",
+  "published_at": "2026-08-12T01:28:12Z",
+  "draft": false,
+  "prerelease": true,
+  "body": "Nightly v1.95.61 (Chromium 151.0.7922.108) \n\n*This is NOT the release (stable) channel version of Brave.\n\n# Android\nPick the `APK` suitable for your device's architecture.\n\n# iOS\n`brave-core-ios-1.95."
+ },
+ {
+  "id": 369011015,
+  "name": "Beta v1.94.108 (Chromium 151.0.7922.137) \n\n",
+  "tag_name": "v1.94.108",
+  "html_url": "https://github.com/brave/brave-browser/releases/tag/v1.94.108",
+  "published_at": "2026-08-12T05:29:01Z",
+  "draft": false,
+  "prerelease": false,
+  "body": "Beta v1.94.108 (Chromium 151.0.7922.137) \n\n*This is NOT the release (stable) channel version of Brave.\n\n# Android\nPick the `APK` suitable for your device's architecture.\n\n# iOS\n`brave-core-ios-1.94.10"
+ },
+ {
+  "id": 368985512,
+  "name": "Release v1.93.136 (Chromium 151.0.7922.137) ",
+  "tag_name": "v1.93.136",
+  "html_url": "https://github.com/brave/brave-browser/releases/tag/v1.93.136",
+  "published_at": "2026-08-12T04:00:02Z",
+  "draft": false,
+  "prerelease": false,
+  "body": "Release v1.93.136 (Chromium 151.0.7922.137)\n\n# Android\n\nPick the `APK` suitable for your device's architecture.\n\n# iOS\n\n`brave-core-ios-1.93.136.*` contains Brave for iOS.\n\n# Linux\n\n`DEB` and `RPM` pa"
+ },
+ {
+  "id": 368735330,
+  "name": "Nightly v1.95.60 (Chromium 151.0.7922.108) \n\n",
+  "tag_name": "v1.95.60",
+  "html_url": "https://github.com/brave/brave-browser/releases/tag/v1.95.60",
+  "published_at": "2026-08-11T17:25:05Z",
+  "draft": false,
+  "prerelease": true,
+  "body": "Nightly v1.95.60 (Chromium 151.0.7922.108) \n\n*This is NOT the release (stable) channel version of Brave.\n\n# Android\nPick the `APK` suitable for your device's architecture.\n\n# iOS\n`brave-core-ios-1.95."
+ },
+ {
+  "id": 368610542,
+  "name": "Nightly v1.95.59 (Chromium 151.0.7922.108) \n\n",
+  "tag_name": "v1.95.59",
+  "html_url": "https://github.com/brave/brave-browser/releases/tag/v1.95.59",
+  "published_at": "2026-08-11T13:56:21Z",
+  "draft": false,
+  "prerelease": true,
+  "body": "Nightly v1.95.59 (Chromium 151.0.7922.108) \n\n*This is NOT the release (stable) channel version of Brave.\n\n# Android\nPick the `APK` suitable for your device's architecture.\n\n# iOS\n`brave-core-ios-1.95."
+ },
+ {
+  "id": 368598670,
+  "name": "Nightly v1.95.58 (Chromium 151.0.7922.108) \n\n",
+  "tag_name": "v1.95.58",
+  "html_url": "https://github.com/brave/brave-browser/releases/tag/v1.95.58",
+  "published_at": "2026-08-11T13:39:06Z",
+  "draft": false,
+  "prerelease": true,
+  "body": "Nightly v1.95.58 (Chromium 151.0.7922.108) \n\n*This is NOT the release (stable) channel version of Brave.\n\n# Android\nPick the `APK` suitable for your device's architecture.\n\n# iOS\n`brave-core-ios-1.95."
+ },
+ {
+  "id": 368284459,
+  "name": "Nightly v1.95.57 (Chromium 151.0.7922.108) \n\n",
+  "tag_name": "v1.95.57",
+  "html_url": "https://github.com/brave/brave-browser/releases/tag/v1.95.57",
+  "published_at": "2026-08-11T01:29:30Z",
+  "draft": false,
+  "prerelease": true,
+  "body": "Nightly v1.95.57 (Chromium 151.0.7922.108) \n\n*This is NOT the release (stable) channel version of Brave.\n\n# Android\nPick the `APK` suitable for your device's architecture.\n\n# iOS\n`brave-core-ios-1.95."
+ },
+ {
+  "id": 368348172,
+  "name": "Beta v1.94.107 (Chromium 151.0.7922.108) \n\n",
+  "tag_name": "v1.94.107",
+  "html_url": "https://github.com/brave/brave-browser/releases/tag/v1.94.107",
+  "published_at": "2026-08-11T05:28:19Z",
+  "draft": false,
+  "prerelease": true,
+  "body": "Beta v1.94.107 (Chromium 151.0.7922.108) \n\n*This is NOT the release (stable) channel version of Brave.\n\n# Android\nPick the `APK` suitable for your device's architecture.\n\n# iOS\n`brave-core-ios-1.94.10"
+ },
+ {
+  "id": 368088036,
+  "name": "Nightly v1.95.56 (Chromium 151.0.7922.108) \n\n",
+  "tag_name": "v1.95.56",
+  "html_url": "https://github.com/brave/brave-browser/releases/tag/v1.95.56",
+  "published_at": "2026-08-10T17:26:43Z",
+  "draft": false,
+  "prerelease": true,
+  "body": "Nightly v1.95.56 (Chromium 151.0.7922.108) \n\n*This is NOT the release (stable) channel version of Brave.\n\n# Android\nPick the `APK` suitable for your device's architecture.\n\n# iOS\n`brave-core-ios-1.95."
+ },
+ {
+  "id": 367951375,
+  "name": "Nightly v1.95.55 (Chromium 151.0.7922.108) \n\n",
+  "tag_name": "v1.95.55",
+  "html_url": "https://github.com/brave/brave-browser/releases/tag/v1.95.55",
+  "published_at": "2026-08-10T13:56:17Z",
+  "draft": false,
+  "prerelease": true,
+  "body": "Nightly v1.95.55 (Chromium 151.0.7922.108) \n\n*This is NOT the release (stable) channel version of Brave.\n\n# Android\nPick the `APK` suitable for your device's architecture.\n\n# iOS\n`brave-core-ios-1.95."
+ },
+ {
+  "id": 367942348,
+  "name": "Nightly v1.95.54 (Chromium 151.0.7922.108) \n\n",
+  "tag_name": "v1.95.54",
+  "html_url": "https://github.com/brave/brave-browser/releases/tag/v1.95.54",
+  "published_at": "2026-08-10T13:42:14Z",
+  "draft": false,
+  "prerelease": true,
+  "body": "Nightly v1.95.54 (Chromium 151.0.7922.108) \n\n*This is NOT the release (stable) channel version of Brave.\n\n# Android\nPick the `APK` suitable for your device's architecture.\n\n# iOS\n`brave-core-ios-1.95."
+ },
+ {
+  "id": 367634264,
+  "name": "Nightly v1.95.53 (Chromium 151.0.7922.108) \n\n",
+  "tag_name": "v1.95.53",
+  "html_url": "https://github.com/brave/brave-browser/releases/tag/v1.95.53",
+  "published_at": "2026-08-10T01:27:51Z",
+  "draft": false,
+  "prerelease": true,
+  "body": "Nightly v1.95.53 (Chromium 151.0.7922.108) \n\n*This is NOT the release (stable) channel version of Brave.\n\n# Android\nPick the `APK` suitable for your device's architecture.\n\n# iOS\n`brave-core-ios-1.95."
+ },
+ {
+  "id": 367692627,
+  "name": "Beta v1.94.106 (Chromium 151.0.7922.108) \n\n",
+  "tag_name": "v1.94.106",
+  "html_url": "https://github.com/brave/brave-browser/releases/tag/v1.94.106",
+  "published_at": "2026-08-10T05:27:06Z",
+  "draft": false,
+  "prerelease": true,
+  "body": "Beta v1.94.106 (Chromium 151.0.7922.108) \n\n*This is NOT the release (stable) channel version of Brave.\n\n# Android\nPick the `APK` suitable for your device's architecture.\n\n# iOS\n`brave-core-ios-1.94.10"
+ },
+ {
+  "id": 367548197,
+  "name": "Release v1.93.135 (Chromium 151.0.7922.108) \n\n",
+  "tag_name": "v1.93.135",
+  "html_url": "https://github.com/brave/brave-browser/releases/tag/v1.93.135",
+  "published_at": "2026-08-09T18:07:01Z",
+  "draft": false,
+  "prerelease": true,
+  "body": "Release v1.93.135 (Chromium 151.0.7922.108) \n\n\n# Android\nPick the `APK` suitable for your device's architecture.\n\n# iOS\n`brave-core-ios-1.93.135.*` contains Brave for iOS.\n\n# Linux\n`DEB` and `RPM` pac"
+ },
+ {
+  "id": 366938138,
+  "name": "Nightly v1.95.52 (Chromium 151.0.7922.108) \n\n",
+  "tag_name": "v1.95.52",
+  "html_url": "https://github.com/brave/brave-browser/releases/tag/v1.95.52",
+  "published_at": "2026-08-07T18:27:20Z",
+  "draft": false,
+  "prerelease": true,
+  "body": "Nightly v1.95.52 (Chromium 151.0.7922.108) \n\n*This is NOT the release (stable) channel version of Brave.\n\n# Android\nPick the `APK` suitable for your device's architecture.\n\n# iOS\n`brave-core-ios-1.95."
+ },
+ {
+  "id": 366785093,
+  "name": "Nightly v1.95.51 (Chromium 151.0.7922.83) \n\n",
+  "tag_name": "v1.95.51",
+  "html_url": "https://github.com/brave/brave-browser/releases/tag/v1.95.51",
+  "published_at": "2026-08-07T13:58:14Z",
+  "draft": false,
+  "prerelease": true,
+  "body": "Nightly v1.95.51 (Chromium 151.0.7922.83) \n\n*This is NOT the release (stable) channel version of Brave.\n\n# Android\nPick the `APK` suitable for your device's architecture.\n\n# iOS\n`brave-core-ios-1.95.5"
+ },
+ {
+  "id": 366774702,
+  "name": "Nightly v1.95.50 (Chromium 151.0.7922.83) \n\n",
+  "tag_name": "v1.95.50",
+  "html_url": "https://github.com/brave/brave-browser/releases/tag/v1.95.50",
+  "published_at": "2026-08-07T13:41:42Z",
+  "draft": false,
+  "prerelease": true,
+  "body": "Nightly v1.95.50 (Chromium 151.0.7922.83) \n\n*This is NOT the release (stable) channel version of Brave.\n\n# Android\nPick the `APK` suitable for your device's architecture.\n\n# iOS\n`brave-core-ios-1.95.5"
+ },
+ {
+  "id": 366467699,
+  "name": "Nightly v1.95.49 (Chromium 151.0.7922.83) \n\n",
+  "tag_name": "v1.95.49",
+  "html_url": "https://github.com/brave/brave-browser/releases/tag/v1.95.49",
+  "published_at": "2026-08-07T01:28:31Z",
+  "draft": false,
+  "prerelease": true,
+  "body": "Nightly v1.95.49 (Chromium 151.0.7922.83) \n\n*This is NOT the release (stable) channel version of Brave.\n\n# Android\nPick the `APK` suitable for your device's architecture.\n\n# iOS\n`brave-core-ios-1.95.4"
+ },
+ {
+  "id": 366537212,
+  "name": "Beta v1.94.105 (Chromium 151.0.7922.108) \n\n",
+  "tag_name": "v1.94.105",
+  "html_url": "https://github.com/brave/brave-browser/releases/tag/v1.94.105",
+  "published_at": "2026-08-07T05:24:00Z",
+  "draft": false,
+  "prerelease": true,
+  "body": "Beta v1.94.105 (Chromium 151.0.7922.108) \n\n*This is NOT the release (stable) channel version of Brave.\n\n# Android\nPick the `APK` suitable for your device's architecture.\n\n# iOS\n`brave-core-ios-1.94.10"
+ },
+ {
+  "id": 366524638,
+  "name": "Release v1.93.134 (Chromium 151.0.7922.108) ",
+  "tag_name": "v1.93.134",
+  "html_url": "https://github.com/brave/brave-browser/releases/tag/v1.93.134",
+  "published_at": "2026-08-07T04:42:41Z",
+  "draft": false,
+  "prerelease": false,
+  "body": "Release v1.93.134 (Chromium 151.0.7922.108)\r\n\r\n# Android\r\n\r\nPick the `APK` suitable for your device's architecture.\r\n\r\n# iOS\r\n\r\n`brave-core-ios-1.93.134.*` contains Brave for iOS.\r\n\r\n# Linux\r\n\r\n`DEB` "
+ }
+]

@@ -1,0 +1,72 @@
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "youpdated"
+version = "0.1.0"
+description = "Simple update tracker for games, apps, and packages"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Void1-1", email = "161782542+Void1-1@users.noreply.github.com" }]
+keywords = [
+    "updates",
+    "release-tracking",
+    "scraper",
+    "rss",
+    "privacy",
+    "steam",
+    "itch",
+    "npm",
+    "github",
+    "youtube",
+    "cli",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: End Users/Desktop",
+    "Intended Audience :: Developers",
+    "Natural Language :: English",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Internet :: WWW/HTTP :: Indexing/Search",
+    "Topic :: Utilities",
+    "Typing :: Typed",
+]
+dependencies = [
+    "httpx[socks]>=0.27",
+    "feedparser>=6.0",
+    "rich>=13.0",
+    "PyYAML>=6.0",
+    "platformdirs>=4.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "respx>=0.21"]
+publish = ["build>=1.2", "twine>=5.0"]
+
+[project.urls]
+Homepage = "https://github.com/Void1-1/youpdated"
+Repository = "https://github.com/Void1-1/youpdated"
+Issues = "https://github.com/Void1-1/youpdated/issues"
+Changelog = "https://github.com/Void1-1/youpdated/blob/main/CHANGELOG.md"
+
+[project.scripts]
+youpdated = "youpdated.__main__:main"
+
+[tool.setuptools.packages.find]
+include = ["youpdated*"]
+
+[tool.setuptools.package-data]
+youpdated = ["py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

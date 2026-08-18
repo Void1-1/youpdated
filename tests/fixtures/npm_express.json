@@ -1,0 +1,56 @@
+{
+ "name": "express",
+ "description": "Fast, unopinionated, minimalist web framework",
+ "dist-tags": {
+  "latest": "5.2.1",
+  "latest-4": "4.22.2"
+ },
+ "time": {
+  "5.0.0": "2024-09-10T04:40:34.348Z",
+  "4.21.0": "2024-09-11T22:33:36.801Z",
+  "4.21.1": "2024-10-08T18:41:33.908Z",
+  "5.0.1": "2024-10-08T19:42:44.129Z",
+  "4.21.2": "2024-12-05T22:31:40.945Z",
+  "5.1.0": "2025-03-31T14:01:22.509Z",
+  "4.22.0": "2025-12-01T16:23:07.582Z",
+  "5.2.0": "2025-12-01T16:23:57.541Z",
+  "5.2.1": "2025-12-01T20:49:43.268Z",
+  "4.22.1": "2025-12-01T20:50:41.122Z",
+  "4.22.2": "2026-05-11T18:50:00.007Z"
+ },
+ "versions": {
+  "5.0.0": {
+   "description": "Fast, unopinionated, minimalist web framework"
+  },
+  "4.21.0": {
+   "description": "Fast, unopinionated, minimalist web framework"
+  },
+  "4.21.1": {
+   "description": "Fast, unopinionated, minimalist web framework"
+  },
+  "5.0.1": {
+   "description": "Fast, unopinionated, minimalist web framework"
+  },
+  "4.21.2": {
+   "description": "Fast, unopinionated, minimalist web framework"
+  },
+  "5.1.0": {
+   "description": "Fast, unopinionated, minimalist web framework"
+  },
+  "4.22.0": {
+   "description": "Fast, unopinionated, minimalist web framework"
+  },
+  "5.2.0": {
+   "description": "Fast, unopinionated, minimalist web framework"
+  },
+  "5.2.1": {
+   "description": "Fast, unopinionated, minimalist web framework"
+  },
+  "4.22.1": {
+   "description": "Fast, unopinionated, minimalist web framework"
+  },
+  "4.22.2": {
+   "description": "Fast, unopinionated, minimalist web framework"
+  }
+ }
+}
