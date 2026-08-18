@@ -230,6 +230,48 @@ def test_brave_falls_back_to_atom_when_the_api_rate_limits(client):
     assert all(u.uid.startswith("brave:v") for u in updates)
 
 
+@pytest.mark.parametrize("status", [500, 502, 503, 504])
+@respx.mock
+def test_brave_falls_back_to_atom_on_a_server_error(client, status):
+    respx.get(BRAVE_API_URL).mock(return_value=httpx.Response(status, text="upstream sad"))
+    atom = respx.get(BRAVE_ATOM_URL).mock(
+        return_value=httpx.Response(200, content=fixture("brave_releases.atom"))
+    )
+    source = get_source("browser")
+    (target,) = source.targets([{"browser": "brave", "channel": "nightly"}])
+    updates = list(source.fetch(target, client))
+
+    assert atom.called, f"HTTP {status} must fall back, not raise"
+    assert updates and all(u.title.startswith("Nightly") for u in updates)
+
+
+@respx.mock
+def test_brave_falls_back_to_atom_on_a_transport_error(client):
+    """A timeout or DNS failure should reach the fallback too, not just statuses."""
+    respx.get(BRAVE_API_URL).mock(side_effect=httpx.ConnectTimeout("timed out"))
+    atom = respx.get(BRAVE_ATOM_URL).mock(
+        return_value=httpx.Response(200, content=fixture("brave_releases.atom"))
+    )
+    source = get_source("browser")
+    (target,) = source.targets([{"browser": "brave", "channel": "beta"}])
+    updates = list(source.fetch(target, client))
+
+    assert atom.called
+    assert updates and all(u.title.startswith("Beta") for u in updates)
+
+
+@respx.mock
+def test_brave_still_raises_when_both_paths_fail(client):
+    """Falling back must not paper over a total outage."""
+    respx.get(BRAVE_API_URL).mock(return_value=httpx.Response(504, text="gateway"))
+    respx.get(BRAVE_ATOM_URL).mock(return_value=httpx.Response(504, text="gateway"))
+    source = get_source("browser")
+    (target,) = source.targets(["brave"])
+
+    with pytest.raises(Exception):
+        list(source.fetch(target, client))
+
+
 @respx.mock
 def test_edge_links_to_the_matching_channel_release_notes(client):
     respx.get(EDGE_URL).mock(

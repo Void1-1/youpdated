@@ -20,7 +20,7 @@ import sys
 from datetime import datetime, timezone
 from typing import Any, ClassVar, Iterable
 
-from ..http import Client
+from ..http import Client, FetchError
 from ..models import Target, Update
 from ..registry import register
 from .base import ConfigEntryError, entry_fields, require
@@ -203,18 +203,25 @@ class BrowserSource:
         channel = target.params["channel"]
         prefix = BRAVE_CHANNELS[channel].lower()
 
-        fetched = client.get(
-            "https://api.github.com/repos/brave/brave-browser/releases?per_page=100",
-            conditional=True,
-            headers={"Accept": "application/vnd.github+json"},
-            soft_statuses=(403, 429),
-        )
-        if fetched is not None and fetched.status == 200:
-            return self._brave_from_api(target, fetched.json(), channel, prefix)
+        try:
+            fetched = client.get(
+                "https://api.github.com/repos/brave/brave-browser/releases?per_page=100",
+                conditional=True,
+                headers={"Accept": "application/vnd.github+json"},
+                soft_statuses=(403, 429),
+            )
+        except FetchError as exc:
+            client.note(f"brave: GitHub API failed ({exc}), falling back to the atom feed")
+            return self._brave_from_atom(target, client, channel, prefix)
+
         if fetched is None:
             return []  # 304: nothing changed
+        if fetched.status == 200:
+            return self._brave_from_api(target, fetched.json(), channel, prefix)
 
-        client.note("brave: GitHub API unavailable, falling back to the atom feed")
+        client.note(
+            f"brave: GitHub API returned {fetched.status}, falling back to the atom feed"
+        )
         return self._brave_from_atom(target, client, channel, prefix)
 
     def _brave_from_api(

@@ -4,6 +4,26 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.1] — 2026-08-18
+
+### Fixed
+
+- **`browser` / Brave: a server error killed the target instead of falling back.** The Brave source
+  reads the GitHub REST API and keeps the `.atom` feed as a fallback, but only a 403 or 429 reached
+  it. A 5xx: a timeout, or a DNS failure, was retried, then raised, and the whole target was
+  reported as failed. Observed against `api.github.com` returning 504. Any failure the HTTP client
+  gives up on now falls back to the atom feed; a genuine outage of *both* still reports an error.
+
+### Changed
+
+- Retry backoff is configurable on the HTTP client (`retry_backoff`), so the test suite no longer spends real seconds exercising retry paths. The suite went from ~4.9s to ~0.4s.
+
+### Added
+
+- A `release` workflow that publishes to PyPI via trusted publishing when a GitHub Release is
+  published, gated on the full 13-job test matrix and on the tag matching the version in
+  `pyproject.toml`.
+
 ## [0.1.0] — 2026-08-18
 
 First release.
@@ -33,4 +53,5 @@ First release.
 - Firefox publishes current versions, so it reports one item per channel.
 - Edge exposes release notes only for the stable and beta channels. (But like, it's Edge, why do you want to know when it updates?)
 
+[0.1.1]: https://github.com/Void1-1/youpdated/releases/tag/v0.1.1
 [0.1.0]: https://github.com/Void1-1/youpdated/releases/tag/v0.1.0
