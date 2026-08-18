@@ -376,8 +376,31 @@ python3 -m venv /tmp/verify
 /tmp/verify/bin/youpdated sources
 ```
 
-Then upload (`twine upload dist/*`), tag the release, and add a `CHANGELOG.md` entry. Version lives
-in `pyproject.toml`; bump it before building, since PyPI refuses to replace an existing version.
+Then publish. Uploading needs a PyPI account and an API token. Create one under
+[Account settings --> API tokens](https://pypi.org/manage/account/token/), scoped to this project
+once it exists (for a first upload the token has to be account-wide):
+
+```sh
+.venv/bin/twine upload dist/*
+# username: __token__
+# password: pypi-...   (the token, including the pypi- prefix)
+```
+
+Test against [TestPyPI](https://test.pypi.org) first if you want to see the rendered project page before it's permanent:
+
+```sh
+.venv/bin/twine upload --repository testpypi dist/*
+```
+
+Then tag it and cut a GitHub release:
+
+```sh
+git tag -a v0.1.0 -m "v0.1.0"
+git push origin v0.1.0
+gh release create v0.1.0 dist/* --notes-from-tag
+```
+
+**A version is permanent.** PyPI refuses to replace an existing version even after a delete, so bump `version` in `pyproject.toml` before rebuilding. Add the matching `CHANGELOG.md` entry in the same commit.
 
 ### Adding a source
 
