@@ -20,6 +20,9 @@ sources:
     - https://example.com/feed.xml
 """
 
+TARGET_URL = "https://example.com/feed.xml"
+TARGET_HOST = b"example.com"
+
 SOCKS5_NO_AUTH = b"\x05\x00"
 ATYP_IPV4, ATYP_DOMAIN = 1, 3
 
@@ -112,20 +115,24 @@ def test_requests_go_to_the_proxy_and_the_hostname_is_not_resolved_locally(fake_
     """The proxy must receive the hostname"""
     with client_for(fake_socks.port) as client:
         with pytest.raises(FetchError):
-            client.get("https://example.com/feed.xml")
+            client.get(TARGET_URL)
 
     assert fake_socks.requests, "nothing reached the proxy. The request went somewhere else"
     connect = fake_socks.requests[0]
     assert connect[3] == ATYP_DOMAIN, f"expected a domain name, got ATYP {connect[3]}"
-    assert connect[5 : 5 + connect[4]] == b"example.com"
+    assert connect[5 : 5 + connect[4]] == TARGET_HOST
 
 
 def test_a_dead_proxy_raises_instead_of_connecting_directly(closed_port):
     with client_for(closed_port) as client:
         with pytest.raises(FetchError) as caught:
-            client.get("https://example.com/feed.xml")
-    # Refused by the proxy port, no direct attempt was made.
-    assert "example.com" in str(caught.value)
+            client.get(TARGET_URL)
+
+    # FetchError formats as "<url>: <ErrorType>: <detail>". Match the whole prefix
+    # rather than searching for the host anywhere in the string: a bare substring test
+    # would also pass on a URL that merely contains the host.
+    assert str(caught.value).startswith(f"{TARGET_URL}: ")
+    # Refused at the proxy port, so no direct attempt to the target was made.
     assert "Connect" in type(caught.value.__cause__).__name__
 
 
@@ -133,7 +140,7 @@ def test_a_broken_socks_handshake_is_wrapped_and_retried(fake_socks):
     """socksio raises outside the httpx hierarchy; unhandled it escapes the retry path."""
     with client_for(fake_socks.port) as client:
         with pytest.raises(FetchError):
-            client.get("https://example.com/feed.xml", retries=2)
+            client.get(TARGET_URL, retries=2)
     assert len(fake_socks.requests) == 3, "the failure should have been retried, not raised raw"
 
 
