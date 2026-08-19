@@ -6,6 +6,7 @@ All outbound go through :class:`Client`
 from __future__ import annotations
 
 import random
+import socket
 import threading
 import time
 from dataclasses import dataclass, field
@@ -16,6 +17,14 @@ import httpx
 
 from .config import PrivacyConfig
 from .state import State
+
+try:  # ships with httpx[socks]; guard anyway so an HTTP-proxy-only install still imports
+    from socksio.exceptions import SOCKSError
+except ImportError:  # pragma: no cover
+    class SOCKSError(Exception):
+        """Placeholder when socksio is absent."""
+
+NETWORK_ERRORS = (httpx.HTTPError, SOCKSError)
 
 # Small pool of current desktop UAs. Rotating inside a plausible set
 # it blends in better, but can be changed here
@@ -34,6 +43,41 @@ RETRY_STATUSES = frozenset({429, 500, 502, 503, 504})
 
 class FetchError(Exception):
     """Network or unexpected-status failure for one URL."""
+
+
+class ProxyUnavailable(Exception):
+    """The configured proxy could not be reached. Raised before any source runs."""
+
+
+#: Where a proxy listens when the URL omits the port.
+_DEFAULT_PROXY_PORTS = {"socks5": 1080, "socks4": 1080, "http": 8080, "https": 8080}
+
+
+def probe_proxy(proxy: str, timeout: float = 5.0) -> None:
+    """Open and drop a TCP connection to the proxy, or raise :class:`ProxyUnavailable`."""
+    parts = urlsplit(proxy)
+    host = parts.hostname
+    if not host:
+        raise ProxyUnavailable(f"`privacy.proxy` has no host: {proxy}")
+    try:
+        port = parts.port
+    except ValueError as exc:  # out-of-range port in the URL
+        raise ProxyUnavailable(f"`privacy.proxy` has an invalid port: {proxy}") from exc
+    port = port or _DEFAULT_PROXY_PORTS.get(parts.scheme.lower())
+    if port is None:
+        raise ProxyUnavailable(
+            f"`privacy.proxy` needs an explicit port for scheme `{parts.scheme}`: {proxy}"
+        )
+
+    try:
+        with socket.create_connection((host, port), timeout=timeout):
+            pass
+    except OSError as exc:
+        raise ProxyUnavailable(
+            f"cannot reach the proxy at {host}:{port} — {exc}.\n"
+            "Start the proxy (Tor listens on 9050 by default), or remove "
+            "`privacy.proxy` from your config."
+        ) from exc
 
 
 @dataclass
@@ -175,7 +219,7 @@ class Client:
                 # Cookies dropped every request
                 self._client.cookies.clear()
                 response = self._client.get(url, headers=request_headers)
-            except httpx.HTTPError as exc:
+            except NETWORK_ERRORS as exc:
                 last_error = exc
                 self.note(f"GET {url} -> {type(exc).__name__}: {exc}")
                 if attempt < retries:

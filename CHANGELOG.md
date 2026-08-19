@@ -4,6 +4,59 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Encryption at rest for the config and history** ([#5](https://github.com/Void1-1/youpdated/issues/5)).
+  `youpdated encrypt` (alias `set-encrypted`) converts an existing setup in place; `youpdated decrypt`
+  converts it back. Every command detects an encrypted setup on its own and asks for the passphrase
+  once, or reads it from `YOUPDATED_PASSPHRASE` for unattended runs.
+
+  Files are encrypted whole with AES-256-GCM under a scrypt-derived key (n=2¹⁶, r=8, p=1), with the
+  KDF parameters authenticated as additional data so they cannot be downgraded. Decryption happens
+  **in memory**: the config is parsed from a decrypted buffer and the SQLite database is
+  deserialized into an in-memory database and written back encrypted when the run ends, so no
+  plaintext copy is put on disk even mid-run. A read-only run leaves the file byte-for-byte alone.
+
+  Needs the `cryptography` package: `pip install 'youpdated[encryption]'`. Installs without it
+  behave exactly as before.
+
+- **`youpdated init --encrypt`** writes the starter config already encrypted, so a setup that is
+  meant to be private never has a plaintext config on disk at all — unlike `init` then `encrypt`,
+  which leaves the original blocks in free space.
+
+- **A proxy preflight.** When `privacy.proxy` is set, the proxy is checked before the run starts
+  and the run is refused with exit `1` if it is unreachable. `--test` reports it instead of
+  aborting.
+
+- **`youpdated.crypto` is a documented standalone module.** `from youpdated import crypto` gives
+  you the container directly; everything in its `__all__` is a supported surface. It stays an
+  optional *dependency* rather than a separate distribution on purpose: nothing in it imports
+  `cryptography` at module scope, so a plain install already pays nothing for it, and shipping the
+  container format apart from the code that reads it would risk version skew on files that are the
+  user's only copy.
+
+### Changed
+
+- **A dead proxy now stops the run instead of failing every target.** Requests already failed
+  closed (httpx routes everything through the proxy and never falls back to a direct connection)
+  but with Tor off, a run would fail each target separately, record an empty baseline, and still
+  exit `0`. In a cron log that is indistinguishable from "nothing new". It now exits `1` before the
+  state database is even opened, so nothing is recorded.
+
+### Fixed
+
+- **A broken SOCKS handshake escaped the retry path.** `socksio` raises `ProtocolError`, which is
+  not an `httpx.HTTPError`, so a proxy port answering with something that is not SOCKS5 bypassed
+  the retries and surfaced as a raw exception rather than a `FetchError`. The client now treats
+  `SOCKSError` as a network error like any other.
+
+- **`tests/test_cleanup.py` could delete a real `./youpdated.yaml`.** The fixture redirected the
+  config and data directories but not the working directory, so `find_traces()` picked up the
+  project config of whoever ran the suite from a directory that had one, and `remove_traces()`
+  deleted it. The fixture now chdirs to the temp directory.
+
 ## [0.1.1] — 2026-08-18
 
 ### Fixed
