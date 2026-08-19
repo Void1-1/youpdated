@@ -365,7 +365,13 @@ That trades the passphrase's secrecy for the crontab's. Ensure it is more protec
 | `youpdated check` | asks for the passphrase | runs |
 | `cat ~/.config/youpdated/config.yaml` | binary | readable |
 | `sqlite3 state.sqlite3 'select * from seen'` | `file is not a database` | readable |
-| File permissions | `0600` | as created |
+| File permissions | `0600` on macOS/Linux, see below on Windows | as created |
+
+**On Windows the file mode does nothing.** There are no POSIX permission bits, so the `0600` the
+writer asks for is ignored apart from the read-only flag, and access is decided by the ACL the file
+inherits from its directory. In the default location under `%LOCALAPPDATA%` that already excludes
+other standard users. The encryption itself is unaffected and works
+identically on all three platforms.
 
 ### Using it as a module
 

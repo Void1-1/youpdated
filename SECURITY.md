@@ -47,5 +47,10 @@ Youpdated is a local CLI that reads public endpoints. The interesting attack sur
 - Plaintext left in free space by `youpdated encrypt`. It overwrites the file; recovering the old
   blocks from the underlying device is out of scope, and not something a userspace tool can
   reliably prevent on modern storage.
+- File permissions on Windows. The `0600` mode requested when writing is a POSIX concept; Windows
+  ignores it and applies the ACL inherited from the containing directory. The default
+  `%LOCALAPPDATA%` location is already user-scoped, but a `--config` or `--state` path in a shared
+  directory is not. Restricting an ACL needs `pywin32` or shelling out to `icacls`, which this
+  project does not depend on. The file contents stay encrypted either way.
 - Vulnerabilities in dependencies with no exploitable path through this code. Report those upstream;
   Dependabot tracks version bumps here.

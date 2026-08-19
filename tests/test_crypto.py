@@ -23,6 +23,14 @@ pytestmark = pytest.mark.skipif(
     not crypto.available(), reason="cryptography is not installed"
 )
 
+# Windows has no POSIX permission bits: os.open()'s mode only toggles the read-only
+# flag there, and access is governed by the ACL the file inherits from its directory.
+# `write_private` cannot deliver 0600 on Windows, so assert it only where it is real
+# rather than weakening the check everywhere.
+posix_only = pytest.mark.skipif(
+    os.name != "posix", reason="POSIX permission bits; Windows uses inherited ACLs"
+)
+
 
 def update(uid: str = "v1") -> Update:
     return Update(source="github", target="python/cpython", uid=uid, title=uid, url="")
@@ -111,12 +119,18 @@ def test_plain_file_is_not_encrypted(tmp_path):
     assert not crypto.is_encrypted_file(tmp_path / "missing.yaml")
 
 
-def test_write_private_is_owner_only(tmp_path):
+def test_write_private_creates_parents_and_leaves_no_temp_file(tmp_path):
     path = tmp_path / "nested" / "state.sqlite3"
     crypto.write_private(path, b"data")
     assert path.read_bytes() == b"data"
-    assert stat.S_IMODE(path.stat().st_mode) == 0o600
     assert not (tmp_path / "nested" / "state.sqlite3.tmp").exists()
+
+
+@posix_only
+def test_write_private_is_owner_only(tmp_path):
+    path = tmp_path / "state.sqlite3"
+    crypto.write_private(path, b"data")
+    assert stat.S_IMODE(path.stat().st_mode) == 0o600
 
 
 # config
@@ -286,7 +300,8 @@ def test_init_encrypt_never_writes_plaintext(tmp_path, monkeypatch):
 
     assert main(["init", "--encrypt", "-c", str(config)]) == 0
     assert crypto.is_encrypted_file(config)
-    assert stat.S_IMODE(config.stat().st_mode) == 0o600
+    if os.name == "posix":
+        assert stat.S_IMODE(config.stat().st_mode) == 0o600
     assert b"sources" not in config.read_bytes()
 
     # And it is a real config once unlocked.

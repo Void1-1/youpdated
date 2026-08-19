@@ -165,7 +165,12 @@ def decrypt(blob: bytes, passphrase: str) -> bytes:
 
 
 def write_private(path: str | Path, blob: bytes) -> None:
-    """Replace `path` with `blob` atomically, owner-readable only."""
+    """Replace `path` with `blob` atomically, owner-readable only.
+
+    "Owner-readable only" holds on POSIX. Windows has no permission bits: the mode is
+    ignored beyond the read-only flag and access follows the ACL inherited from the
+    parent directory.
+    """
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_name(path.name + ".tmp")
