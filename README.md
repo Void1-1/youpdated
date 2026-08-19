@@ -57,7 +57,7 @@ it on your `PATH`:
 
 ```sh
 export PATH="$PWD/.venv/bin:$PATH"           # macOS / Linux
-youpdated --version                          # -> youpdated 0.1.0
+youpdated --version                          # -> youpdated 0.2.0
 ```
 
 ```powershell
