@@ -86,22 +86,20 @@ jobs:
           name: dist
           path: dist/
 
+      # Uploads PEP 740 attestations alongside the artifacts: a Sigstore-signed
+      # statement binding each file's digest to this repository and workflow.
+      # Verify one with:
+      #   curl https://pypi.org/integrity/youpdated/<version>/<filename>/provenance
       - uses: pypa/gh-action-pypi-publish@release/v1
 
-  attach:
-    # Puts the exact artifacts that were published onto the GitHub Release too,
-    # so the two can be compared later.
-    needs: publish
-    if: github.event_name == 'release'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/download-artifact@v7
-        with:
-          name: dist
-          path: dist/
-
-      - env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh release upload "${{ github.event.release.tag_name }}" dist/* --clobber --repo "$GITHUB_REPOSITORY"
+  # There was an `attach` job here that copied the built artifacts onto the GitHub
+  # Release, "so the two can be compared later". It is gone, because it cannot work:
+  # this repo has immutable releases enabled, which freezes a release's assets the
+  # moment it is published, and this workflow only runs *after* that. It failed on
+  # v0.2.0 with `HTTP 422: Cannot upload assets to an immutable release`.
+  #
+  # Nothing of value was lost. Comparing a copy by eye was always the weak version of
+  # the guarantee; the attestation above is the strong one, and PyPI serves it. The
+  # release's own source archive is covered by immutability. Do not reinstate this by
+  # turning immutable releases off — that trades a real integrity property for a
+  # convenience one.
