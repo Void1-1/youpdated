@@ -50,7 +50,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0", "respx>=0.21"]
+encryption = ["cryptography>=42.0"]
+dev = ["pytest>=8.0", "respx>=0.21", "cryptography>=42.0"]
 publish = ["build>=1.2", "twine>=5.0"]
 
 [project.urls]

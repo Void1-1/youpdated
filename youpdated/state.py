@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable
 
+from . import crypto
 from .models import Update
 
 _SCHEMA = """
@@ -42,19 +43,64 @@ def _now() -> str:
 class State:
     """Thread-safe wrapper over SQLite file."""
 
-    def __init__(self, path: str | Path | None = None):
+    def __init__(self, path: str | Path | None = None, passphrase: str | None = None):
         self.path = Path(path) if path is not None else None
+        self.passphrase = passphrase
+        self.encrypted = passphrase is not None and self.path is not None
+        self._closed = False
+        self._dirty = False
         if self.path is not None:
             self.path.parent.mkdir(parents=True, exist_ok=True)
-        target = str(self.path) if self.path is not None else ":memory:"
+
+        restore = self._read_encrypted() if self.encrypted else None
+        target = ":memory:" if (self.path is None or self.encrypted) else str(self.path)
         self._lock = threading.Lock()
         self._conn = sqlite3.connect(target, check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
         with self._lock:
+            if restore is not None:
+                try:
+                    self._conn.deserialize(restore)
+                except sqlite3.Error as exc:
+                    raise crypto.EncryptionError(
+                        f"{self.path}: decrypted, but the contents are not a database: {exc}"
+                    ) from exc
             self._conn.executescript(_SCHEMA)
             self._conn.commit()
 
+    def _read_encrypted(self) -> bytes | None:
+        """Decrypt the state file into a database image, or None if there is no file yet."""
+        assert self.path is not None and self.passphrase is not None
+        if not hasattr(sqlite3.Connection, "deserialize"):
+            raise crypto.EncryptionError(
+                "this Python is built against a SQLite too old for in-memory databases "
+                "(needs 3.36+). The state database cannot be encrypted."
+            )
+        if not self.path.exists():
+            return None
+        blob = self.path.read_bytes()
+        if not crypto.is_encrypted(blob):
+            raise crypto.EncryptionError(
+                f"{self.path} is not encrypted, but a passphrase was given. "
+                "Run `youpdated encrypt` to convert it."
+            )
+        return crypto.decrypt(blob, self.passphrase)
+
+    def flush(self) -> None:
+        """Write the in-memory database back out, encrypted."""
+        if not self.encrypted or self._closed or not self._dirty:
+            return
+        assert self.path is not None and self.passphrase is not None
+        with self._lock:
+            image = self._conn.serialize()
+        crypto.write_private(self.path, crypto.encrypt(image, self.passphrase))
+        self._dirty = False
+
     def close(self) -> None:
+        if self._closed:
+            return
+        self.flush()
+        self._closed = True
         with self._lock:
             self._conn.close()
 
@@ -87,6 +133,7 @@ class State:
                 rows,
             )
             self._conn.commit()
+            self._dirty = True
 
     def seen_count(self) -> int:
         with self._lock:
@@ -119,6 +166,7 @@ class State:
                 (url, etag, last_modified, _now()),
             )
             self._conn.commit()
+            self._dirty = True
 
     # small caches (resolved names, channel ids)
 
@@ -137,6 +185,7 @@ class State:
                 (namespace, key, value),
             )
             self._conn.commit()
+            self._dirty = True
 
     # upkeeping
 

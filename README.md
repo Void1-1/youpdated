@@ -219,6 +219,9 @@ youpdated check -v                    # show each request, its status, and item 
 youpdated check --state ./test.db     # use a throwaway history file
 youpdated sources                     # list available sources
 youpdated init --force                # rewrite the starter config
+youpdated init --encrypt              # starter config written encrypted from the start
+youpdated encrypt                     # lock the config and history behind a passphrase
+youpdated decrypt                     # convert them back to plain files
 youpdated uninstall --test            # list every file the tool wrote
 ```
 
@@ -230,7 +233,7 @@ Running `youpdated` with no arguments runs `youpdated check`.
 youpdated check --json | jq '.updates[] | select(.source == "github") | .title'
 ```
 
-Exit codes: `0` success, `1` config error, `2` with `--fail-on-error` when a source failed, `130` on interrupt.
+Exit codes: `0` success, `1` config, encryption, or proxy error, `2` with `--fail-on-error` when a source failed, `130` on interrupt.
 
 ## Running it on schedule
 
@@ -281,6 +284,12 @@ Once a day is plenty, most of these sources change slowly, and conditional reque
 | Everything reports as new again | The history database was deleted or `--state` points somewhere new. |
 | `youpdated: command not found` | The virtualenv isn't on your `PATH`. Use `.venv/bin/youpdated`. |
 | `ModuleNotFoundError: youpdated` | You used `pip install -e .` on MacOS |
+| `Encryption error: wrong passphrase, or the file has been modified` | The passphrase doesn't match, or the file was edited or truncated. Nothing is written on a failed unlock. |
+| `Encryption error: ... no terminal to ask on` | A cron or piped run can't prompt. Set `YOUPDATED_PASSPHRASE`. |
+| `encryption needs the cryptography package` | `pip install 'youpdated[encryption]'`. |
+| `... is not encrypted, but a passphrase was given` | A half-converted setup. Re-run `youpdated encrypt` to finish it. |
+| `Proxy error: cannot reach the proxy at ...` | `privacy.proxy` is set but nothing is listening. Start Tor (or your proxy), or remove the line. Nothing was fetched or recorded. |
+| Every source fails with `ProtocolError: Malformed reply` | Something is listening on the proxy port but isn't a SOCKS5 proxy. Check the port and scheme. |
 
 To start over from a clean slate, delete the history database (the path is in the table in [step 2](#2-create-your-config)); your config is untouched.
 
@@ -315,15 +324,106 @@ It prints the command to remove the package itself. (which it can't do while run
 
 If you installed into a dedicated virtualenv, deleting that directory removes the package too.
 
+## Encryption at rest
+
+By default the config and the history database are plain files. Anyone with your login, or your unencrypted backups, can read the list. To lock them behind a passphrase:
+
+```sh
+pip install 'youpdated[encryption]'   # pulls in `cryptography`; not needed otherwise
+youpdated encrypt                     # `set-encrypted` also works
+```
+
+Starting fresh, skip the plaintext step entirely. `init --encrypt` writes the starter config already encrypted, so it never exists in the clear at all:
+
+```sh
+youpdated init --encrypt
+```
+
+You can't edit in place: run `youpdated decrypt`, edit, then `youpdated encrypt` again. That does put the config on disk in plaintext while you work on it, so `init --encrypt` is rarely worth anything, or you edit before encrypting the first time.
+
+It asks for a passphrase twice and rewrites both files in place. From then on every command asks for it once, decrypts **into memory**, and writes back encrypted when the run ends.
+
+```sh
+youpdated check                       # Passphrase: ...
+youpdated decrypt                     # back to plain files
+```
+
+For cron and other unattended runs there is no terminal to ask on, so pass the passphrase in the environment instead:
+
+```cron
+0 9 * * * YOUPDATED_PASSPHRASE='...' /path/to/.venv/bin/youpdated check >> ~/youpdated.log 2>&1
+```
+
+That trades the passphrase's secrecy for the crontab's. Ensure it is more protected than your config was. Reading it from a file your shell sources, or from a keychain helper, is stronger.
+
+**What this does and does not protect.** Files are encrypted whole with AES-256-GCM under a key derived from the passphrase with scrypt (n=2¹⁶, r=8), and the tag is checked on every read, so a modified file is refused rather than trusted. It does **not** cover anything while Youpdated is running: the passphrase and the decrypted config are in the process's memory, and `YOUPDATED_PASSPHRASE` is visible to other processes of the same user. Nor does it erase the plaintext that was already on the disk. `encrypt` overwrites the file, but the old blocks may survive in free space until they are reused.
+
+**There is no recovery.** Don't forget your passphrase, or you'll have to recreate configs.
+
+| | Encrypted | Plain |
+| --- | --- | --- |
+| `youpdated check` | asks for the passphrase | runs |
+| `cat ~/.config/youpdated/config.yaml` | binary | readable |
+| `sqlite3 state.sqlite3 'select * from seen'` | `file is not a database` | readable |
+| File permissions | `0600` on macOS/Linux, see below on Windows | as created |
+
+**On Windows the file mode does nothing.** There are no POSIX permission bits, so the `0600` the
+writer asks for is ignored apart from the read-only flag, and access is decided by the ACL the file
+inherits from its directory. In the default location under `%LOCALAPPDATA%` that already excludes
+other standard users. The encryption itself is unaffected and works
+identically on all three platforms.
+
+### Using it as a module
+
+[youpdated/crypto.py](https://github.com/Void1-1/youpdated/blob/main/youpdated/crypto.py) stands alone.
+
+```python
+from youpdated import crypto
+
+blob = crypto.encrypt(b"anything", "passphrase")
+crypto.write_private("secret.bin", blob)          # atomic, 0600
+assert crypto.decrypt(blob, "passphrase") == b"anything"
+```
+
+Everything in `crypto.__all__` is supported, the container format included: `encrypt`, `decrypt`, `is_encrypted`, `is_encrypted_file`, `write_private`, `prompt_passphrase`, `available`, `require_backend`, `EncryptionError`, `MAGIC`, `VERSION`, `PASSPHRASE_ENV`. A `decrypt` on a file this version can't read raises rather than guessing, and `VERSION` is bumped if the layout ever changes.
+
+The same passphrase threads through the two core entry points, so you can drive an encrypted setup without the CLI:
+
+```python
+from youpdated.config import load_config
+from youpdated.state import State
+
+config = load_config("youpdated.yaml", passphrase="...")
+with State("state.sqlite3", passphrase="...") as state:
+    print(state.seen_count())
+```
+
+```sh
+$ python -c "from youpdated.cli import main; main(['sources'])" && python -c "
+import sys, youpdated.cli
+print('cryptography loaded:', any(m.startswith('cryptography') for m in sys.modules))"
+cryptography loaded: False
+```
+
+Don't use encryption with untrusted sources or non-official code without verifying security yourself!
+
 ## Privacy
 
 - **No credentials.** Every source works unauthenticated. `GITHUB_TOKEN` and `YOUTUBE_API_KEY` are read from the environment if set (only for raising rate limits) and are never written to config.
-- **Local only.** Config and history live in your platform's config/data directories. Nothing is sent anywhere except the sources you list.
+- **Local only.** Config and history live in your platform's config/data directories. Nothing is sent anywhere except the sources you list. They can be [encrypted at rest](#encryption-at-rest).
 - **One HTTP path.** Every request goes through [youpdated/http.py](https://github.com/Void1-1/youpdated/blob/main/youpdated/http.py). `privacy.proxy` covers all traffic. To check:
 
   ```sh
   youpdated check --all --no-save    # with privacy.proxy: socks5://127.0.0.1:9
   ```
+
+- **The proxy fails closed.** There is no direct fallback: if `privacy.proxy` is set and the proxy
+  is unreachable, requests error rather than going around it. Youpdated also checks the proxy is
+  up *before* the run starts and refuses with exit `1` if it isn't, so a run with Tor down can't
+  quietly report "nothing new" and record an empty baseline. `--test` reports the proxy as
+  unreachable instead of aborting, since it sends nothing either way.
+- **Hostnames are resolved by the proxy, not by you.** SOCKS5 CONNECT sends the domain name to the
+  proxy (`ATYP 3`), so your local resolver never sees which sites you watch. A proxied request with a locally-resolved hostname would leak the whole list to your DNS server.
 
 - **Cookies are discarded** on every request, so nothing accumulates across a run.
 - **Requests are paced** per host with random jitter instead of arriving in a burst.

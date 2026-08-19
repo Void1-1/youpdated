@@ -12,6 +12,8 @@ from typing import Any
 import yaml
 from platformdirs import PlatformDirs
 
+from . import crypto
+
 # appauthor=False for Windows: left unset, platformdirs falls back to app name as the author and nests everything under
 # AppData\Local\youpdated\youpdated. macOS and Linux are unaffected.
 _DIRS = PlatformDirs("youpdated", appauthor=False)
@@ -72,18 +74,32 @@ def find_config(explicit: str | Path | None = None) -> Path | None:
     return None
 
 
-def load_config(explicit: str | Path | None = None) -> Config:
+def load_config(explicit: str | Path | None = None, passphrase: str | None = None) -> Config:
     path = find_config(explicit)
     if path is None:
         raise ConfigError(
             "no config file found. Run `youpdated init` to create one at "
             f"{default_config_path()}"
         )
+    text = read_config_text(path, passphrase)
     try:
-        raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        raw = yaml.safe_load(text) or {}
     except yaml.YAMLError as exc:
         raise ConfigError(f"{path}: invalid YAML: {exc}") from exc
     return parse_config(raw, path=path)
+
+
+def read_config_text(path: Path, passphrase: str | None = None) -> str:
+    """Config as YAML text, decrypting in memory first if it is encrypted."""
+    blob = path.read_bytes()
+    if not crypto.is_encrypted(blob):
+        return blob.decode("utf-8")
+    if passphrase is None:
+        raise ConfigError(f"{path} is encrypted; a passphrase is required")
+    try:
+        return crypto.decrypt(blob, passphrase).decode("utf-8")
+    except crypto.EncryptionError as exc:
+        raise ConfigError(f"{path}: {exc}") from exc
 
 
 def parse_config(raw: Any, path: Path | None = None) -> Config:

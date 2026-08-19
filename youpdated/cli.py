@@ -7,7 +7,7 @@ from pathlib import Path
 from rich.console import Console
 from rich.markup import escape
 
-from . import __version__
+from . import __version__, crypto
 from .cleanup import find_traces, package_removal_command, remove_traces
 from .config import (
     EXAMPLE_CONFIG,
@@ -15,9 +15,10 @@ from .config import (
     ConfigError,
     default_config_path,
     default_state_path,
+    find_config,
     load_config,
 )
-from .http import Client
+from .http import Client, ProxyUnavailable, probe_proxy
 from .registry import all_sources
 from .render import json_out, rss_out, terminal
 from .runner import parse_since, run
@@ -62,6 +63,18 @@ def build_parser() -> argparse.ArgumentParser:
     init = sub.add_parser("init", help="write a starter config file")
     init.add_argument("-c", "--config", help="where to write it")
     init.add_argument("-f", "--force", action="store_true", help="overwrite an existing file")
+    init.add_argument(
+        "-e", "--encrypt", action="store_true",
+        help="write it encrypted",
+    )
+
+    for name, aliases, help_text in (
+        ("encrypt", ["set-encrypted"], "encrypt the config and history with a passphrase"),
+        ("decrypt", ["set-decrypted"], "convert an encrypted setup back to plain files"),
+    ):
+        crypt = sub.add_parser(name, aliases=aliases, help=help_text)
+        crypt.add_argument("-c", "--config", help="path to a config file")
+        crypt.add_argument("--state", help="path to the state database")
 
     uninstall = sub.add_parser(
         "uninstall",
@@ -95,10 +108,128 @@ def cmd_init(args: argparse.Namespace, console: Console) -> int:
     if path.exists() and not args.force:
         console.print(f"[yellow]{path} already exists.[/] Use --force to overwrite.")
         return 1
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(EXAMPLE_CONFIG, encoding="utf-8")
-    console.print(f"Wrote starter config to [bold]{path}[/]")
-    console.print("[dim]Edit, then run `youpdated check`.[/]")
+
+    if not args.encrypt:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(EXAMPLE_CONFIG, encoding="utf-8")
+        console.print(f"Wrote starter config to [bold]{path}[/]")
+        console.print("[dim]Edit, then run `youpdated check`.[/]")
+        return 0
+
+    # Encrypted from the first byte:
+    # there is no plaintext copy left in free space like `init` then `encrypt`
+    crypto.require_backend()
+    console.print(
+        "[red]There is no recovery if you forget this passphrase.[/] "
+        "The config and history will be the only copy.\n"
+    )
+    passphrase = crypto.prompt_passphrase("New passphrase: ", confirm=True)
+    crypto.write_private(path, crypto.encrypt(EXAMPLE_CONFIG.encode("utf-8"), passphrase))
+
+    console.print(f"Wrote encrypted starter config to [bold]{escape(str(path))}[/]")
+    console.print(
+        "[dim]It is not editable in place. Run `youpdated decrypt` to edit it, then "
+        "`youpdated encrypt` again or edit it before running `init --encrypt`.[/]"
+    )
+    console.print(
+        f"[dim]Every command now asks for the passphrase. Set ${crypto.PASSPHRASE_ENV} "
+        "for unattended runs.[/]"
+    )
+    return 0
+
+
+def _crypt_paths(args: argparse.Namespace) -> tuple[Path | None, Path]:
+    """The config and state files used"""
+    config_path = find_config(args.config)
+    state_path = Path(args.state).expanduser() if args.state else default_state_path()
+    return config_path, state_path
+
+
+def _setup_is_encrypted(config_path: Path | None, state_path: Path) -> bool:
+    """Whether this setup is locked. Either file being encrypted counts."""
+    return any(
+        path is not None and crypto.is_encrypted_file(path)
+        for path in (config_path, state_path)
+    )
+
+
+def cmd_encrypt(args: argparse.Namespace, console: Console) -> int:
+    crypto.require_backend()
+    config_path, state_path = _crypt_paths(args)
+    files = [p for p in (config_path, state_path) if p is not None and p.is_file()]
+    if not files:
+        console.print("[yellow]Nothing to encrypt.[/] Run `youpdated init` first.")
+        return 1
+
+    locked = [p for p in files if crypto.is_encrypted_file(p)]
+    todo = [p for p in files if p not in locked]
+    if not todo:
+        console.print("[dim]Already encrypted:[/]")
+        for path in locked:
+            console.print(f"  {escape(str(path))}")
+        return 0
+
+    if config_path in todo:
+        try:
+            load_config(config_path)
+        except ConfigError as exc:
+            console.print(
+                f"[yellow]Warning:[/] config does not currently parse — {escape(str(exc))}"
+            )
+
+    console.print("[bold]This will encrypt:[/]\n")
+    for path in todo:
+        console.print(f"  [yellow]{escape(str(path))}[/]")
+    console.print(
+        "\n[red]There is no recovery if you forget the passphrase.[/] "
+        "The files are the only copy."
+    )
+    if locked:
+        console.print("[dim]Enter the passphrase the rest of the setup already uses.[/]")
+    console.print()
+
+    passphrase = crypto.prompt_passphrase("New passphrase: ", confirm=not locked)
+
+    for path in locked:
+        crypto.decrypt(path.read_bytes(), passphrase)
+
+    for path in todo:
+        crypto.write_private(path, crypto.encrypt(path.read_bytes(), passphrase))
+        console.print(f"[green]encrypted[/] {escape(str(path))}")
+
+    console.print(
+        "\n[dim]Every command now asks for the passphrase. "
+        f"Set ${crypto.PASSPHRASE_ENV} for unattended runs.[/]"
+    )
+    console.print(
+        "[dim]The previous plaintext contents may still be recoverable from free "
+        "space on the disk[/]"
+    )
+    return 0
+
+
+def cmd_decrypt(args: argparse.Namespace, console: Console) -> int:
+    crypto.require_backend()
+    config_path, state_path = _crypt_paths(args)
+    todo = [
+        p for p in (config_path, state_path)
+        if p is not None and crypto.is_encrypted_file(p)
+    ]
+    if not todo:
+        console.print("[dim]Nothing is encrypted.[/]")
+        return 0
+
+    console.print("[bold]This will write back in plain text:[/]\n")
+    for path in todo:
+        console.print(f"  [yellow]{escape(str(path))}[/]")
+    console.print()
+
+    passphrase = crypto.prompt_passphrase()
+    # Decrypt everything before writing
+    plain = [(path, crypto.decrypt(path.read_bytes(), passphrase)) for path in todo]
+    for path, payload in plain:
+        crypto.write_private(path, payload)
+        console.print(f"[green]decrypted[/] {escape(str(path))}")
     return 0
 
 
@@ -157,7 +288,12 @@ def cmd_check(args: argparse.Namespace, console: Console) -> int:
     # JSON goes to stdout, status chatter to stderr.
     status = Console(stderr=True) if args.json else console
 
-    config: Config = load_config(args.config)
+    state_path = Path(args.state).expanduser() if args.state else default_state_path()
+    passphrase = None
+    if _setup_is_encrypted(find_config(args.config), state_path):
+        passphrase = crypto.prompt_passphrase()
+
+    config: Config = load_config(args.config, passphrase=passphrase)
 
     since = None
     if args.since:
@@ -173,9 +309,18 @@ def cmd_check(args: argparse.Namespace, console: Console) -> int:
             "Run `youpdated sources` to see the list."
         )
 
-    state_path = Path(args.state).expanduser() if args.state else default_state_path()
+    if config.privacy.proxy:
+        try:
+            probe_proxy(config.privacy.proxy, timeout=config.privacy.timeout)
+        except ProxyUnavailable as exc:
+            if not args.test:
+                raise
+            status.print(f"[yellow]proxy: unreachable[/] — {escape(str(exc).splitlines()[0])}")
+        else:
+            if args.verbose or args.test:
+                status.print(f"[dim]proxy:  {config.privacy.proxy} reachable[/]")
 
-    with State(state_path) as state:
+    with State(state_path, passphrase=passphrase) as state:
         with Client(
             config.privacy,
             state,
@@ -242,9 +387,20 @@ def main(argv: list[str] | None = None) -> int:
             return cmd_init(args, console)
         if args.command == "uninstall":
             return cmd_uninstall(args, console)
+        if args.command in ("encrypt", "set-encrypted"):
+            return cmd_encrypt(args, console)
+        if args.command in ("decrypt", "set-decrypted"):
+            return cmd_decrypt(args, console)
         return cmd_check(args, console)
     except ConfigError as exc:
-        console.print(f"[red]Config error:[/] {exc}")
+        # escape(): messages carry paths and `pip install youpdated[extra]` hints
+        console.print(f"[red]Config error:[/] {escape(str(exc))}")
+        return 1
+    except crypto.EncryptionError as exc:
+        console.print(f"[red]Encryption error:[/] {escape(str(exc))}")
+        return 1
+    except ProxyUnavailable as exc:
+        console.print(f"[red]Proxy error:[/] {escape(str(exc))}")
         return 1
     except KeyboardInterrupt:
         console.print("\n[dim]interrupted[/]")
