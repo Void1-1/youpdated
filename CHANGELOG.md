@@ -4,6 +4,18 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **The release workflow's `attach` job failed on v0.2.0 and has been removed.** It copied the
+  built artifacts onto the GitHub Release, but this repo has immutable releases enabled, which
+  freezes assets when the release is published — and the job runs after that, so it could only ever
+  fail (`HTTP 422: Cannot upload assets to an immutable release`). Publishing to PyPI was
+  unaffected; 0.2.0 shipped correctly. Releases from now on will not carry attached `.whl`/`.tar.gz`
+  files. Get them from PyPI, where they are covered by a signed PEP 740 attestation binding each
+  digest to this repository and workflow — a stronger guarantee than the copy the job was making.
+
 ## [0.2.0] — 2026-08-19
 
 ### Added
