@@ -22,7 +22,7 @@ from ..http import Client, FetchError
 from ..models import Target, Update
 from ..registry import register
 from .base import ConfigEntryError, entry_fields, require
-from .feed import parse_feed
+from .feed import feed_title, parse_document, parse_entries
 
 CHANNEL_ID_RE = re.compile(r"^UC[A-Za-z0-9_-]{22}$")
 PLAYLIST_ID_RE = re.compile(r"^(?:PL|UU|LL|FL|OL)[A-Za-z0-9_-]{10,}$")
@@ -116,7 +116,7 @@ class YouTubeSource:
             return []
         if fetched.status in (403, 404):
             raise FetchError(f"official feed returned {fetched.status} (likely blocked)")
-        return self._label_and_parse(target, fetched.content, via="feed")
+        return self._label_and_parse(target, fetched.content)
 
     # invidious
 
@@ -247,9 +247,14 @@ class YouTubeSource:
 
     # helpers
 
-    def _label_and_parse(self, target: Target, content: bytes, via: str) -> list[Update]:
-        updates = parse_feed(
-            content,
+    def _label_and_parse(self, target: Target, content: bytes) -> list[Update]:
+        parsed = parse_document(content)
+        # The Invidious and Data API paths both name the channel; take it from
+        # feed so the label does not depend on which path answered.
+        if not target.label:
+            target.label = feed_title(parsed)
+        updates = parse_entries(
+            parsed,
             source=self.name,
             target=target.key,
             limit=MAX_ITEMS,

@@ -16,13 +16,30 @@ All notable changes to this project are documented here. The format follows
   files. Get them from PyPI, where they are covered by a signed PEP 740 attestation binding each
   digest to this repository and workflow — a stronger guarantee than the copy the job was making.
 
-- **`feed` sources parsed every feed twice** ([#9](https://github.com/Void1-1/youpdated/issues/9)).
+- **Targets sharing one upstream document lost their updates**
+  Every Brave channel is served by one GitHub releases document, and every Firefox channel by one
+  Mozilla JSON. Each channel fetched it separately, so the first stored an ETag and the rest were
+  answered `304 Not Modified` against that ETag moments later and reported *nothing*. With the
+  default `jitter`, per-host pacing serializes those requests, which is the case that loses: a
+  config watching five Firefox channels and three Brave channels reported 2 of 8. Under
+  concurrency it was non-deterministic: is a channel reported depended on thread timing, so a
+  loaded machine changed the result.
+
+  A run now reuses each document across the targets that share it (`Client.run_scope()`), so the
+  document is fetched once and every target sees it. The same config went from 8 requests
+  reporting 2 of 8 targets, to 2 requests reporting 8 of 8. (And 147 ms to 43 ms of wall time)
+  Outside a run the client is unchanged: one GET per call, and a 304 still means "nothing new".
+
+- **The YouTube official-feed path never set the channel label.** `_label_and_parse` did not do
+  the labelling it was supposed to, so a channel that answered on the primary path was reported by
+  its raw `@handle` while the Invidious and Data API fallbacks named it properly. The label now
+  comes from the feed on all three paths.
+
+- **`feed` sources parsed every feed twice**
   A `feed:` entry given as a bare URL had no label, so `FeedSource.fetch` parsed the document once
   to read the feed's own `<title>` and then handed the same bytes to `parse_feed`, which parsed
-  them again. Feed parsing is the single most expensive step in a run, so this roughly doubled the
-  CPU cost of every bare-URL feed — the shape the starter config ships. One parse now feeds both
-  the label and the entries. Measured on a loaded machine, 12 bare-URL feeds went from 198 ms to
-  90 ms, matching what an entry with an explicit `name:` already cost.
+  them again. Feed parsing is the most expensive part of a run, so this ~doubled the
+  CPU cost of every bare-URL feed. One parse now feeds both the label and the entries.
 
   `parse_feed()` is unchanged for callers that only need entries; it is now a wrapper over the new
   `parse_document()` / `parse_entries()` split in `youpdated.sources.feed`.

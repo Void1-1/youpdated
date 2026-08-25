@@ -9,8 +9,9 @@ import random
 import socket
 import threading
 import time
+from contextlib import contextmanager
 from dataclasses import dataclass, field
-from typing import Any, Iterable, Sequence
+from typing import Any, Iterable, Iterator, Sequence
 from urllib.parse import urlsplit
 
 import httpx
@@ -127,6 +128,16 @@ class Client:
         self._host_last: dict[str, float] = {}
         self._registry_lock = threading.Lock()
 
+        # One upstream document can back several targets: every Brave channel lives
+        # in one releases feed, every Firefox channel in one JSON. Bodies fetched
+        # during this run are reused so those targets neither re-download the
+        # document nor lose it to a validator this same run stored.
+        self._run_bodies: dict[tuple[str, tuple[tuple[str, str], ...]], Fetched] = {}
+        self._bodies_lock = threading.Lock()
+        #: Only reuse bodies inside :meth:`run_scope`. A client used directly,
+        #: outside a run, keeps the plain one-GET-per-call contract.
+        self._run_active = False
+
         self._client = httpx.Client(
             proxy=self.privacy.proxy,
             timeout=self.privacy.timeout,
@@ -155,6 +166,22 @@ class Client:
             f"concurrency={self.privacy.concurrency} timeout={self.privacy.timeout}s"
         )
 
+    @contextmanager
+    def run_scope(self) -> "Iterator[Client]":
+        """Reuse each fetched document for the duration of one run.
+
+        Bodies are dropped again on exit so a client reused for a later run never serves stale data.
+        """
+        with self._bodies_lock:
+            self._run_bodies.clear()
+            self._run_active = True
+        try:
+            yield self
+        finally:
+            with self._bodies_lock:
+                self._run_bodies.clear()
+                self._run_active = False
+
     # internals
 
     def _user_agent(self) -> str:
@@ -175,6 +202,13 @@ class Client:
                 if wait > 0:
                     time.sleep(wait)
             self._host_last[host] = time.monotonic()
+
+    def _cached_body(
+        self, key: tuple[str, tuple[tuple[str, str], ...]]
+    ) -> "Fetched | None":
+        """The 200 body already fetched for this key during this run, if any."""
+        with self._bodies_lock:
+            return self._run_bodies.get(key) if self._run_active else None
 
     def note(self, message: str) -> None:
         if self.verbose and self._log:
@@ -204,6 +238,11 @@ class Client:
 
         soft = frozenset(soft_statuses)
         conditional = conditional and self.use_conditional
+        cache_key = (url, tuple(sorted((headers or {}).items())))
+        cached = self._cached_body(cache_key)
+        if cached is not None:
+            self.note(f"GET {url} -> reusing the copy already fetched this run")
+            return cached
         request_headers = {"User-Agent": self._user_agent()}
         if headers:
             request_headers.update(headers)
@@ -230,21 +269,34 @@ class Client:
             self.note(f"GET {url} -> {response.status_code}")
 
             if response.status_code == 304:
-                return None
+                # Normally "unchanged since your last run", so there is nothing to
+                # report. But if this run already holds the body, the validator we
+                # sent was our own from moments ago: hand back what we have. Only
+                # reachable when two threads race past the check above; the common
+                # case is served from the cache without a request at all.
+                return self._cached_body(cache_key)
 
             if response.status_code == 200:
+                result = Fetched(
+                    url=str(response.url),
+                    status=response.status_code,
+                    content=response.content,
+                    headers=dict(response.headers),
+                )
+                # Cache the body before publishing validator. A thread racing
+                # can only be answered 304 once the validator is stored, so this
+                # ordering guarantees the body is already there for it to fall back
+                # on.
+                with self._bodies_lock:
+                    if self._run_active:
+                        self._run_bodies[cache_key] = result
                 if conditional and self.state is not None:
                     self.state.remember_validators(
                         url,
                         response.headers.get("etag"),
                         response.headers.get("last-modified"),
                     )
-                return Fetched(
-                    url=str(response.url),
-                    status=response.status_code,
-                    content=response.content,
-                    headers=dict(response.headers),
-                )
+                return result
 
             if response.status_code in soft:
                 return Fetched(

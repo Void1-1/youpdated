@@ -94,7 +94,8 @@ def run(
             return target, exc
 
     workers = max(1, min(config.privacy.concurrency, len(targets)))
-    with ThreadPoolExecutor(max_workers=workers) as pool:
+    # run_scope: targets that share an upstream document fetch it once between them
+    with client.run_scope(), ThreadPoolExecutor(max_workers=workers) as pool:
         for target, outcome in pool.map(work, targets):
             if isinstance(outcome, Exception):
                 result.errors.append(

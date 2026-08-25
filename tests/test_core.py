@@ -136,6 +136,50 @@ def test_validators_are_stored_after_a_200(client, state):
 
 
 @respx.mock
+def test_targets_sharing_a_url_fetch_it_once_and_all_get_the_body(state, client):
+    """Every Brave channel is one feed, every Firefox channel one JSON.
+
+    Without a run scope the first target stores a validator and the rest are
+    answered 304 against it, so they report nothing at all.
+    """
+    route = respx.get("https://e.com/shared.json").mock(
+        return_value=httpx.Response(200, content=b'{"v": 1}', headers={"ETag": '"v1"'})
+    )
+    with client.run_scope():
+        bodies = [client.get("https://e.com/shared.json", conditional=True) for _ in range(3)]
+
+    assert route.call_count == 1
+    assert all(b is not None and b.content == b'{"v": 1}' for b in bodies)
+
+
+@respx.mock
+def test_a_304_across_runs_still_means_nothing_new(state, client):
+    """Outside a run, and on a fresh run, 304 keeps its normal meaning."""
+    respx.get("https://e.com/feed").mock(return_value=httpx.Response(304))
+    state.remember_validators("https://e.com/feed", '"v1"', None)
+    with client.run_scope():
+        assert client.get("https://e.com/feed", conditional=True) is None
+
+
+@respx.mock
+def test_bodies_are_not_reused_outside_a_run_scope(state, client):
+    """A client reused for a later run must not serve the earlier run's body."""
+    route = respx.get("https://e.com/shared.json").mock(
+        side_effect=[
+            httpx.Response(200, content=b'{"v": 1}'),
+            httpx.Response(200, content=b'{"v": 2}'),
+        ]
+    )
+    with client.run_scope():
+        first = client.get("https://e.com/shared.json", conditional=True)
+    with client.run_scope():
+        second = client.get("https://e.com/shared.json", conditional=True)
+
+    assert route.call_count == 2
+    assert first.content == b'{"v": 1}' and second.content == b'{"v": 2}'
+
+
+@respx.mock
 def test_use_conditional_false_skips_validators(state):
     state.remember_validators("https://e.com/feed", '"tag"', None)
     route = respx.get("https://e.com/feed").mock(return_value=httpx.Response(200, content=b"x"))

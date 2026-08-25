@@ -183,6 +183,8 @@ def test_youtube_uses_official_feed_when_it_works(client):
     assert updates
     # uids are normalized to the video id so the fallback paths dedupe
     assert all(u.uid.startswith("yt:video:") for u in updates)
+    # ...and the label comes from the feed, as it does on the fallback paths
+    assert target.label == "NASA"
 
 
 @respx.mock
