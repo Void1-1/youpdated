@@ -16,6 +16,17 @@ All notable changes to this project are documented here. The format follows
   files. Get them from PyPI, where they are covered by a signed PEP 740 attestation binding each
   digest to this repository and workflow — a stronger guarantee than the copy the job was making.
 
+- **`feed` sources parsed every feed twice** ([#9](https://github.com/Void1-1/youpdated/issues/9)).
+  A `feed:` entry given as a bare URL had no label, so `FeedSource.fetch` parsed the document once
+  to read the feed's own `<title>` and then handed the same bytes to `parse_feed`, which parsed
+  them again. Feed parsing is the single most expensive step in a run, so this roughly doubled the
+  CPU cost of every bare-URL feed — the shape the starter config ships. One parse now feeds both
+  the label and the entries. Measured on a loaded machine, 12 bare-URL feeds went from 198 ms to
+  90 ms, matching what an entry with an explicit `name:` already cost.
+
+  `parse_feed()` is unchanged for callers that only need entries; it is now a wrapper over the new
+  `parse_document()` / `parse_entries()` split in `youpdated.sources.feed`.
+
 ## [0.2.0] — 2026-08-19
 
 ### Added
@@ -118,6 +129,7 @@ First release.
 - Firefox publishes current versions, so it reports one item per channel.
 - Edge exposes release notes only for the stable and beta channels. (But like, it's Edge, why do you want to know when it updates?)
 
+[Unreleased]: https://github.com/Void1-1/youpdated/compare/v0.2.0...HEAD
 [0.2.0]: https://github.com/Void1-1/youpdated/releases/tag/v0.2.0
 [0.1.1]: https://github.com/Void1-1/youpdated/releases/tag/v0.1.1
 [0.1.0]: https://github.com/Void1-1/youpdated/releases/tag/v0.1.0

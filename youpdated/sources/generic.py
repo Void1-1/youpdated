@@ -13,13 +13,11 @@ import re
 from typing import Any, ClassVar, Iterable
 from urllib.parse import urlsplit
 
-import feedparser
-
 from ..http import Client
 from ..models import Target, Update
 from ..registry import register
 from .base import ConfigEntryError, entry_fields, require
-from .feed import parse_feed
+from .feed import feed_title, parse_document, parse_entries
 
 MAX_ITEMS = 20
 VERSION_RE = re.compile(r"\bv?(\d+\.\d+[\d.]*(?:-[A-Za-z0-9.]+)?)\b")
@@ -55,14 +53,16 @@ class FeedSource:
         if fetched is None:
             return []
 
+        # One parse feeds both the label and the entries; feedparser is the most
+        # expensive step in a run, and parsing the same bytes twice doubled it.
+        parsed = parse_document(fetched.content)
+
         # Prefer the feed's title over raw URL
         if not target.label:
-            parsed = feedparser.parse(fetched.content)
-            title = (parsed.feed or {}).get("title")
-            target.label = title.strip() if title else urlsplit(target.key).netloc
+            target.label = feed_title(parsed) or urlsplit(target.key).netloc
 
-        return parse_feed(
-            fetched.content,
+        return parse_entries(
+            parsed,
             source=self.name,
             target=target.key,
             limit=target.params["limit"],

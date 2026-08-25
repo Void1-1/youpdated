@@ -355,6 +355,32 @@ def test_generic_feed_respects_an_explicit_name_and_limit(client):
     assert len(updates) == 2
 
 
+@respx.mock
+def test_generic_feed_parses_the_document_only_once(client, monkeypatch):
+    from youpdated.sources import feed as feed_module
+
+    calls = []
+    real = feed_module.feedparser.parse
+
+    def counting_parse(content, *args, **kwargs):
+        calls.append(content)
+        return real(content, *args, **kwargs)
+
+    monkeypatch.setattr(feed_module.feedparser, "parse", counting_parse)
+
+    respx.get("https://blog.rust-lang.org/feed.xml").mock(
+        return_value=httpx.Response(200, content=fixture("generic_feed.xml"))
+    )
+    source = get_source("feed")
+    (target,) = source.targets(["https://blog.rust-lang.org/feed.xml"])
+    updates = list(source.fetch(target, client))
+
+    # The label still comes from the feed, and it cost exactly one parse.
+    assert target.label == "Rust Blog"
+    assert updates
+    assert len(calls) == 1
+
+
 @pytest.mark.parametrize("entry", ["not-a-url", "ftp://example.com/feed", {"url": ""}])
 def test_generic_feed_rejects_non_http_urls(entry):
     with pytest.raises(ConfigEntryError):

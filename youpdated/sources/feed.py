@@ -75,8 +75,23 @@ def entry_body(entry: Any) -> str | None:
     return html_to_text(entry.get("summary"))
 
 
-def parse_feed(
-    content: bytes,
+def parse_document(content: bytes) -> Any:
+    """Parse feed bytes once.
+
+    Anything that needs both a feed's metadata and entries parses once and passes the result to
+    :func:`parse_entries`
+    """
+    return feedparser.parse(content)
+
+
+def feed_title(parsed: Any) -> str | None:
+    """The title the feed publishes for itself, or None if it has none."""
+    title = (parsed.feed or {}).get("title")
+    return title.strip() or None if title else None
+
+
+def parse_entries(
+    parsed: Any,
     *,
     source: str,
     target: str,
@@ -84,8 +99,7 @@ def parse_feed(
     version_of: Callable[[Any], str | None] | None = None,
     tags: tuple[str, ...] = (),
 ) -> list[Update]:
-    """Turn feed bytes into Updates, newest first."""
-    parsed = feedparser.parse(content)
+    """Turn an already-parsed feed into Updates, newest first."""
     updates: list[Update] = []
 
     for entry in parsed.entries[: limit or None]:
@@ -109,3 +123,23 @@ def parse_feed(
     # Undated entries sort last
     updates.sort(key=lambda u: u.published or _UNDATED, reverse=True)
     return updates
+
+
+def parse_feed(
+    content: bytes,
+    *,
+    source: str,
+    target: str,
+    limit: int | None = 20,
+    version_of: Callable[[Any], str | None] | None = None,
+    tags: tuple[str, ...] = (),
+) -> list[Update]:
+    """Turn feed bytes into Updates, newest first."""
+    return parse_entries(
+        parse_document(content),
+        source=source,
+        target=target,
+        limit=limit,
+        version_of=version_of,
+        tags=tags,
+    )
