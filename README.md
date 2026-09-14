@@ -127,12 +127,17 @@ privacy:
   concurrency: 4
   timeout: 20
 
+ignore:                              # update types you never want reported
+  '*': [prerelease]                  # '*' is every source
+  github: [commit]
+
 sources:
   github:
     - python/cpython                 # easy
     - repo: astral-sh/uv             # advanced:
       watch: [releases, commits]     # releases | tags | commits
       branch: main                   # for `commits`
+      ignore: [tag]                  # adds to the rules above, this entry only
 
   npm:
     - express
@@ -168,6 +173,57 @@ sources:
       name: Obsidian
       limit: 5
 ```
+
+### Ignoring update types
+
+Every update carries one or more **tags** describing what it is. An `ignore:`
+rule drops any update carrying a tag you list.
+
+```yaml
+ignore: [prerelease]          # shorthand: applies to every source
+```
+
+```yaml
+ignore:
+  '*': [prerelease]           # every source
+  github: [commit, tag]       # just this source
+```
+
+Either form can be combined with a per-entry rule, which **adds** to it:
+
+```yaml
+sources:
+  github:
+    - python/cpython                    # global rules only
+    - repo: astral-sh/uv
+      ignore: [tag]                     # global rules + `tag`
+```
+
+These are the tags each source sets:
+
+| Source | Tags |
+| --- | --- |
+| `github` | `release`, `prerelease`, `tag`, `commit` |
+| `npm` | `release`, `prerelease`, `latest` |
+| `itch` | `devlog`, `build`, `page` |
+| `browser` | `release`, plus the channel (`stable`, `beta`, `dev`, `canary`, `esr`, `nightly`) |
+| `youtube` | `video` |
+| `steam` | `news` |
+| `feed` | `item` |
+
+An update is dropped if it carries **any** tag listed. A GitHub release
+candidate is tagged both `release` and `prerelease`, so ignoring `prerelease`
+drops it while ordinary releases stay.
+
+An itch build is tagged `build`, not `release`. It is a fingerprint of the
+game page, not a published release. A page whose date moved with no new
+files is tagged `page`. So `ignore: [build]` drops new builds while keeping
+devlog posts, and ignoring `release` everywhere leaves itch alone.
+(`watch: [devlog]` on an itch entry still turns builds off outright)
+
+Without a `GITHUB_TOKEN`, `prerelease` is inferred from the tag name
+(`v3.15.0rc2`, `1.2.0-beta.1`), since the anonymous `.atom` feeds carry no
+prerelease flag. With a token set, GitHub's own flag is used instead.
 
 Check your config without sending a request:
 

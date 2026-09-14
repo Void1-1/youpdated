@@ -4,6 +4,53 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **`ignore:` rules drop update types** (#11). Every update already
+  carried tags describing what it is; those are now filterable. A bare list
+  applies everywhere, a mapping narrows it to one source (`'*'` for all), and a per-entry
+  `ignore:` adds to whichever applies:
+
+  ```yaml
+  ignore:
+    '*': [prerelease]
+    github: [commit]
+
+  sources:
+    github:
+      - repo: astral-sh/uv
+        ignore: [tag]        # global rules + `tag`
+  ```
+
+  An update is dropped if it carries any listed tag. Ignored items are not
+  recorded as seen, so removing a rule later shows what it was hiding.
+  The run summary and `--json` both count what was dropped.
+  See [Ignoring update types](README.md#ignoring-update-types) for the tag vocabulary per source.
+
+- **GitHub prereleases are tagged without a token.** `prerelease` previously came only from the
+  REST API, which needs `GITHUB_TOKEN`, so on the anonymous `.atom` path., nothing was tagged.
+  It is now inferred from the tag name (`v3.15.0rc2`, `1.2.0-beta.1`, `0.12.0-alpha`), and a
+  token takes precedence. Platform and build suffixes (`v1.0.0-linux`, `v4.2.0+build.7`)
+  are untouched.
+
+- **npm prereleases are tagged.** Any semver version with a prerelease suffix now carries
+  `prerelease`.
+
+- **Runs report progress instead of going quiet.** A check printed nothing until the last target
+  landed, so a slow source was indistinguishable from a hang. Interactive runs now show a live
+  line naming the targets still in flight, with a count and elapsed time. It is suppressed under
+  `-v`, `--test`, and when output is not a terminal.
+
+### Fixed
+
+- **A host's pacing lock is no longer held across its own wait.** `_pace` slept while holding the
+  per-host lock, so every other thread bound for that host blocked in `acquire` for the whole
+  gap, with no way to be interrupted, and a thread waiting its turn could be scheduled
+  ahead of one ready to do real work. Each caller now reserves a slot under the lock and waits
+  outside it. The spacing between requests to one host is unchanged.
+
 ## [0.2.1] — 2026-08-25
 
 ### Fixed

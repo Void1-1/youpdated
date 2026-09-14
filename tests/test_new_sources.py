@@ -39,7 +39,7 @@ def test_itch_reports_a_build_for_a_game_with_no_devlog(client):
     updates = list(source.fetch(target, client))
 
     assert len(updates) == 1
-    assert updates[0].tags == ("release",)
+    assert updates[0].tags == ("build",)
     assert "2 file(s)" in updates[0].title
     assert "Baba Is You (zip)" in updates[0].body
 
@@ -97,7 +97,7 @@ def test_itch_watches_both_by_default(client):
     updates = list(source.fetch(target, client))
 
     assert devlog.called and page.called
-    assert {"devlog", "release"} <= {t for u in updates for t in u.tags}
+    assert {"devlog", "build"} <= {t for u in updates for t in u.tags}
 
 
 def test_itch_rejects_unknown_watch():

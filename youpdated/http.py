@@ -190,18 +190,19 @@ class Client:
         return self.privacy.user_agent
 
     def _pace(self, host: str) -> None:
-        """Serialize per host and leave a rand gap, so traffic to one site never looks like a burst."""
+        """Leave a rand gap between hits on one host, so traffic never looks like a burst"""
         with self._registry_lock:
             lock = self._host_locks.setdefault(host, threading.Lock())
         with lock:
             low, high = self.privacy.jitter
-            last = self._host_last.get(host)
             now = time.monotonic()
-            if last is not None:
-                wait = random.uniform(low, high) - (now - last)
-                if wait > 0:
-                    time.sleep(wait)
-            self._host_last[host] = time.monotonic()
+            last = self._host_last.get(host)
+            # A slot in the past means the host has been idle for a gap
+            slot = now if last is None else max(now, last + random.uniform(low, high))
+            self._host_last[host] = slot
+        wait = slot - time.monotonic()
+        if wait > 0:
+            time.sleep(wait)
 
     def _cached_body(
         self, key: tuple[str, tuple[tuple[str, str], ...]]

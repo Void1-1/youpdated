@@ -34,11 +34,23 @@ class PrivacyConfig:
     timeout: float = 20.0
 
 
+#: top-level `ignore:` mapping applied to every source
+IGNORE_ALL = "*"
+
+
 @dataclass
 class Config:
     privacy: PrivacyConfig = field(default_factory=PrivacyConfig)
     sources: dict[str, list[Any]] = field(default_factory=dict)
+    #: Source name (or ``*``) -> update tags to drop
+    ignore: dict[str, frozenset[str]] = field(default_factory=dict)
     path: Path | None = None
+
+    def ignored_tags(self, source: str) -> frozenset[str]:
+        """The tags ignored for every target of ``source``, before entry rules"""
+        return self.ignore.get(IGNORE_ALL, frozenset()) | self.ignore.get(
+            source, frozenset()
+        )
 
 
 def config_dir() -> Path:
@@ -127,7 +139,47 @@ def parse_config(raw: Any, path: Path | None = None) -> Config:
     if not sources:
         raise ConfigError(f"{where}`sources` has no entries — nothing to check")
 
-    return Config(privacy=privacy, sources=sources, path=path)
+    return Config(
+        privacy=privacy,
+        sources=sources,
+        ignore=_parse_ignore(raw.get("ignore"), where),
+        path=path,
+    )
+
+
+def parse_ignore_list(value: Any, where: str, what: str) -> frozenset[str]:
+    """Normalize an ``ignore:`` value"""
+    if value is None:
+        return frozenset()
+    values = [value] if isinstance(value, str) else value
+    if not isinstance(values, (list, tuple)):
+        raise ConfigError(f"{where}`{what}` must be a tag or a list of tags")
+    tags = set()
+    for item in values:
+        if not isinstance(item, str) or not item.strip():
+            raise ConfigError(f"{where}`{what}` entries must be non-empty tag names")
+        tags.add(item.strip().lower())
+    return frozenset(tags)
+
+
+def _parse_ignore(raw: Any, where: str) -> dict[str, frozenset[str]]:
+    """Parse top-level ``ignore:``"""
+    if raw is None:
+        return {}
+    if isinstance(raw, (str, list, tuple)):
+        tags = parse_ignore_list(raw, where, "ignore")
+        return {IGNORE_ALL: tags} if tags else {}
+    if not isinstance(raw, dict):
+        raise ConfigError(
+            f"{where}`ignore` must be a list of tags, or a mapping of "
+            f"source name -> tags (`{IGNORE_ALL}` for every source)"
+        )
+    parsed: dict[str, frozenset[str]] = {}
+    for name, value in raw.items():
+        tags = parse_ignore_list(value, where, f"ignore.{name}")
+        if tags:
+            parsed[str(name)] = tags
+    return parsed
 
 
 def _parse_privacy(raw: Any, where: str) -> PrivacyConfig:
@@ -189,11 +241,19 @@ privacy:
   concurrency: 4
   timeout: 20
 
+# Drop update types you don't want. A bare list applies
+# everywhere; a mapping narrows it to one source ('*' means all).
+# ignore:
+#   '*': [prerelease]
+#   github: [commit]
+
 sources:
   github:
     - python/cpython
     - repo: astral-sh/uv
       watch: [releases, commits]
+      # Per-entry rules add to the ones above.
+      ignore: [prerelease]
 
   npm:
     - express

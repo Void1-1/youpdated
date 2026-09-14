@@ -216,6 +216,26 @@ uid=str(index)                  # broken: shifts as items are added
 
 When an upstream gives you no id at all, fingerprint the content: hash the fields that define the item. [itch.py](youpdated/sources/itch.py) does this for game builds: filenames, sizes, and the update timestamp hash into one uid.
 
+### Tags are what users filter on
+
+`tags`: a user's `ignore:` rules match against them, so a type
+untagged is not able to be hidden. Tag each update with what it *is*,
+using the vocabulary already in use where it fits: `release`, `prerelease`,
+`tag`, `commit`, `latest`, `devlog`, `news`, `video`, `item`, and add your own
+where needed.
+
+```python
+tags=("release",) + (("prerelease",) if item["draft_or_rc"] else ())
+```
+
+Tags are additive, and an update is dropped if **any** of its tags is ignored.
+So describing an item from several angles at once is the point: tagging a
+release candidate `("release", "prerelease")` lets one user ignore every
+release and another ignore only the candidates.
+
+You do not need to handle `ignore` yourself. It is lifted off the config entry
+before `targets()` ever sees it, and applied to whatever you return.
+
 ### Filling in a label during fetch
 
 Sometimes the friendly name is only available from the response. Assign it to `target.label`; the renderers pick it up:
@@ -329,5 +349,6 @@ Users then configure it like any built-in source. A plugin that fails to import 
 - [ ] Expected non-200s handled with `soft_statuses`; real failures left to raise
 - [ ] Returns `[]` rather than inventing an update
 - [ ] `published` is timezone-aware UTC (or `None`)
+- [ ] `tags` describe the update type, so `ignore:` rules can match them
 - [ ] Tests cover parsing, both config shapes, and uid stability
 - [ ] Registered — `@register` plus an import, or an entry point

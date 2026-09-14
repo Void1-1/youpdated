@@ -45,6 +45,13 @@ def _labels(targets: list[Target]) -> dict[tuple[str, str], str]:
     return {(t.source, t.key): t.display for t in targets}
 
 
+def _ignored_note(result: RunResult) -> str:
+    """Trailer naming the items `ignore:` dropped"""
+    if not result.ignored:
+        return ""
+    return f" [dim]{result.ignored} ignored.[/]"
+
+
 def render(result: RunResult, console: Console | None = None, verbose: bool = False) -> None:
     console = console or Console()
 
@@ -53,7 +60,9 @@ def render(result: RunResult, console: Console | None = None, verbose: bool = Fa
             Panel(
                 Text.from_markup(
                     f"Baseline recorded for [bold]{len(result.targets)}[/] target(s), "
-                    f"[bold]{result.total_fetched}[/] existing item(s).\n"
+                    f"[bold]{result.total_fetched}[/] existing item(s)."
+                    + (f" {result.ignored} ignored." if result.ignored else "")
+                    + "\n"
                     "Future runs report only what's new. Use [bold]--all[/] to see "
                     "everything now.",
                 ),
@@ -68,7 +77,7 @@ def render(result: RunResult, console: Console | None = None, verbose: bool = Fa
         console.print(
             Text.from_markup(
                 f"[dim]No new updates across {len(result.targets)} target(s) "
-                f"({result.total_fetched} item(s) checked).[/]"
+                f"({result.total_fetched} item(s) checked).[/]" + _ignored_note(result)
             )
         )
         _render_errors(result, console)
@@ -124,7 +133,7 @@ def render(result: RunResult, console: Console | None = None, verbose: bool = Fa
     console.print(
         Text.from_markup(
             f"[bold]{len(result.updates)}[/] new update(s) across "
-            f"{len(grouped)} source(s)."
+            f"{len(grouped)} source(s)." + _ignored_note(result)
         )
     )
     _render_errors(result, console)

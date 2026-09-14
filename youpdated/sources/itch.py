@@ -149,11 +149,11 @@ class ItchSource:
         digest = hashlib.sha256(fingerprint.encode("utf-8")).hexdigest()[:16]
 
         if version:
-            title = f"New build — {version}"
+            title, tag = f"New build: {version}", "build"
         elif uploads:
-            title = f"New build — {len(uploads)} file(s)"
+            title, tag = f"New build: {len(uploads)} file(s)", "build"
         else:
-            title = "Game page updated"
+            title, tag = "Game page updated", "page"
 
         body = ", ".join(f"{name} ({size})" for name, size in uploads) or None
 
@@ -167,7 +167,7 @@ class ItchSource:
                 published=updated,
                 version=version,
                 body=body,
-                tags=("release",),
+                tags=(tag,),
             )
         ]
 

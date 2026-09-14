@@ -6,8 +6,9 @@ import re
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
+from typing import Any, Protocol, runtime_checkable
 
-from .config import Config
+from .config import Config, ConfigError, parse_ignore_list
 from .http import Client
 from .models import RunError, Target, Update
 from .registry import all_sources
@@ -21,10 +22,24 @@ class RunResult:
     targets: list[Target] = field(default_factory=list)
     baseline: bool = False
     total_fetched: int = 0
+    #: Items dropped by an `ignore:` rule, before any new/seen comparison
+    ignored: int = 0
 
     @property
     def ok(self) -> bool:
         return not self.errors
+
+
+@runtime_checkable
+class ProgressReporter(Protocol):
+    def run_started(self, total: int) -> None:
+        """``total`` targets to be fetched."""
+
+    def target_started(self, target: Target) -> None:
+        """``target`` has been picked up by a worker."""
+
+    def target_finished(self, target: Target, error: Exception | None) -> None:
+        """``target`` is done, with the exception it raised or ``None``."""
 
 
 _DURATION_RE = re.compile(r"^(\d+)\s*([smhdw])$", re.IGNORECASE)
@@ -56,12 +71,27 @@ def build_targets(config: Config) -> tuple[list[Target], list[RunError]]:
                 )
             )
             continue
+        base = config.ignored_tags(name)
         try:
-            targets.extend(source.targets(entries))
+            for entry in entries:
+                entry_ignore, cleaned = _split_entry_ignore(entry, name)
+                for target in source.targets([cleaned]):
+                    target.ignore = base | entry_ignore
+                    targets.append(target)
         except Exception as exc:
             errors.append(RunError(source=name, target="-", message=str(exc)))
 
     return targets, errors
+
+
+def _split_entry_ignore(entry: Any, source: str) -> tuple[frozenset[str], Any]:
+    """Take `ignore:` off a config entry before the source sees it"""
+    if not isinstance(entry, dict) or "ignore" not in entry:
+        return frozenset(), entry
+    cleaned = dict(entry)
+    raw = cleaned.pop("ignore")
+    tags = parse_ignore_list(raw, f"sources.{source}: ", "ignore")
+    return tags, cleaned
 
 
 def run(
@@ -73,6 +103,7 @@ def run(
     show_all: bool = False,
     since: timedelta | None = None,
     save: bool = True,
+    progress: ProgressReporter | None = None,
 ) -> RunResult:
     targets, errors = build_targets(config)
     if only_sources:
@@ -87,16 +118,33 @@ def run(
     sources = all_sources()
     fetched: list[Update] = []
 
-    def work(target: Target) -> tuple[Target, list[Update] | Exception]:
+    def work(target: Target) -> tuple[Target, list[Update] | Exception, int]:
+        if progress is not None:
+            progress.target_started(target)
+        outcome: list[Update] | Exception
+        dropped = 0
         try:
-            return target, list(sources[target.source].fetch(target, client))
+            items = list(sources[target.source].fetch(target, client))
+            kept = [u for u in items if not target.ignores(u.tags)]
+            # Ignored items are not recorded as seen
+            dropped = len(items) - len(kept)
+            outcome = kept
         except Exception as exc:  # collected, non fatal
-            return target, exc
+            outcome = exc
+        if progress is not None:
+            progress.target_finished(
+                target, outcome if isinstance(outcome, Exception) else None
+            )
+        return target, outcome, dropped
+
+    if progress is not None:
+        progress.run_started(len(targets))
 
     workers = max(1, min(config.privacy.concurrency, len(targets)))
     # run_scope: targets that share an upstream document fetch it once between them
     with client.run_scope(), ThreadPoolExecutor(max_workers=workers) as pool:
-        for target, outcome in pool.map(work, targets):
+        for target, outcome, dropped in pool.map(work, targets):
+            result.ignored += dropped
             if isinstance(outcome, Exception):
                 result.errors.append(
                     RunError(

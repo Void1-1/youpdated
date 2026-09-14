@@ -18,10 +18,21 @@ class Target:
     key: str
     label: str | None = None
     params: dict[str, Any] = field(default_factory=dict)
+    #: Update tags this target does not want reported
+    ignore: frozenset[str] = frozenset()
 
     @property
     def display(self) -> str:
         return self.label or self.key
+
+    def ignores(self, tags: tuple[str, ...]) -> bool:
+        """
+        Whether an update carrying ``tags`` should be dropped for this target
+        only one matching tag needed
+        """
+        if not self.ignore:
+            return False
+        return any(tag.strip().lower() in self.ignore for tag in tags)
 
 
 @dataclass(frozen=True)

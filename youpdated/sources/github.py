@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import os
 import re
+from dataclasses import replace
 from datetime import datetime, timezone
 from typing import Any, ClassVar, Iterable
 
@@ -21,6 +22,18 @@ from .feed import html_to_text, parse_feed
 
 REPO_RE = re.compile(r"^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$")
 VALID_WATCH = ("releases", "tags", "commits")
+
+#: Prerelease markers
+_PRERELEASE_RE = re.compile(
+    r"(?:^|[-._+])(?:alpha|beta|rc|pre(?:view)?|dev|nightly|canary|snapshot|eap|insiders?)"
+    r"[\d._-]*$"
+    r"|\d(?:a|b|rc)\d+$",
+    re.IGNORECASE,
+)
+
+
+def _is_prerelease(version: str | None) -> bool:
+    return bool(version and _PRERELEASE_RE.search(version.strip()))
 
 
 def _normalize_repo(value: Any, source: str) -> str:
@@ -93,13 +106,22 @@ class GitHubSource:
         fetched = client.get(url, conditional=True)
         if fetched is None:  # 304 Not Modified, or test run
             return []
-        return parse_feed(
+        updates = parse_feed(
             fetched.content,
             source=self.name,
             target=target.key,
             version_of=_version_from_entry if tag != "commit" else None,
             tags=(tag,),
         )
+        if tag == "commit":
+            return updates
+        # Match the authenticated path, which gets `prerelease` from the api
+        return [
+            replace(update, tags=update.tags + ("prerelease",))
+            if _is_prerelease(update.version)
+            else update
+            for update in updates
+        ]
 
     # authed path
 

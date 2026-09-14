@@ -2,10 +2,19 @@ from __future__ import annotations
 
 import argparse
 import sys
+import threading
+from contextlib import ExitStack
 from pathlib import Path
 
 from rich.console import Console
 from rich.markup import escape
+from rich.progress import (
+    BarColumn,
+    Progress,
+    SpinnerColumn,
+    TextColumn,
+    TimeElapsedColumn,
+)
 
 from . import __version__, crypto
 from .cleanup import find_traces, package_removal_command, remove_traces
@@ -284,6 +293,81 @@ def cmd_uninstall(args: argparse.Namespace, console: Console) -> int:
     return 0
 
 
+class _LiveProgress:
+    """Progress view of a run"""
+
+    #: Targets named in the description before the rest become "+N more"
+    _SHOWN = 2
+
+    def __init__(self, console: Console) -> None:
+        self._progress = Progress(
+            SpinnerColumn(),
+            TextColumn("[dim]{task.description}[/]"),
+            BarColumn(bar_width=20),
+            TextColumn("[dim]{task.completed}/{task.total}[/]"),
+            TimeElapsedColumn(),
+            console=console,
+            transient=True,
+        )
+        self._task = None
+        self._lock = threading.Lock()
+        self._in_flight: dict[tuple[str, str], tuple[str, int]] = {}
+        self._failed = 0
+
+    def __enter__(self) -> "_LiveProgress":
+        self._progress.start()
+        return self
+
+    def __exit__(self, *exc: object) -> None:
+        self._progress.stop()
+
+    def _describe(self) -> str:
+        """Caller holds the lock"""
+        names = [label for label, _ in self._in_flight.values()]
+        if not names:
+            label = "finishing"
+        else:
+            label = ", ".join(names[: self._SHOWN])
+            if len(names) > self._SHOWN:
+                label += f" +{len(names) - self._SHOWN} more"
+        if self._failed:
+            label += f" [{self._failed} failed]"
+        return label
+
+    # ProgressReporter
+
+    def run_started(self, total: int) -> None:
+        self._task = self._progress.add_task("starting", total=total)
+
+    def target_started(self, target) -> None:
+        entry = (target.source, target.key)
+        with self._lock:
+            label, count = self._in_flight.get(
+                entry, (f"{target.source}:{target.display}", 0)
+            )
+            self._in_flight[entry] = (label, count + 1)
+            description = self._describe()
+        self._advance(description, 0)
+
+    def target_finished(self, target, error) -> None:
+        entry = (target.source, target.key)
+        with self._lock:
+            label, count = self._in_flight.get(entry, ("", 1))
+            if count > 1:
+                self._in_flight[entry] = (label, count - 1)
+            else:
+                self._in_flight.pop(entry, None)
+            if error is not None:
+                self._failed += 1
+            description = self._describe()
+        self._advance(description, 1)
+
+    def _advance(self, description: str, advance: int) -> None:
+        if self._task is None:
+            return
+        self._progress.update(self._task, description=description, advance=advance)
+
+
 def cmd_check(args: argparse.Namespace, console: Console) -> int:
     # JSON goes to stdout, status chatter to stderr.
     status = Console(stderr=True) if args.json else console
@@ -334,15 +418,22 @@ def cmd_check(args: argparse.Namespace, console: Console) -> int:
                 status.print(f"[dim]state:  {state_path}[/]")
                 status.print(f"[dim]client: {client.describe()}[/]")
 
-            result = run(
-                config,
-                state,
-                client,
-                only_sources=args.sources,
-                show_all=args.all,
-                since=since,
-                save=not (args.no_save or args.test),
-            )
+            # only for terminal
+            show_bar = status.is_terminal and not (args.verbose or args.test)
+            with ExitStack() as stack:
+                reporter = None
+                if show_bar:
+                    reporter = stack.enter_context(_LiveProgress(status))
+                result = run(
+                    config,
+                    state,
+                    client,
+                    only_sources=args.sources,
+                    show_all=args.all,
+                    since=since,
+                    save=not (args.no_save or args.test),
+                    progress=reporter,
+                )
 
             if args.test:
                 status.print(

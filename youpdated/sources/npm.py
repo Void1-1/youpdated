@@ -62,6 +62,8 @@ class NpmSource:
         for version, published in dated[:MAX_VERSIONS]:
             meta = (doc.get("versions") or {}).get(version) or {}
             tags = ("release",) if version == latest else ()
+            if "-" in version:
+                tags += ("prerelease",)
             updates.append(
                 Update(
                     source=self.name,

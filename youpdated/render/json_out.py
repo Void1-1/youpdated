@@ -14,6 +14,7 @@ def render(result: RunResult) -> str:
             "targets": len(result.targets),
             "fetched": result.total_fetched,
             "new": len(result.updates),
+            "ignored": result.ignored,
             "errors": len(result.errors),
         },
         # Resolved display names live on targets, expose them
