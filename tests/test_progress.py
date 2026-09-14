@@ -6,7 +6,6 @@ import io
 import threading
 import time
 
-import pytest
 import respx
 from httpx import Response
 
@@ -19,13 +18,29 @@ from youpdated.runner import ProgressReporter, run
 # pacing
 
 
-def test_pace_leaves_a_gap_between_hits_on_one_host():
+def _record_reservations(monkeypatch):
+    """Capture the slot each _pace call sleeps towards"""
+    reserved: list[float] = []
+    lock = threading.Lock()
+
+    def recording_sleep(wait):
+        with lock:
+            reserved.append(time.monotonic() + wait)
+
+    monkeypatch.setattr(time, "sleep", recording_sleep)
+    return reserved
+
+
+def test_pace_leaves_a_gap_between_hits_on_one_host(monkeypatch):
     client = Client(PrivacyConfig(jitter=(0.05, 0.05)))
-    start = time.monotonic()
+    reserved = _record_reservations(monkeypatch)
+
     for _ in range(3):
         client._pace("example.com")
-    # First goes now, the next two wait one gap each.
-    assert time.monotonic() - start == pytest.approx(0.10, abs=0.05)
+
+    # First goes now, the next two each reserve a slot one gap further on
+    assert len(reserved) == 2
+    assert reserved[1] - reserved[0] >= 0.05 - 1e-3
 
 
 def test_pace_does_not_delay_a_different_host():
@@ -65,42 +80,27 @@ def test_pace_holds_the_host_lock_only_to_reserve_a_slot():
 def test_concurrent_pacing_still_spaces_every_caller(monkeypatch):
     """Reserving can't let two threads claim the same instant"""
     client = Client(PrivacyConfig(jitter=(0.05, 0.05)))
-    reserved: list[float] = []
-    woke: list[float] = []
-    lock = threading.Lock()
-    real_sleep = time.sleep
-
-    def recording_sleep(wait):
-        # _pace sleeps out the slot it reserved, so the deadline it is sleeping
-        # towards is that reservation. Assert on it rather than on the wake time:
-        # a caller wakes some scheduler-dependent moment *after* its slot, and on
-        # a loaded runner that overshoot is wider than the gap being checked for.
-        with lock:
-            reserved.append(time.monotonic() + wait)
-        real_sleep(wait)
-
-    monkeypatch.setattr(time, "sleep", recording_sleep)
+    reserved = _record_reservations(monkeypatch)
+    ready = threading.Barrier(4)
 
     def pace():
+        ready.wait(timeout=5)  # all four contend for the host at once
         client._pace("example.com")
-        with lock:
-            woke.append(time.monotonic())
 
     threads = [threading.Thread(target=pace) for _ in range(4)]
     for t in threads:
         t.start()
     for t in threads:
         t.join(timeout=5)
+    assert not any(t.is_alive() for t in threads)
 
-    assert len(woke) == 4
+    # One caller takes the idle host; the other three queue
     assert len(reserved) == 3
 
     reserved.sort()
     gaps = [b - a for a, b in zip(reserved, reserved[1:])]
     assert all(gap >= 0.05 - 1e-3 for gap in gaps), gaps
     assert all(gap < 0.5 for gap in gaps), gaps
-    # loose timing for windows systems
-    assert max(woke) >= max(reserved) - 0.05
 
 
 # run progress
