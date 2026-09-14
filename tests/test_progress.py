@@ -62,16 +62,29 @@ def test_pace_holds_the_host_lock_only_to_reserve_a_slot():
     assert not thread.is_alive()
 
 
-def test_concurrent_pacing_still_spaces_every_caller():
+def test_concurrent_pacing_still_spaces_every_caller(monkeypatch):
     """Reserving can't let two threads claim the same instant"""
     client = Client(PrivacyConfig(jitter=(0.05, 0.05)))
-    slots: list[float] = []
+    reserved: list[float] = []
+    woke: list[float] = []
     lock = threading.Lock()
+    real_sleep = time.sleep
+
+    def recording_sleep(wait):
+        # _pace sleeps out the slot it reserved, so the deadline it is sleeping
+        # towards is that reservation. Assert on it rather than on the wake time:
+        # a caller wakes some scheduler-dependent moment *after* its slot, and on
+        # a loaded runner that overshoot is wider than the gap being checked for.
+        with lock:
+            reserved.append(time.monotonic() + wait)
+        real_sleep(wait)
+
+    monkeypatch.setattr(time, "sleep", recording_sleep)
 
     def pace():
         client._pace("example.com")
         with lock:
-            slots.append(time.monotonic())
+            woke.append(time.monotonic())
 
     threads = [threading.Thread(target=pace) for _ in range(4)]
     for t in threads:
@@ -79,10 +92,14 @@ def test_concurrent_pacing_still_spaces_every_caller():
     for t in threads:
         t.join(timeout=5)
 
-    slots.sort()
-    gaps = [b - a for a, b in zip(slots, slots[1:])]
-    assert len(slots) == 4
-    assert all(gap == pytest.approx(0.05, abs=0.04) for gap in gaps), gaps
+    assert len(woke) == 4
+    assert len(reserved) == 3
+
+    reserved.sort()
+    gaps = [b - a for a, b in zip(reserved, reserved[1:])]
+    assert all(gap >= 0.05 - 1e-3 for gap in gaps), gaps
+    assert all(gap < 0.5 for gap in gaps), gaps
+    assert max(woke) >= max(reserved) - 1e-3
 
 
 # run progress
