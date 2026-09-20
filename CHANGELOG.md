@@ -43,6 +43,19 @@ All notable changes to this project are documented here. The format follows
   line naming the targets still in flight, with a count and elapsed time. It is suppressed under
   `-v`, `--test`, and when output is not a terminal.
 
+- **A desktop example app** (#13), in `examples/desktop/`. A simple window checks on a schedule,
+  sends a notification, and lists what changed.
+  Uses standard library and youpdated. It reads the same config and
+  history as the CLI, and prompts for a passphrase when either is encrypted.
+  Its own CI covers Linux, macOS, and Windows, and runs only when `examples/` changes
+
+### Changed
+
+- **Install docs now with `pipx install youpdated`.** The package has been on PyPI since 0.1.0,
+  but the README still told people to clone the repo and install from the working tree.
+  Installing from source is now a subsection.
+  The scheduling examples point at a `pipx` path rather than a repo virtualenv.
+
 ### Fixed
 
 - **A host's pacing lock is no longer held across its own wait.** `_pace` slept while holding the

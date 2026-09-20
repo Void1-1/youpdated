@@ -39,7 +39,35 @@ Requires **Python 3.11 or newer** (`python3 --version` to check). CI runs the fu
 **Linux, macOS, and Windows** across Python 3.11–3.14.
 
 ```sh
-cd /path/to/Youpdated
+pipx install youpdated
+```
+
+[pipx](https://pipx.pypa.io) puts the `youpdated` command on your `PATH` in its own isolated
+environment. Plain `pip` works too, but it installs into whatever environment is active:
+
+```sh
+pip install youpdated
+```
+
+Add encryption support (see [Encryption at rest](#encryption-at-rest)) with either installer:
+
+```sh
+pipx install 'youpdated[encryption]'
+```
+
+Verify:
+
+```sh
+youpdated --version                          # -> youpdated 0.2.1
+```
+
+### From source
+
+To run an unreleased version or work on the tool itself:
+
+```sh
+git clone https://github.com/Void1-1/youpdated
+cd youpdated
 python3 -m venv .venv
 .venv/bin/pip install .
 ```
@@ -51,23 +79,16 @@ python -m venv .venv
 .venv\Scripts\pip install .
 ```
 
-That installs a `youpdated` command inside the virtualenv, at `.venv/bin/youpdated` on
-macOS/Linux and `.venv\Scripts\youpdated.exe` on Windows. Either call it by that full path, or put
-it on your `PATH`:
+Puts the command at `.venv/bin/youpdated` on macOS/Linux and `.venv\Scripts\youpdated.exe` on
+Windows. Call it by that full path, or put the directory on your `PATH`:
 
 ```sh
 export PATH="$PWD/.venv/bin:$PATH"           # macOS / Linux
-youpdated --version                          # -> youpdated 0.2.0
 ```
 
 ```powershell
 $env:PATH = "$PWD\.venv\Scripts;$env:PATH"   # Windows
-youpdated --version
 ```
-
-To make that permanent, add the `export` line to your `~/.zshrc`, or the `$env:PATH` line to your
-PowerShell profile. Examples assume `youpdated` is on your `PATH`; if it isn't, substitute the full
-path above.
 
 ## 2. Create your config
 
@@ -293,18 +314,18 @@ Exit codes: `0` success, `1` config, encryption, or proxy error, `2` with `--fai
 
 ## Running it on schedule
 
-Once a day is plenty, most of these sources change slowly, and conditional requests make repeat runs cheap. Use absolute paths, since cron and launchd don't inherit your shell's `PATH`.
+Once a day is plenty, most of these sources change slowly, and conditional requests make repeat runs cheap. Use absolute paths, since cron and launchd don't inherit your shell's `PATH`; `which youpdated` prints yours.
 
 **cron** (`crontab -e`) run at 9am and append to a log:
 
 ```cron
-0 9 * * * /path/to/Youpdated/.venv/bin/youpdated check >> ~/youpdated.log 2>&1
+0 9 * * * /home/you/.local/bin/youpdated check >> ~/youpdated.log 2>&1
 ```
 
 **Keep an RSS feed fresh** for a reader to poll. Note that `--rss` writes that run's items, so a plain `check --rss` leaves almost an empty file. For a feed that always holds a rolling window, ask for it. `--no-save` keeps this from interfering with your daily incremental run:
 
 ```cron
-0 * * * * /path/to/Youpdated/.venv/bin/youpdated check --all --since 30d --no-save --rss ~/feeds/youpdated.xml
+0 * * * * /home/you/.local/bin/youpdated check --all --since 30d --no-save --rss ~/feeds/youpdated.xml
 ```
 
 **macOS launchd**: save as `~/Library/LaunchAgents/com.youpdated.check.plist`, then `launchctl load ~/Library/LaunchAgents/com.youpdated.check.plist`:
@@ -315,7 +336,7 @@ Once a day is plenty, most of these sources change slowly, and conditional reque
   <key>Label</key><string>com.youpdated.check</string>
   <key>ProgramArguments</key>
   <array>
-    <string>/path/to/Youpdated/.venv/bin/youpdated</string>
+    <string>/Users/you/.local/bin/youpdated</string>
     <string>check</string>
     <string>--rss</string>
     <string>/Users/you/feeds/youpdated.xml</string>
