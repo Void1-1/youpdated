@@ -1,0 +1,73 @@
+name: examples
+
+# The examples are not part of the package: they are not worth a run of the
+# full CI. 
+# This job is scoped to the examples directory
+on:
+  push:
+    branches: [main]
+    paths:
+      - "examples/**"
+      - ".github/workflows/examples.yml"
+  pull_request:
+    paths:
+      - "examples/**"
+      - ".github/workflows/examples.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  desktop:
+    name: desktop · ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      # The runner images ship Tk everywhere except bare Linux, and xvfb gives
+      # the widgets a display to be built against.
+      - name: Tk and a display
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-tk xvfb
+
+      # Fail loudly rather than letting the GUI tests skip themselves into a
+      # green run that tested nothing.
+      - name: Tk must be importable
+        run: python -c "import tkinter; print(tkinter.TkVersion)"
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install . pytest
+
+      - name: Test
+        if: runner.os != 'Linux'
+        run: python -m pytest examples -q
+
+      - name: Test (headless)
+        if: runner.os == 'Linux'
+        run: xvfb-run -a python -m pytest examples -q
+
+      # The tests drive the widgets directly; this checks the real entry point
+      # survives a cold start against a real config.
+      - name: The app must survive a cold start
+        if: runner.os == 'Linux'
+        run: |
+          youpdated init
+          xvfb-run -a python examples/desktop/youpdated_desk.py --every 1h &
+          app=$!
+          sleep 10
+          kill -0 "$app"                  # still running means it did not crash
+          pkill -f youpdated_desk.py
