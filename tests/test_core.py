@@ -16,6 +16,8 @@ from youpdated.render import json_out, rss_out
 from youpdated.runner import parse_since, run
 from youpdated.state import State
 
+from .conftest import fixture
+
 
 def make_update(uid: str = "1", **kw) -> Update:
     base = dict(
@@ -257,6 +259,100 @@ def test_first_run_records_a_baseline_then_reports_only_new(state, client):
     assert [u.version for u in third.updates] == ["5.1.0"]
 
 
+def _npm(name: str, *versions: str, status: int = 200):
+    """Mock the registry document for ``name`` publishing ``versions``"""
+    respx.get(f"https://registry.npmjs.org/{name}").mock(
+        return_value=httpx.Response(
+            status,
+            json={
+                "name": name,
+                "dist-tags": {"latest": versions[-1]} if versions else {},
+                "time": {v: f"2024-01-{i + 1:02d}T00:00:00.000Z" for i, v in enumerate(versions)},
+                "versions": {v: {} for v in versions},
+            },
+        )
+    )
+
+
+@respx.mock
+def test_a_target_added_later_records_its_own_baseline(state, client):
+    _npm("express", "5.0.0")
+    run(parse_config({"sources": {"npm": ["express"]}}), state, client)
+
+    # A second target joins the config, and express publishes something new
+    _npm("express", "5.0.0", "5.1.0")
+    _npm("react", "18.0.0", "19.0.0")
+    result = run(parse_config({"sources": {"npm": ["express", "react"]}}), state, client)
+
+    assert not result.baseline
+    assert [u.version for u in result.updates] == ["5.1.0"]
+    assert [t.key for t in result.baselined] == ["react"]
+
+    _npm("react", "18.0.0", "19.0.0", "19.1.0")
+    later = run(parse_config({"sources": {"npm": ["express", "react"]}}), state, client)
+    assert [u.version for u in later.updates] == ["19.1.0"]
+    assert later.baselined == []
+
+
+@respx.mock
+def test_a_target_that_failed_its_first_run_is_baselined_once_it_works(state, client):
+    config = parse_config({"sources": {"npm": ["express", "react"]}})
+    _npm("express", "5.0.0")
+    _npm("react", status=500)
+    first = run(config, state, client)
+    assert first.baseline and len(first.errors) == 1
+
+    _npm("react", "18.0.0", "19.0.0")
+    second = run(config, state, client)
+    assert second.updates == []
+    assert [t.key for t in second.baselined] == ["react"]
+
+
+@respx.mock
+def test_a_first_run_limited_to_one_source_leaves_the_rest_unbaselined(state, client):
+    config = parse_config({"sources": {"npm": ["express"], "itch": ["https://u.itch.io/g"]}})
+    _npm("express", "5.0.0")
+    run(config, state, client, only_sources=["npm"])
+
+    respx.get("https://u.itch.io/g/devlog.rss").mock(
+        return_value=httpx.Response(200, content=fixture("itch_devlog.rss"))
+    )
+    respx.get("https://u.itch.io/g").mock(return_value=httpx.Response(404))
+    result = run(config, state, client)
+    assert result.updates == []
+    assert [t.source for t in result.baselined] == ["itch"]
+
+
+@respx.mock
+def test_a_target_whose_first_fetch_was_empty_reports_its_first_item(state, client):
+    config = parse_config({"sources": {"npm": ["express"]}})
+    _npm("express")
+    assert run(config, state, client).baseline
+
+    _npm("express", "5.0.0")
+    assert [u.version for u in run(config, state, client).updates] == ["5.0.0"]
+
+
+@respx.mock
+def test_state_from_before_per_target_baselines_is_not_baselined_again(state, client):
+    """Older state has seen rows and a last run, but no per target markers"""
+    state.mark_seen([make_update("version:5.0.0", source="npm", target="express")])
+    state.set_last_run()
+
+    _npm("express", "5.0.0", "5.1.0")
+    result = run(parse_config({"sources": {"npm": ["express"]}}), state, client)
+    assert result.baselined == []
+    assert [u.version for u in result.updates] == ["5.1.0"]
+
+
+@respx.mock
+def test_show_all_reports_a_new_target_instead_of_baselining_it(state, client):
+    _npm("express", "5.0.0", "5.1.0")
+    result = run(parse_config({"sources": {"npm": ["express"]}}), state, client, show_all=True)
+    assert not result.baseline and result.baselined == []
+    assert len(result.updates) == 2
+
+
 @respx.mock
 def test_one_failing_source_does_not_sink_the_run(state, client):
     config = parse_config({"sources": {"npm": ["express"], "itch": ["https://u.itch.io/g"]}})
@@ -338,6 +434,23 @@ def test_json_output_is_parseable_and_complete():
     assert payload["counts"]["new"] == 2
     assert {u["uid"] for u in payload["updates"]} == {"1", "2"}
     assert payload["generated"]
+
+
+def test_output_names_targets_baselined_mid_run(capsys):
+    from rich.console import Console
+
+    from youpdated.models import Target
+    from youpdated.render import terminal
+
+    result = _result_with([make_update("1")])
+    result.targets = [Target(source="github", key="a/b"), Target(source="npm", key="react")]
+    result.baselined = [result.targets[1]]
+
+    terminal.render(result, console=Console(width=200))
+    assert "Baseline recorded for 1 new target(s): npm:react" in capsys.readouterr().out
+
+    payload = json.loads(json_out.render(result))
+    assert payload["baselined"] == [{"source": "npm", "key": "react"}]
 
 
 def test_rss_output_is_valid_atom():

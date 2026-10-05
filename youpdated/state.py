@@ -187,6 +187,31 @@ class State:
             self._conn.commit()
             self._dirty = True
 
+    # per target baselines
+
+    def is_baselined(self, source: str, target: str) -> bool:
+        """Whether ``target`` has had a successful fetch recorded"""
+        if self.cache_get("baseline", f"{source}:{target}"):
+            return True
+        # Targets checked before baselines were tracked per target
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT 1 FROM seen WHERE source=? AND target=? LIMIT 1", (source, target)
+            ).fetchone()
+        return row is not None
+
+    def mark_baselined(self, targets: Iterable[tuple[str, str]]) -> None:
+        stamp = _now()
+        rows = [("baseline", f"{source}:{target}", stamp) for source, target in targets]
+        if not rows:
+            return
+        with self._lock:
+            self._conn.executemany(
+                "INSERT OR IGNORE INTO kv (namespace, key, value) VALUES (?,?,?)", rows
+            )
+            self._conn.commit()
+            self._dirty = True
+
     # upkeeping
 
     def last_run(self) -> datetime | None:

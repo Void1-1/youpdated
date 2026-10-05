@@ -234,7 +234,7 @@ class Client:
         """
         self.requested_urls.append(url)
         if self.test:
-            self.note(f"[test]] GET {url}")
+            self.note(f"[test] GET {url}")
             return None
 
         soft = frozenset(soft_statuses)
