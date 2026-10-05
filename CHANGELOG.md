@@ -68,6 +68,12 @@ All notable changes to this project are documented here. The format follows
   The spinner, bar, count, elapsed time and failure count now come first at a fixed
   width, and the names fill what is left of the line, truncated with an ellipsis. Names are
   shown literally, so one containing brackets (`[/x]`) no longer crashes the bar.
+- **A target added later no longer dumps a backlog.** The first run baseline applied to the
+  whole state, so after it, a newly added target reported every item it had as new. Same
+  for a target that failed the first run, or `-s`. Baselines are now
+  recorded per target on its first successful fetch, and the run names those targets. State
+  from earlier versions is read as already baselined, so nothing is swallowed on upgrade.
+- **`--test` lines read `[test] GET`**, not `[test]] GET`.
 
 ## [0.2.1] — 2026-08-25
 

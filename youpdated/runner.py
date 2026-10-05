@@ -20,7 +20,10 @@ class RunResult:
     updates: list[Update] = field(default_factory=list)
     errors: list[RunError] = field(default_factory=list)
     targets: list[Target] = field(default_factory=list)
+    #: Every target fetched this run was new, so nothing was reported
     baseline: bool = False
+    #: Targets fetched for the first time; their items were recorded, not reported
+    baselined: list[Target] = field(default_factory=list)
     total_fetched: int = 0
     #: Items dropped by an `ignore:` rule, before any new/seen comparison
     ignored: int = 0
@@ -117,6 +120,7 @@ def run(
 
     sources = all_sources()
     fetched: list[Update] = []
+    succeeded: dict[tuple[str, str], Target] = {}
 
     def work(target: Target) -> tuple[Target, list[Update] | Exception, int]:
         if progress is not None:
@@ -155,19 +159,18 @@ def run(
                 )
             else:
                 fetched.extend(outcome)
+                succeeded.setdefault((target.source, target.key), target)
 
     result.total_fetched = len(fetched)
 
-    # The first run would dump all published. Record baseline instead and report changes
-    first_run = state.last_run() is None
-    if first_run and not show_all:
-        result.baseline = True
-        if save:
-            state.mark_seen(fetched)
-            state.set_last_run()
-        return result
+    fresh = set() if show_all else {
+        entry for entry in succeeded if not state.is_baselined(*entry)
+    }
+    result.baselined = [t for entry, t in succeeded.items() if entry in fresh]
+    result.baseline = bool(fresh) and len(fresh) == len(succeeded)
 
-    new = fetched if show_all else state.filter_new(fetched)
+    known = [u for u in fetched if (u.source, u.target) not in fresh]
+    new = known if show_all else state.filter_new(known)
 
     if since is not None:
         cutoff = datetime.now(timezone.utc) - since
@@ -178,6 +181,7 @@ def run(
 
     if save:
         state.mark_seen(fetched)
+        state.mark_baselined(succeeded)
         state.set_last_run()
 
     return result
