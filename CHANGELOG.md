@@ -50,6 +50,11 @@ All notable changes to this project are documented here. The format follows
   gap, with no way to be interrupted, and a thread waiting its turn could be scheduled
   ahead of one ready to do real work. Each caller now reserves a slot under the lock and waits
   outside it. The spacing between requests to one host is unchanged.
+- **Progress bar moved around** (#14). The target names led the line, so the bar
+  and counter shifted sideways every time they changed, and a long name squeezed the bar out.
+  The spinner, bar, count, elapsed time and failure count now come first at a fixed
+  width, and the names fill what is left of the line, truncated with an ellipsis. Names are
+  shown literally, so one containing brackets (`[/x]`) no longer crashes the bar.
 
 ## [0.2.1] — 2026-08-25
 
