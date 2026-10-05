@@ -10,11 +10,13 @@ from rich.console import Console
 from rich.markup import escape
 from rich.progress import (
     BarColumn,
+    MofNCompleteColumn,
     Progress,
     SpinnerColumn,
     TextColumn,
     TimeElapsedColumn,
 )
+from rich.table import Column
 
 from . import __version__, crypto
 from .cleanup import find_traces, package_removal_command, remove_traces
@@ -300,14 +302,23 @@ class _LiveProgress:
     _SHOWN = 2
 
     def __init__(self, console: Console) -> None:
+        # Fixed width columns lead so the bar never moves; the target names
+        # change length on every update, so they go last and are truncated.
         self._progress = Progress(
             SpinnerColumn(),
-            TextColumn("[dim]{task.description}[/]"),
             BarColumn(bar_width=20),
-            TextColumn("[dim]{task.completed}/{task.total}[/]"),
+            MofNCompleteColumn(),
             TimeElapsedColumn(),
+            TextColumn("{task.fields[failed]}", style="red"),
+            TextColumn(
+                "{task.description}",
+                style="dim",
+                markup=False,
+                table_column=Column(ratio=1, no_wrap=True, overflow="ellipsis"),
+            ),
             console=console,
             transient=True,
+            expand=True,
         )
         self._task = None
         self._lock = threading.Lock()
@@ -330,14 +341,16 @@ class _LiveProgress:
             label = ", ".join(names[: self._SHOWN])
             if len(names) > self._SHOWN:
                 label += f" +{len(names) - self._SHOWN} more"
-        if self._failed:
-            label += f" [{self._failed} failed]"
         return label
+
+    def _failures(self) -> str:
+        """Caller holds the lock"""
+        return f"{self._failed} failed" if self._failed else ""
 
     # ProgressReporter
 
     def run_started(self, total: int) -> None:
-        self._task = self._progress.add_task("starting", total=total)
+        self._task = self._progress.add_task("starting", total=total, failed="")
 
     def target_started(self, target) -> None:
         entry = (target.source, target.key)
@@ -347,7 +360,8 @@ class _LiveProgress:
             )
             self._in_flight[entry] = (label, count + 1)
             description = self._describe()
-        self._advance(description, 0)
+            failed = self._failures()
+        self._advance(description, failed, 0)
 
     def target_finished(self, target, error) -> None:
         entry = (target.source, target.key)
@@ -360,12 +374,15 @@ class _LiveProgress:
             if error is not None:
                 self._failed += 1
             description = self._describe()
-        self._advance(description, 1)
+            failed = self._failures()
+        self._advance(description, failed, 1)
 
-    def _advance(self, description: str, advance: int) -> None:
+    def _advance(self, description: str, failed: str, advance: int) -> None:
         if self._task is None:
             return
-        self._progress.update(self._task, description=description, advance=advance)
+        self._progress.update(
+            self._task, description=description, failed=failed, advance=advance
+        )
 
 
 def cmd_check(args: argparse.Namespace, console: Console) -> int:

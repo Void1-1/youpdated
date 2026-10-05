@@ -251,7 +251,47 @@ def test_live_progress_counts_failures():
     live.target_started(target)
     live.target_finished(target, RuntimeError("boom"))
 
-    assert live._describe() == "finishing [1 failed]"
+    assert live._describe() == "finishing"
+    assert live._failures() == "1 failed"
+
+
+def _rendered(live, console) -> str:
+    console.print(live._progress.get_renderable())
+    return console.file.getvalue()
+
+
+def test_live_progress_keeps_the_bar_still_as_names_change():
+    live, console = _live(width=80)
+    live.run_started(3)
+    live.target_started(Target(source="npm", key="x"))
+    short = _rendered(live, console).splitlines()[-1]
+    live.target_started(Target(source="steam", key="1", label="A Much Longer Game Name"))
+    long = _rendered(live, console).splitlines()[-1]
+
+    # The bar and counter sit at the same column whatever the names are
+    assert short.index("0/3") == long.index("0/3")
+
+
+def test_live_progress_truncates_long_names_to_one_line():
+    live, console = _live(width=60)
+    live.run_started(1)
+    live.target_started(Target(source="steam", key="1", label="x" * 200))
+    out = _rendered(live, console)
+
+    assert len(out.splitlines()) == 1
+    assert "0/1" in out
+    assert "…" in out
+
+
+def test_live_progress_shows_names_literally():
+    live, console = _live()
+    live.run_started(2)
+    live.target_started(Target(source="steam", key="1", label="[bold]Game[/bold]"))
+    live.target_started(Target(source="steam", key="2", label="[/oops]"))
+
+    out = _rendered(live, console)
+    assert "[bold]Game[/bold]" in out
+    assert "[/oops]" in out
 
 
 def test_live_progress_renders_and_clears():
