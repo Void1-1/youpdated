@@ -52,6 +52,20 @@ def _ignored_note(result: RunResult) -> str:
     return f" [dim]{result.ignored} ignored.[/]"
 
 
+def _baselined_note(result: RunResult, console: Console) -> None:
+    """Names targets checked for the first time in a normal run"""
+    if result.baseline or not result.baselined:
+        return
+    names = ", ".join(f"{t.source}:{t.display}" for t in result.baselined)
+    console.print(
+        Text(
+            f"Baseline recorded for {len(result.baselined)} new target(s): {names}. "
+            "Their existing items were not reported.",
+            style="dim",
+        )
+    )
+
+
 def render(result: RunResult, console: Console | None = None, verbose: bool = False) -> None:
     console = console or Console()
 
@@ -80,6 +94,7 @@ def render(result: RunResult, console: Console | None = None, verbose: bool = Fa
                 f"({result.total_fetched} item(s) checked).[/]" + _ignored_note(result)
             )
         )
+        _baselined_note(result, console)
         _render_errors(result, console)
         return
 
@@ -136,6 +151,7 @@ def render(result: RunResult, console: Console | None = None, verbose: bool = Fa
             f"{len(grouped)} source(s)." + _ignored_note(result)
         )
     )
+    _baselined_note(result, console)
     _render_errors(result, console)
 
 

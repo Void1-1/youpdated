@@ -78,6 +78,12 @@ All notable changes to this project are documented here. The format follows
   never pruned, and stored validators older than half the expiry are skipped once to
   force a full fetch. Targets that failed or were left out with `--source` keep their history.
   `--json` counts what was pruned, and `--since` now also accepts years (`1y`).
+- **A target added later no longer dumps a backlog.** The first run baseline applied to the
+  whole state, so after it, a newly added target reported every item it had as new. Same
+  for a target that failed the first run, or `-s`. Baselines are now
+  recorded per target on its first successful fetch, and the run names those targets. State
+  from earlier versions is read as already baselined, so nothing is swallowed on upgrade.
+- **`--test` lines read `[test] GET`**, not `[test]] GET`.
 
 ## [0.2.1] — 2026-08-25
 

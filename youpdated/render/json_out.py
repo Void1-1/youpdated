@@ -10,6 +10,7 @@ def render(result: RunResult) -> str:
     payload = {
         "generated": datetime.now(timezone.utc).isoformat(),
         "baseline": result.baseline,
+        "baselined": [{"source": t.source, "key": t.key} for t in result.baselined],
         "counts": {
             "targets": len(result.targets),
             "fetched": result.total_fetched,

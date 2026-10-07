@@ -296,6 +296,12 @@ youpdated check --all
 
 From then on, `youpdated check` prints only what changed since the previous run.
 
+The same goes for a target you add later. Its first check records a baseline for that target, and the rest of the run reports as usual:
+
+```text
+Baseline recorded for 1 new target(s): npm:react. Their existing items were not reported.
+```
+
 ---
 
 ## Command reference
@@ -370,7 +376,8 @@ Once a day is plenty, most of these sources change slowly, and conditional reque
 | Symptom | Cause and fix |
 | --- | --- |
 | `Config error: no config file found` | Run `youpdated init`, or pass `--config PATH`. |
-| First run printed nothing | Working as intended — it recorded a baseline. Run `youpdated check --all` to see current items. |
+| First run printed nothing | Working as intended: it recorded a baseline. Run `youpdated check --all` to see current items. |
+| A newly added target printed nothing | Same as above, for that one target. `youpdated check --all -s <source>` shows its current items. |
 | `--all` shows fewer items than expected | Nothing is wrong; sources cap how much history they expose (10–20 items each). |
 | A source appears in the yellow `problems` panel | That one source failed; the rest of the run still completed. Re-run with `-v` to see the request and status. |
 | `unknown source 'X'` | Check spelling against `youpdated sources`. |
