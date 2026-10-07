@@ -69,7 +69,10 @@ All notable changes to this project are documented here. The format follows
   width, and the names fill what is left of the line, truncated with an ellipsis. Names are
   shown literally, so one containing brackets (`[/x]`) no longer crashes the bar.
 - **Rate-limit retries honor `Retry-After`** (#17). A 429 or 503 was retried on a fixed
-  rate ignoring any potential 'Retry-After' sent. The wait now follows the header (seconds or an HTTP-date) and holds the whole host, so other targets on that site back off too. A server asking for more than 60s fails that request at once instead of stalling the run. Without the header, the fixed backoff applies as before.
+  rate ignoring any potential 'Retry-After' sent. The wait now follows the header (seconds or an HTTP-date) 
+  and holds the whole host, so other targets on that site wait too. 
+  A server asking for more than 60s fails that request at once instead of stalling the run. 
+  Without the header, the fixed backoff applies as before.
 - **The history database is pruned** (#18). Seen items were added, so the
   database grew, including for targets removed from the config, and with
   encryption, the whole thing is decrypted and re-encrypted each run. An item missing from
