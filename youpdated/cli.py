@@ -421,7 +421,7 @@ def cmd_check(args: argparse.Namespace, console: Console) -> int:
             if args.verbose or args.test:
                 status.print(f"[dim]proxy:  {config.privacy.proxy} reachable[/]")
 
-    with State(state_path, passphrase=passphrase) as state:
+    with State(state_path, passphrase=passphrase, expiry=config.expiry) as state:
         with Client(
             config.privacy,
             state,

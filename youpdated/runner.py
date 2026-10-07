@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
-import re
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import Any, Protocol, runtime_checkable
 
-from .config import Config, ConfigError, parse_ignore_list
+from .config import Config, ConfigError, parse_duration, parse_ignore_list
 from .http import Client
 from .models import RunError, Target, Update
 from .registry import all_sources
@@ -24,6 +23,8 @@ class RunResult:
     total_fetched: int = 0
     #: Items dropped by an `ignore:` rule, before any new/seen comparison
     ignored: int = 0
+    #: Seen items forgotten this run for passing the `expiry:`
+    pruned: int = 0
 
     @property
     def ok(self) -> bool:
@@ -42,16 +43,8 @@ class ProgressReporter(Protocol):
         """``target`` is done, with the exception it raised or ``None``."""
 
 
-_DURATION_RE = re.compile(r"^(\d+)\s*([smhdw])$", re.IGNORECASE)
-_UNITS = {"s": "seconds", "m": "minutes", "h": "hours", "d": "days", "w": "weeks"}
-
-
-def parse_since(value: str) -> timedelta:
-    """Parse a window like ``7d``, ``12h``, ``2w``."""
-    match = _DURATION_RE.match(value.strip())
-    if not match:
-        raise ValueError(f"`{value}` is not a duration like 30m, 12h, 7d, 2w")
-    return timedelta(**{_UNITS[match.group(2).lower()]: int(match.group(1))})
+#: ``--since`` takes the same durations as ``expiry:``
+parse_since = parse_duration
 
 
 def build_targets(config: Config) -> tuple[list[Target], list[RunError]]:
@@ -105,7 +98,10 @@ def run(
     save: bool = True,
     progress: ProgressReporter | None = None,
 ) -> RunResult:
-    targets, errors = build_targets(config)
+    configured, errors = build_targets(config)
+    # Sources whose targets could not be listed, so none of their history is known stale
+    unlisted = {e.source for e in errors}
+    targets = configured
     if only_sources:
         wanted = set(only_sources)
         targets = [t for t in targets if t.source in wanted]
@@ -117,6 +113,7 @@ def run(
 
     sources = all_sources()
     fetched: list[Update] = []
+    fetched_cleanly: set[tuple[str, str]] = set()
 
     def work(target: Target) -> tuple[Target, list[Update] | Exception, int]:
         if progress is not None:
@@ -155,6 +152,7 @@ def run(
                 )
             else:
                 fetched.extend(outcome)
+                fetched_cleanly.add((target.source, target.key))
 
     result.total_fetched = len(fetched)
 
@@ -179,5 +177,10 @@ def run(
     if save:
         state.mark_seen(fetched)
         state.set_last_run()
+        # Prune only after marking. Targets not fetched cleanly (failed, or left out by --source) keep history
+        result.pruned = state.prune(
+            keep_targets={(t.source, t.key) for t in configured} - fetched_cleanly,
+            keep_sources=unlisted,
+        )
 
     return result

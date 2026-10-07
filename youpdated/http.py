@@ -11,6 +11,8 @@ import threading
 import time
 from contextlib import contextmanager
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from typing import Any, Iterable, Iterator, Sequence
 from urllib.parse import urlsplit
 
@@ -40,6 +42,28 @@ USER_AGENTS: tuple[str, ...] = (
 )
 
 RETRY_STATUSES = frozenset({429, 500, 502, 503, 504})
+#: Statuses whose ``Retry-After`` header is honored (RFC 6585 §4, RFC 9110 §10.2.3).
+RETRY_AFTER_STATUSES = frozenset({429, 503})
+
+
+def retry_after_seconds(value: str | None, now: datetime | None = None) -> float | None:
+    """Seconds a ``Retry-After`` header asks for, or ``None`` if absent or unreadable.
+
+    Takes both forms the header allows: delta-seconds (``120``) and an HTTP-date
+    """
+    if not value:
+        return None
+    value = value.strip()
+    if value.isdigit():
+        return float(value)
+    try:
+        when = parsedate_to_datetime(value)
+    except (TypeError, ValueError):
+        return None
+    if when.tzinfo is None:  # HTTP-dates are GMT
+        when = when.replace(tzinfo=timezone.utc)
+    now = now or datetime.now(timezone.utc)
+    return max(0.0, (when - now).total_seconds())
 
 
 class FetchError(Exception):
@@ -119,8 +143,10 @@ class Client:
         # Conditional GETs save requests, but a 304 doesn't return items
         self.use_conditional = use_conditional
         #: Seconds multiplied by the attempt number between retries. Tests set
-        #: this to 0 so a retry path costs no wall-clock time.
+        #: this to 0 so a retry path costs no time.
         self.retry_backoff = 1.5
+        #: Longest ``Retry-After`` the client will wait
+        self.retry_after_max = 60.0
         self._log = logger
         self.requested_urls: list[str] = []
 
@@ -203,6 +229,14 @@ class Client:
         wait = slot - time.monotonic()
         if wait > 0:
             time.sleep(wait)
+
+    def _hold_host(self, host: str, seconds: float) -> None:
+        """Push the host's next slot ``seconds`` out"""
+        with self._registry_lock:
+            lock = self._host_locks.setdefault(host, threading.Lock())
+        with lock:
+            until = time.monotonic() + seconds
+            self._host_last[host] = max(self._host_last.get(host, until), until)
 
     def _cached_body(
         self, key: tuple[str, tuple[tuple[str, str], ...]]
@@ -308,7 +342,20 @@ class Client:
                 )
 
             if response.status_code in RETRY_STATUSES and attempt < retries:
-                time.sleep(self.retry_backoff * (attempt + 1))
+                wait = None
+                if response.status_code in RETRY_AFTER_STATUSES:
+                    wait = retry_after_seconds(response.headers.get("retry-after"))
+                if wait is None:
+                    time.sleep(self.retry_backoff * (attempt + 1))
+                elif wait > self.retry_after_max:
+                    raise FetchError(
+                        f"{url}: HTTP {response.status_code} (server asked to retry "
+                        f"after {wait:.0f}s, over the {self.retry_after_max:.0f}s limit)"
+                    )
+                else:
+                    self.note(f"GET {url} -> waiting {wait:.0f}s as Retry-After asks")
+                    # The next _pace sleeps until the held slot
+                    self._hold_host(host, wait)
                 continue
 
             raise FetchError(f"{url}: HTTP {response.status_code}")
