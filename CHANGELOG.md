@@ -68,6 +68,19 @@ All notable changes to this project are documented here. The format follows
   The spinner, bar, count, elapsed time and failure count now come first at a fixed
   width, and the names fill what is left of the line, truncated with an ellipsis. Names are
   shown literally, so one containing brackets (`[/x]`) no longer crashes the bar.
+- **Rate-limit retries honor `Retry-After`** (#17). A 429 or 503 was retried on a fixed
+  rate ignoring any potential 'Retry-After' sent. The wait now follows the header (seconds or an HTTP-date) 
+  and holds the whole host, so other targets on that site wait too. 
+  A server asking for more than 60s fails that request at once instead of stalling the run. 
+  Without the header, the fixed backoff applies as before.
+- **The history database is pruned** (#18). Seen items were added, so the
+  database grew, including for targets removed from the config, and with
+  encryption, the whole thing is decrypted and re-encrypted each run. An item missing from
+  every fetch for longer than the new top-level `expiry:` (default `1y`, `never` to keep
+  everything) is now forgotten, and the file is compacted. Items still listed by their source are
+  never pruned, and stored validators older than half the expiry are skipped once to
+  force a full fetch. Targets that failed or were left out with `--source` keep their history.
+  `--json` counts what was pruned, and `--since` now also accepts years (`1y`).
 - **A target added later no longer dumps a backlog.** The first run baseline applied to the
   whole state, so after it, a newly added target reported every item it had as new. Same
   for a target that failed the first run, or `-s`. Baselines are now

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import time
 from datetime import datetime, timedelta, timezone
 
 import httpx
@@ -10,7 +11,7 @@ import pytest
 import respx
 
 from youpdated.config import ConfigError, parse_config
-from youpdated.http import Client, FetchError
+from youpdated.http import Client, FetchError, retry_after_seconds
 from youpdated.models import Update
 from youpdated.render import json_out, rss_out
 from youpdated.runner import parse_since, run
@@ -198,6 +199,80 @@ def test_unexpected_status_raises_but_soft_status_does_not(client):
     with pytest.raises(FetchError):
         client.get("https://e.com/a")
     assert client.get("https://e.com/b", soft_statuses=(404,)).status == 404
+
+
+@pytest.mark.parametrize(
+    "value, expected",
+    [
+        ("120", 120.0),
+        (" 5 ", 5.0),
+        ("Wed, 07 Oct 2026 12:00:30 GMT", 30.0),
+        ("Wed, 07 Oct 2026 11:00:00 GMT", 0.0),  # past
+        (None, None),
+        ("", None),
+        ("-5", None),
+        ("soon", None),
+    ],
+)
+def test_retry_after_parses_seconds_and_dates(value, expected):
+    now = datetime(2026, 10, 7, 12, 0, 0, tzinfo=timezone.utc)
+    assert retry_after_seconds(value, now=now) == expected
+
+
+def _record_sleeps(monkeypatch) -> list[float]:
+    sleeps: list[float] = []
+    monkeypatch.setattr(time, "sleep", sleeps.append)
+    return sleeps
+
+
+@respx.mock
+def test_a_429_waits_as_long_as_retry_after_asks(client, monkeypatch):
+    sleeps = _record_sleeps(monkeypatch)
+    route = respx.get("https://e.com/x").mock(
+        side_effect=[
+            httpx.Response(429, headers={"Retry-After": "7"}),
+            httpx.Response(200, content=b"ok"),
+        ]
+    )
+
+    assert client.get("https://e.com/x").content == b"ok"
+    assert route.call_count == 2
+    assert sleeps == [pytest.approx(7, abs=0.5)]
+
+
+def test_a_held_host_delays_every_request_to_it_but_no_other(client, monkeypatch):
+    """Other threads hitting a rate-limited host wait too, not only the one told."""
+    sleeps = _record_sleeps(monkeypatch)
+
+    client._hold_host("e.com", 7)
+    client._pace("e.com")
+    client._pace("other.com")
+    assert sleeps == [pytest.approx(7, abs=0.5)]
+
+
+@respx.mock
+def test_a_retry_after_past_the_limit_fails_at_once(client, monkeypatch):
+    sleeps = _record_sleeps(monkeypatch)
+    route = respx.get("https://e.com/x").mock(
+        return_value=httpx.Response(429, headers={"Retry-After": "3600"})
+    )
+
+    with pytest.raises(FetchError, match="retry after 3600s"):
+        client.get("https://e.com/x", retries=2)
+    assert route.call_count == 1
+    assert sleeps == []
+
+
+@respx.mock
+def test_a_429_without_retry_after_falls_back_to_backoff(client, monkeypatch):
+    sleeps = _record_sleeps(monkeypatch)
+    client.retry_backoff = 1.5
+    respx.get("https://e.com/x").mock(
+        side_effect=[httpx.Response(429), httpx.Response(429), httpx.Response(200)]
+    )
+
+    client.get("https://e.com/x", retries=2)
+    assert sleeps == [1.5, 3.0]
 
 
 @respx.mock

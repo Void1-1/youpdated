@@ -152,6 +152,8 @@ ignore:                              # update types you never want reported
   '*': [prerelease]                  # '*' is every source
   github: [commit]
 
+expiry: 1y                           # forget items missing from every fetch this long
+
 sources:
   github:
     - python/cpython                 # easy
@@ -246,6 +248,22 @@ Without a `GITHUB_TOKEN`, `prerelease` is inferred from the tag name
 (`v3.15.0rc2`, `1.2.0-beta.1`), since the anonymous `.atom` feeds carry no
 prerelease flag. With a token set, GitHub's own flag is used instead.
 
+### How long history is kept
+
+The history database remembers every item it has reported so nothing shows up again.
+To bound its growth, an item that hasn't appeared in any fetch for a year is
+forgotten, along with everything from targets you've removed from the config. Change the
+window with `expiry:`, or turn pruning off:
+
+```yaml
+expiry: 180d      # 30d, 52w, 2y, ... (at least 1d)
+# expiry: never   # keep everything
+```
+
+Pruning is safe: an item still listed by its source is never forgotten, however old,
+so nothing is reported a second time. Targets that failed this run, or were left out
+with `--source`, keep their history until they next fetch cleanly.
+
 Check your config without sending a request:
 
 ```sh
@@ -291,7 +309,7 @@ Baseline recorded for 1 new target(s): npm:react. Their existing items were not 
 ```sh
 youpdated check                       # what's new since last run (the default command)
 youpdated check --all                 # everything currently published, ignoring history
-youpdated check --since 7d            # only items from the last week (30m, 12h, 7d, 2w)
+youpdated check --since 7d            # only items from the last week (30m, 12h, 7d, 2w, 1y)
 youpdated check -s github -s npm      # limit to some sources
 youpdated check --json                # machine-readable output
 youpdated check --rss ~/feeds/you.xml # aggregated Atom feed for a reader

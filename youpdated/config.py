@@ -5,7 +5,9 @@ A source entry either bare scalar or a mapping
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
+from datetime import timedelta
 from pathlib import Path
 from typing import Any
 
@@ -37,6 +39,25 @@ class PrivacyConfig:
 #: top-level `ignore:` mapping applied to every source
 IGNORE_ALL = "*"
 
+#: How long a seen item is kept after it last appeared in a fetch
+DEFAULT_EXPIRY = timedelta(days=365)
+#: Shorter and conditional GETs stop paying off (see ``State.conditional_headers``)
+MIN_EXPIRY = timedelta(days=1)
+
+_DURATION_RE = re.compile(r"^(\d+)\s*([smhdwy])$", re.IGNORECASE)
+_UNITS = {"s": "seconds", "m": "minutes", "h": "hours", "d": "days", "w": "weeks"}
+
+
+def parse_duration(value: str) -> timedelta:
+    """Parse a window like ``7d``, ``12h``, ``2w``, ``1y``"""
+    match = _DURATION_RE.match(value.strip())
+    if not match:
+        raise ValueError(f"`{value}` is not a duration like 30m, 12h, 7d, 2w, 1y")
+    amount, unit = int(match.group(1)), match.group(2).lower()
+    if unit == "y":
+        return timedelta(days=365 * amount)
+    return timedelta(**{_UNITS[unit]: amount})
+
 
 @dataclass
 class Config:
@@ -44,6 +65,8 @@ class Config:
     sources: dict[str, list[Any]] = field(default_factory=dict)
     #: Source name (or ``*``) -> update tags to drop
     ignore: dict[str, frozenset[str]] = field(default_factory=dict)
+    #: Forget seen items absent from every fetch this long. ``None`` keeps them forever
+    expiry: timedelta | None = DEFAULT_EXPIRY
     path: Path | None = None
 
     def ignored_tags(self, source: str) -> frozenset[str]:
@@ -143,8 +166,28 @@ def parse_config(raw: Any, path: Path | None = None) -> Config:
         privacy=privacy,
         sources=sources,
         ignore=_parse_ignore(raw.get("ignore"), where),
+        expiry=_parse_expiry(raw.get("expiry", DEFAULT_EXPIRY), where),
         path=path,
     )
+
+
+def _parse_expiry(raw: Any, where: str) -> timedelta | None:
+    """Parse top-level ``expiry:``, a duration or ``never``"""
+    if isinstance(raw, timedelta):
+        return raw
+    # YAML reads `off`/`no` as False
+    if raw is False or (isinstance(raw, str) and raw.strip().lower() == "never"):
+        return None
+    message = f"{where}`expiry` must be a duration like 180d, 52w, 1y, or `never`"
+    if not isinstance(raw, str):
+        raise ConfigError(message)
+    try:
+        expiry = parse_duration(raw)
+    except ValueError as exc:
+        raise ConfigError(message) from exc
+    if expiry < MIN_EXPIRY:
+        raise ConfigError(f"{where}`expiry` must be at least 1d")
+    return expiry
 
 
 def parse_ignore_list(value: Any, where: str, what: str) -> frozenset[str]:
@@ -240,6 +283,9 @@ privacy:
   jitter: [0.5, 3.0]       # random delay, in seconds, between hits on one host
   concurrency: 4
   timeout: 20
+
+# Forget items that haven't appeared in any fetch for this long. Default 1y
+# expiry: 1y
 
 # Drop update types you don't want. A bare list applies
 # everywhere; a mapping narrows it to one source ('*' means all).
