@@ -428,6 +428,64 @@ def test_show_all_reports_a_new_target_instead_of_baselining_it(state, client):
     assert len(result.updates) == 2
 
 
+_BRAVE_API = "https://api.github.com/repos/brave/brave-browser/releases?per_page=100"
+
+
+def _brave_release(name: str) -> dict:
+    return {"name": name, "tag_name": name.split()[-1], "html_url": "https://e.com",
+            "published_at": "2026-09-01T00:00:00Z"}
+
+
+def _brave(*channels: str):
+    return parse_config(
+        {"sources": {"browser": [{"browser": "brave", "channel": c} for c in channels]}}
+    )
+
+
+@respx.mock
+def test_a_target_added_onto_a_shared_unchanged_document_still_records_a_baseline(
+    state, client
+):
+    """A new Brave channel shares the releases document with a channel already
+    watched. That document's validator would get it a 304 and nothing to record,
+    so its next change reported every release the new channel had."""
+    releases = [_brave_release(n) for n in ("Release v1.0", "Beta v1.1", "Beta v1.2")]
+    route = respx.get(_BRAVE_API).mock(
+        side_effect=lambda request: (
+            httpx.Response(304) if request.headers.get("If-None-Match") == '"a"'
+            else httpx.Response(200, json=releases, headers={"ETag": '"a"'})
+        )
+    )
+    run(_brave("stable"), state, client)
+
+    before = route.call_count
+    added = run(_brave("stable", "beta"), state, client)
+    assert [t.key for t in added.baselined] == ["brave/beta"]
+    # The channels fetch on separate workers, so the beta request is not always last
+    assert any("If-None-Match" not in c.request.headers for c in route.calls[before:])
+
+    route.side_effect = None
+    route.return_value = httpx.Response(
+        200, json=[_brave_release("Beta v1.3"), *releases], headers={"ETag": '"b"'}
+    )
+    later = run(_brave("stable", "beta"), state, client)
+    assert [u.title for u in later.updates] == ["Beta v1.3"]
+
+
+@respx.mock
+def test_unconditional_sends_no_validators_but_still_stores_them(state, client):
+    state.remember_validators("https://e.com/feed", '"v1"', None)
+    route = respx.get("https://e.com/feed").mock(
+        return_value=httpx.Response(200, content=b"x", headers={"ETag": '"v2"'})
+    )
+    with client.unconditional():
+        client.get("https://e.com/feed", conditional=True)
+    client.get("https://e.com/feed", conditional=True)
+
+    assert "If-None-Match" not in route.calls[0].request.headers
+    assert route.calls[1].request.headers["If-None-Match"] == '"v2"'
+
+
 @respx.mock
 def test_one_failing_source_does_not_sink_the_run(state, client):
     config = parse_config({"sources": {"npm": ["express"], "itch": ["https://u.itch.io/g"]}})

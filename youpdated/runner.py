@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import nullcontext
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import Any, Protocol, runtime_checkable
@@ -123,8 +124,11 @@ def run(
             progress.target_started(target)
         outcome: list[Update] | Exception
         dropped = 0
+        # A first fetch must see the whole document
+        first = not state.is_baselined(target.source, target.key)
         try:
-            items = list(sources[target.source].fetch(target, client))
+            with client.unconditional() if first else nullcontext():
+                items = list(sources[target.source].fetch(target, client))
             kept = [u for u in items if not target.ignores(u.tags)]
             # Ignored items are not recorded as seen
             dropped = len(items) - len(kept)

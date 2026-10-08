@@ -207,7 +207,7 @@ class State:
         keep_targets: Iterable[tuple[str, str]] = (),
         keep_sources: Iterable[str] = (),
     ) -> int:
-        """Forget seen items and validators not refreshed within the expiry"""
+        """Forget seen items, validators and baseline marks not refreshed within the expiry"""
         if self.expiry is None:
             return 0
         cutoff = _ago(self.expiry)
@@ -234,8 +234,21 @@ class State:
             removed_validators = self._conn.execute(
                 "DELETE FROM http_cache WHERE fetched_at < ?", (cutoff,)
             ).rowcount
+            stale_marks = [
+                row["key"]
+                for row in self._conn.execute(
+                    "SELECT key FROM kv WHERE namespace='baseline' AND value < ?",
+                    (cutoff,),
+                )
+                if row["key"].split(":", 1)[0] not in keep_whole
+                and tuple(row["key"].split(":", 1)) not in keep
+            ]
+            self._conn.executemany(
+                "DELETE FROM kv WHERE namespace='baseline' AND key=?",
+                [(key,) for key in stale_marks],
+            )
             self._conn.commit()
-            if removed or removed_validators:
+            if removed or removed_validators or stale_marks:
                 # reclaim empty so the file shrinks
                 self._conn.execute("VACUUM")
                 self._dirty = True
@@ -274,13 +287,16 @@ class State:
         return row is not None
 
     def mark_baselined(self, targets: Iterable[tuple[str, str]]) -> None:
+        """Record a successful fetch; the stamp is the latest one, so ``prune`` can expire it"""
         stamp = _now()
         rows = [("baseline", f"{source}:{target}", stamp) for source, target in targets]
         if not rows:
             return
         with self._lock:
             self._conn.executemany(
-                "INSERT OR IGNORE INTO kv (namespace, key, value) VALUES (?,?,?)", rows
+                "INSERT INTO kv (namespace, key, value) VALUES (?,?,?) "
+                "ON CONFLICT(namespace, key) DO UPDATE SET value=excluded.value",
+                rows,
             )
             self._conn.commit()
             self._dirty = True

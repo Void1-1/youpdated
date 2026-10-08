@@ -4,7 +4,7 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.3.0] — 2026-10-07
 
 ### Added
 
@@ -30,13 +30,13 @@ All notable changes to this project are documented here. The format follows
   See [Ignoring update types](README.md#ignoring-update-types) for the tag vocabulary per source.
 
 - **GitHub prereleases are tagged without a token.** `prerelease` previously came only from the
-  REST API, which needs `GITHUB_TOKEN`, so on the anonymous `.atom` path., nothing was tagged.
+  REST API, which needs `GITHUB_TOKEN`, so on the anonymous `.atom` path nothing was tagged.
   It is now inferred from the tag name (`v3.15.0rc2`, `1.2.0-beta.1`, `0.12.0-alpha`), and a
   token takes precedence. Platform and build suffixes (`v1.0.0-linux`, `v4.2.0+build.7`)
   are untouched.
 
 - **npm prereleases are tagged.** Any semver version with a prerelease suffix now carries
-  `prerelease`.
+  `prerelease`. Build metadata (`+build-7`) does not count, even with a hyphen in it.
 
 - **Runs report progress instead of going quiet.** A check printed nothing until the last target
   landed, so a slow source was indistinguishable from a hang. Interactive runs now show a live
@@ -55,6 +55,9 @@ All notable changes to this project are documented here. The format follows
   but the README still told people to clone the repo and install from the working tree.
   Installing from source is now a subsection.
   The scheduling examples point at a `pipx` path rather than a repo virtualenv.
+- **itch builds are tagged `build`, and page-only changes `page`,** instead of both being
+  `release`. The tags say what changed, so `ignore:` can tell them apart. Anything filtering
+  `--json` or `--rss` output on `release` for itch should use `build`.
 
 ### Fixed
 
@@ -80,12 +83,16 @@ All notable changes to this project are documented here. The format follows
   everything) is now forgotten, and the file is compacted. Items still listed by their source are
   never pruned, and stored validators older than half the expiry are skipped once to
   force a full fetch. Targets that failed or were left out with `--source` keep their history.
+  A removed target's baseline expires with its history, so re-adding it later records a new
+  baseline instead of reporting everything it has.
   `--json` counts what was pruned, and `--since` now also accepts years (`1y`).
 - **A target added later no longer dumps a backlog.** The first run baseline applied to the
   whole state, so after it, a newly added target reported every item it had as new. Same
   for a target that failed the first run, or `-s`. Baselines are now
   recorded per target on its first successful fetch, and the run names those targets. State
   from earlier versions is read as already baselined, so nothing is swallowed on upgrade.
+  A target's first fetch sends no stored validators, so a new channel on a document another
+  target already watches (Brave, Firefox, Edge) records a real baseline instead of a 304.
 - **`--test` lines read `[test] GET`**, not `[test]] GET`.
 
 ## [0.2.1] — 2026-08-25
@@ -230,6 +237,7 @@ First release.
 - Firefox publishes current versions, so it reports one item per channel.
 - Edge exposes release notes only for the stable and beta channels. (But like, it's Edge, why do you want to know when it updates?)
 
+[0.3.0]: https://github.com/Void1-1/youpdated/releases/tag/v0.3.0
 [0.2.1]: https://github.com/Void1-1/youpdated/releases/tag/v0.2.1
 [0.2.0]: https://github.com/Void1-1/youpdated/releases/tag/v0.2.0
 [0.1.1]: https://github.com/Void1-1/youpdated/releases/tag/v0.1.1

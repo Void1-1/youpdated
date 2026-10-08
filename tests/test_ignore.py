@@ -318,6 +318,23 @@ def test_npm_tags_semver_prereleases(client):
 
 
 @respx.mock
+def test_npm_build_metadata_with_a_hyphen_is_not_a_prerelease(client):
+    versions = ["2.0.0+build-7", "3.0.0-rc.1+build-8"]
+    respx.get("https://registry.npmjs.org/widget").mock(
+        return_value=httpx.Response(200, json={
+            "name": "widget",
+            "dist-tags": {"latest": versions[0]},
+            "time": {v: f"2026-0{i + 1}-01T00:00:00.000Z" for i, v in enumerate(versions)},
+            "versions": {v: {} for v in versions},
+        })
+    )
+    source = get_source("npm")
+    (target,) = source.targets(["widget"])
+    pre = {u.version for u in source.fetch(target, client) if "prerelease" in u.tags}
+    assert pre == {"3.0.0-rc.1+build-8"}
+
+
+@respx.mock
 def test_npm_prereleases_can_be_ignored(state, client):
     respx.get("https://registry.npmjs.org/widget").mock(
         return_value=httpx.Response(200, content=fixture("npm_prereleases.json"))

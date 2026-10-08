@@ -62,7 +62,8 @@ class NpmSource:
         for version, published in dated[:MAX_VERSIONS]:
             meta = (doc.get("versions") or {}).get(version) or {}
             tags = ("release",) if version == latest else ()
-            if "-" in version:
+            # Build metadata after `+` may hold a hyphen too; only the part before counts
+            if "-" in version.split("+", 1)[0]:
                 tags += ("prerelease",)
             updates.append(
                 Update(
