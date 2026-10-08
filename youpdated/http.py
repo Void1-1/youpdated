@@ -163,6 +163,8 @@ class Client:
         #: Only reuse bodies inside :meth:`run_scope`. A client used directly,
         #: outside a run, keeps the plain one-GET-per-call contract.
         self._run_active = False
+        #: Per worker thread: send no validators, see :meth:`unconditional`
+        self._local = threading.local()
 
         self._client = httpx.Client(
             proxy=self.privacy.proxy,
@@ -207,6 +209,16 @@ class Client:
             with self._bodies_lock:
                 self._run_bodies.clear()
                 self._run_active = False
+
+    @contextmanager
+    def unconditional(self) -> "Iterator[Client]":
+        """Send no stored validators from this thread, so every GET returns a body"""
+        previous = getattr(self._local, "unconditional", False)
+        self._local.unconditional = True
+        try:
+            yield self
+        finally:
+            self._local.unconditional = previous
 
     # internals
 
@@ -281,7 +293,8 @@ class Client:
         request_headers = {"User-Agent": self._user_agent()}
         if headers:
             request_headers.update(headers)
-        if conditional and self.state is not None:
+        send_validators = not getattr(self._local, "unconditional", False)
+        if conditional and send_validators and self.state is not None:
             request_headers.update(self.state.conditional_headers(url))
 
         host = urlsplit(url).netloc

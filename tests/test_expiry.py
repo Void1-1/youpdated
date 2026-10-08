@@ -27,6 +27,8 @@ def backdate(state: State, age: timedelta, *, table: str = "seen") -> None:
     with state._lock:
         if table == "seen":
             state._conn.execute("UPDATE seen SET first_seen=?, last_seen=?", (stamp, stamp))
+        elif table == "baseline":
+            state._conn.execute("UPDATE kv SET value=? WHERE namespace='baseline'", (stamp,))
         else:
             state._conn.execute("UPDATE http_cache SET fetched_at=?", (stamp,))
         state._conn.commit()
@@ -218,6 +220,46 @@ def test_removed_targets_are_pruned_but_failing_ones_kept(expiring_state, client
     assert result.pruned == 1
     targets = {row["target"] for row in state._conn.execute("SELECT target FROM seen")}
     assert targets == {"express", "broken"}
+
+
+@respx.mock
+def test_a_target_re_added_after_its_history_expired_is_baselined_again(
+    expiring_state, client
+):
+    """Its seen items are gone, so a surviving baseline mark would report them all."""
+    state = expiring_state
+    for name in ("express", "left-pad"):
+        respx.get(f"https://registry.npmjs.org/{name}").mock(
+            return_value=httpx.Response(200, json=npm_doc("1.0.0"))
+        )
+    run(parse_config({"sources": {"npm": ["express", "left-pad"]}}), state, client)
+    for table in ("seen", "http_cache", "baseline"):
+        backdate(state, 2 * YEAR, table=table)
+
+    run(parse_config({"sources": {"npm": ["express"]}}), state, client)
+    assert state.is_baselined("npm", "express")
+    assert not state.is_baselined("npm", "left-pad")
+
+    respx.get("https://registry.npmjs.org/left-pad").mock(
+        return_value=httpx.Response(200, json=npm_doc("1.0.0", "1.1.0"))
+    )
+    back = run(parse_config({"sources": {"npm": ["express", "left-pad"]}}), state, client)
+    assert [t.key for t in back.baselined] == ["left-pad"]
+    assert back.updates == []
+
+
+@respx.mock
+def test_baseline_marks_of_kept_targets_survive_pruning(expiring_state, client):
+    state = expiring_state
+    config = parse_config({"sources": {"npm": ["express"], "steam": [440]}})
+    respx.get("https://registry.npmjs.org/express").mock(
+        return_value=httpx.Response(200, json=npm_doc("1.0.0"))
+    )
+    state.mark_baselined([("steam", "440")])
+    backdate(state, 2 * YEAR, table="baseline")
+
+    run(config, state, client, only_sources=["npm"])
+    assert state.cache_get("baseline", "steam:440") is not None
 
 
 @respx.mock
