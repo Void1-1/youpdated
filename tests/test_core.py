@@ -458,9 +458,11 @@ def test_a_target_added_onto_a_shared_unchanged_document_still_records_a_baselin
     )
     run(_brave("stable"), state, client)
 
+    before = route.call_count
     added = run(_brave("stable", "beta"), state, client)
     assert [t.key for t in added.baselined] == ["brave/beta"]
-    assert "If-None-Match" not in route.calls[-1].request.headers
+    # The channels fetch on separate workers, so the beta request is not always last
+    assert any("If-None-Match" not in c.request.headers for c in route.calls[before:])
 
     route.side_effect = None
     route.return_value = httpx.Response(
