@@ -21,6 +21,12 @@ jobs:
   # never gets as far as building.
   verify:
     uses: ./.github/workflows/tests.yml
+    # tests.yml also holds the CodeQL job, which asks for security-events:
+    # write. It is skipped on a release, but GitHub still refuses to start a
+    # called workflow whose jobs ask for more than the caller grants.
+    permissions:
+      contents: read
+      security-events: write
 
   build:
     needs: verify
