@@ -486,6 +486,69 @@ def test_unconditional_sends_no_validators_but_still_stores_them(state, client):
     assert route.calls[1].request.headers["If-None-Match"] == '"v2"'
 
 
+_RSS = '<?xml version="1.0"?><rss version="2.0"><channel>{}</channel></rss>'
+
+
+def _rss_items(*days: int) -> str:
+    return _RSS.format(
+        "".join(
+            f"<item><title>post {d}</title><guid>id-{d}</guid>"
+            f"<pubDate>{d:02d} Jan 2026 00:00:00 GMT</pubDate></item>"
+            for d in days
+        )
+    )
+
+
+def _etag_feed(route, body: str, etag: str) -> None:
+    """Serve ``body`` under ``etag``, and 304 to a request that already has it."""
+    route.side_effect = lambda request: (
+        httpx.Response(304)
+        if request.headers.get("If-None-Match") == etag
+        else httpx.Response(200, text=body, headers={"ETag": etag})
+    )
+
+
+@respx.mock
+def test_a_run_that_does_not_save_stores_no_validators(state, client):
+    """`--no-save` previews must not turn the next real run's fetch into a 304"""
+    config = parse_config({"sources": {"feed": ["https://e.com/feed"]}})
+    route = respx.get("https://e.com/feed")
+    _etag_feed(route, _rss_items(1), '"v1"')
+    run(config, state, client)
+
+    _etag_feed(route, _rss_items(1, 2), '"v2"')
+    preview = run(config, state, client, save=False)
+    assert [u.title for u in preview.updates] == ["post 2"]
+    assert state.conditional_headers("https://e.com/feed")["If-None-Match"] == '"v1"'
+
+    real = run(config, state, client)
+    assert [u.title for u in real.updates] == ["post 2"]
+    assert state.conditional_headers("https://e.com/feed")["If-None-Match"] == '"v2"'
+
+
+@respx.mock
+def test_a_failed_target_stores_no_validators_for_its_other_urls(state, client):
+    """A target's items are all dropped when any of its fetches fails, so are its validators."""
+    config = parse_config(
+        {"sources": {"github": [{"repo": "o/r", "watch": ["releases", "commits"]}]}}
+    )
+    releases = respx.get("https://github.com/o/r/releases.atom")
+    commits = respx.get("https://github.com/o/r/commits.atom").mock(
+        return_value=httpx.Response(200, content=fixture("github_commits.atom"))
+    )
+    _etag_feed(releases, _rss_items(1), '"v1"')
+    run(config, state, client)
+
+    _etag_feed(releases, _rss_items(1, 2), '"v2"')
+    commits.mock(return_value=httpx.Response(500))
+    failed = run(config, state, client)
+    assert failed.errors and not failed.updates
+
+    commits.mock(return_value=httpx.Response(200, content=fixture("github_commits.atom")))
+    recovered = run(config, state, client)
+    assert [u.title for u in recovered.updates] == ["post 2"]
+
+
 @respx.mock
 def test_one_failing_source_does_not_sink_the_run(state, client):
     config = parse_config({"sources": {"npm": ["express"], "itch": ["https://u.itch.io/g"]}})

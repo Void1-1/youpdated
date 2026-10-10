@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 import httpx
 import pytest
 import respx
@@ -181,8 +183,9 @@ def test_youtube_uses_official_feed_when_it_works(client):
     updates = list(source.fetch(target, client))
 
     assert updates
-    # uids are normalized to the video id so the fallback paths dedupe
-    assert all(u.uid.startswith("yt:video:") for u in updates)
+    # uids are normalized to the video id so the fallback paths dedupe, Shorts included
+    assert all(re.fullmatch(r"yt:video:[A-Za-z0-9_-]{11}", u.uid) for u in updates)
+    assert "yt:video:myZ9kn9MIWQ" in {u.uid for u in updates}
     # ...and the label comes from the feed, as it does on the fallback paths
     assert target.label == "NASA"
 

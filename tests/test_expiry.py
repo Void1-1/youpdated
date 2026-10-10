@@ -157,6 +157,26 @@ def test_an_old_database_gains_last_seen(tmp_path):
         assert state.prune() == 1
 
 
+def test_double_prefixed_youtube_shorts_are_migrated(tmp_path):
+    path = tmp_path / "state.sqlite3"
+    State(path).close()
+    conn = sqlite3.connect(path)
+    conn.executemany(
+        "INSERT INTO seen VALUES ('youtube', ?, ?, '2026-01-01T00:00:00+00:00', NULL)",
+        [
+            ("@a", "yt:video:yt:video:AAAAAAAAAAA"),
+            ("@a", "yt:video:yt:video:BBBBBBBBBBB"),
+            ("@a", "yt:video:BBBBBBBBBBB"),
+        ],
+    )
+    conn.commit()
+    conn.close()
+
+    with State(path) as state:
+        uids = {row["uid"] for row in state._conn.execute("SELECT uid FROM seen")}
+    assert uids == {"yt:video:AAAAAAAAAAA", "yt:video:BBBBBBBBBBB"}
+
+
 # runner
 
 
@@ -261,6 +281,20 @@ def test_baseline_marks_of_kept_targets_survive_pruning(expiring_state, client):
     run(config, state, client, only_sources=["npm"])
     assert state.cache_get("baseline", "steam:440") is not None
 
+
+def test_recorded_ignore_rules_go_with_their_expired_baseline_mark(expiring_state):
+    state = expiring_state
+    state.mark_baselined([("npm", "gone"), ("npm", "kept")])
+    state.mark_ignore_rules(
+        [("npm", "gone", frozenset({"prerelease"})), ("npm", "kept", frozenset())]
+    )
+    backdate(state, 2 * YEAR, table="baseline")
+    state.mark_baselined([("npm", "kept")])
+
+    state.prune()
+
+    assert state.cache_get("ignore", "npm:gone") is None
+    assert state.cache_get("ignore", "npm:kept") == ""
 
 @respx.mock
 def test_targets_skipped_by_source_filter_are_kept(expiring_state, client):
