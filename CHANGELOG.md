@@ -4,7 +4,7 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.3.1] — 2026-10-10
 
 ### Fixed
 
@@ -32,7 +32,7 @@ All notable changes to this project are documented here. The format follows
   devlogs, and GitHub atom feeds.
 - **Chrome no longer errors** when a version is first listed without a rollout
   start time and later with.
-- **Removing an `ignore:` rule shows what it hid** Ignored items
+- **Removing an `ignore:` rule shows what it hid.** Ignored items
   are not recorded, but the feed's validators were, so hidden items stayed hidden until it next changed.
   Each target's rules are now recorded, and a target whose rules changed is fetched fully once.
   Every target is fetched in full once after upgrading.
@@ -270,6 +270,7 @@ First release.
 - Firefox publishes current versions, so it reports one item per channel.
 - Edge exposes release notes only for the stable and beta channels. (But like, it's Edge, why do you want to know when it updates?)
 
+[0.3.1]: https://github.com/Void1-1/youpdated/releases/tag/v0.3.1
 [0.3.0]: https://github.com/Void1-1/youpdated/releases/tag/v0.3.0
 [0.2.1]: https://github.com/Void1-1/youpdated/releases/tag/v0.2.1
 [0.2.0]: https://github.com/Void1-1/youpdated/releases/tag/v0.2.0
