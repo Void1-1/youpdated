@@ -27,8 +27,11 @@ GAME_URL_RE = re.compile(
 
 # info panel: <tr><td>Updated</td><td><abbr title="17 August 2026 @ 10:34 UTC">…
 INFO_ROW_RE = re.compile(r"<td>([^<]{1,30})</td><td>(.{0,400}?)</td>", re.S)
-ABBR_TITLE_RE = re.compile(r'<abbr title="([^"]+)"')
-UPLOAD_NAME_RE = re.compile(r'<strong title="([^"]*)" class="name">')
+# itch shuffles attribute order between responses, so never assume any
+ABBR_TITLE_RE = re.compile(r'<abbr\b[^>]*?\stitle="([^"]+)"')
+STRONG_TAG_RE = re.compile(r"<strong\b([^>]*)>")
+NAME_CLASS_RE = re.compile(r'(?:^|\s)class="name"')
+TITLE_ATTR_RE = re.compile(r'(?:^|\s)title="([^"]*)"')
 UPLOAD_SIZE_RE = re.compile(r'class="file_size"><span>([^<]*)</span>')
 ITCH_DATE_RE = re.compile(
     r"(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})(?:\s*@\s*(\d{1,2}):(\d{2}))?", re.I
@@ -188,10 +191,19 @@ class ItchSource:
         return rows
 
     def _uploads(self, html: str) -> list[tuple[str, str]]:
-        names = UPLOAD_NAME_RE.findall(html)
-        sizes = UPLOAD_SIZE_RE.findall(html)
-        # Sizes can be missing for some entries
-        return [(n, sizes[i] if i < len(sizes) else "") for i, n in enumerate(names)]
+        names: list[tuple[str, int]] = []
+        for tag in STRONG_TAG_RE.finditer(html):
+            attrs = tag.group(1)
+            title = TITLE_ATTR_RE.search(attrs)
+            if title and NAME_CLASS_RE.search(attrs):
+                names.append((title.group(1), tag.end()))
+        uploads = []
+        for i, (name, start) in enumerate(names):
+            # Sizes can be missing for some entries; only look up to the next upload
+            end = names[i + 1][1] if i + 1 < len(names) else len(html)
+            size = UPLOAD_SIZE_RE.search(html, start, end)
+            uploads.append((name, size.group(1) if size else ""))
+        return uploads
 
 
 def _parse_itch_date(value: str | None) -> datetime | None:
