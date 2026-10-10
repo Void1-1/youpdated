@@ -263,7 +263,8 @@ class YouTubeSource:
         # Rewrite uids to the video id so the three paths dedupe
         normalized = []
         for update in updates:
-            vid = _video_id(update.url) or update.uid
+            # Entry ids are already ``yt:video:<id>``
+            vid = _video_id(update.url) or update.uid.removeprefix("yt:video:")
             normalized.append(
                 Update(
                     source=update.source,
@@ -326,7 +327,8 @@ def _extract_playlist_id(raw: str) -> str:
 
 
 def _video_id(url: str) -> str | None:
-    match = re.search(r"[?&]v=([A-Za-z0-9_-]{11})", url or "")
+    # Shorts are linked as /shorts/<id> rather than watch?v=<id>
+    match = re.search(r"(?:[?&]v=|/shorts/)([A-Za-z0-9_-]{11})", url or "")
     return match.group(1) if match else None
 
 

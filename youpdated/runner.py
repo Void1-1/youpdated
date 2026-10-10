@@ -9,7 +9,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Protocol, runtime_checkable
 
 from .config import Config, ConfigError, parse_duration, parse_ignore_list
-from .http import Client
+from .http import Client, Validator
 from .models import RunError, Target, Update
 from .registry import all_sources
 from .state import State
@@ -118,16 +118,26 @@ def run(
     sources = all_sources()
     fetched: list[Update] = []
     succeeded: dict[tuple[str, str], Target] = {}
+    # Stored only for targets whose items are recorded, see Client.deferred_validators
+    validators: list[Validator] = []
 
-    def work(target: Target) -> tuple[Target, list[Update] | Exception, int]:
+    def work(
+        target: Target,
+    ) -> tuple[Target, list[Update] | Exception, int, list[Validator]]:
         if progress is not None:
             progress.target_started(target)
         outcome: list[Update] | Exception
         dropped = 0
-        # A first fetch must see the whole document
-        first = not state.is_baselined(target.source, target.key)
+        # A first fetch must see the whole document, same with one thats ignore rules changed
+        full = (
+            not state.is_baselined(target.source, target.key)
+            or state.ignore_rules_changed(target.source, target.key, target.ignore)
+        )
         try:
-            with client.unconditional() if first else nullcontext():
+            with (
+                client.deferred_validators() as pending,
+                client.unconditional() if full else nullcontext(),
+            ):
                 items = list(sources[target.source].fetch(target, client))
             kept = [u for u in items if not target.ignores(u.tags)]
             # Ignored items are not recorded as seen
@@ -139,7 +149,7 @@ def run(
             progress.target_finished(
                 target, outcome if isinstance(outcome, Exception) else None
             )
-        return target, outcome, dropped
+        return target, outcome, dropped, pending
 
     if progress is not None:
         progress.run_started(len(targets))
@@ -147,7 +157,7 @@ def run(
     workers = max(1, min(config.privacy.concurrency, len(targets)))
     # run_scope: targets that share an upstream document fetch it once between them
     with client.run_scope(), ThreadPoolExecutor(max_workers=workers) as pool:
-        for target, outcome, dropped in pool.map(work, targets):
+        for target, outcome, dropped, pending in pool.map(work, targets):
             result.ignored += dropped
             if isinstance(outcome, Exception):
                 result.errors.append(
@@ -159,6 +169,7 @@ def run(
                 )
             else:
                 fetched.extend(outcome)
+                validators.extend(pending)
                 succeeded.setdefault((target.source, target.key), target)
 
     result.total_fetched = len(fetched)
@@ -181,7 +192,10 @@ def run(
 
     if save:
         state.mark_seen(fetched)
+        for validator in validators:
+            state.remember_validators(*validator)
         state.mark_baselined(succeeded)
+        state.mark_ignore_rules((s, k, t.ignore) for (s, k), t in succeeded.items())
         state.set_last_run()
         # Prune only after marking. Targets not fetched cleanly (failed, or left out by --source) keep history
         result.pruned = state.prune(

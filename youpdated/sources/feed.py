@@ -101,8 +101,12 @@ def parse_entries(
 ) -> list[Update]:
     """Turn an already-parsed feed into Updates, newest first."""
     updates: list[Update] = []
+    # Sort before truncating: some feeds list oldest first. Undated entries sort last
+    entries = sorted(
+        parsed.entries, key=lambda e: entry_datetime(e) or _UNDATED, reverse=True
+    )
 
-    for entry in parsed.entries[: limit or None]:
+    for entry in entries[: limit or None]:
         link = entry.get("link") or ""
         title = (entry.get("title") or "").strip() or "(untitled)"
         uid = entry.get("id") or link or f"{title}|{entry.get('published', '')}"
@@ -120,8 +124,6 @@ def parse_entries(
             )
         )
 
-    # Undated entries sort last
-    updates.sort(key=lambda u: u.published or _UNDATED, reverse=True)
     return updates
 
 

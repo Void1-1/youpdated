@@ -45,6 +45,10 @@ def _ago(age: timedelta) -> str:
     return (datetime.now(timezone.utc) - age).isoformat()
 
 
+def _rules_value(ignore: frozenset[str]) -> str:
+    return ",".join(sorted(ignore))
+
+
 class State:
     """Thread-safe wrapper over SQLite file."""
 
@@ -89,6 +93,17 @@ class State:
         if "last_seen" not in columns:
             self._conn.execute("ALTER TABLE seen ADD COLUMN last_seen TEXT")
             self._conn.execute("UPDATE seen SET last_seen = first_seen")
+            self._dirty = True
+        # <= 0.3.0 stored YouTube Shorts from the official feed as yt:video:yt:video:<id>
+        fixed = self._conn.execute(
+            "UPDATE OR IGNORE seen SET uid = substr(uid, 10) "
+            "WHERE source = 'youtube' AND uid LIKE 'yt:video:yt:video:%'"
+        ).rowcount
+        # Rows left over already had the correct id recorded by a fallback path
+        fixed += self._conn.execute(
+            "DELETE FROM seen WHERE source = 'youtube' AND uid LIKE 'yt:video:yt:video:%'"
+        ).rowcount
+        if fixed:
             self._dirty = True
 
     def _read_encrypted(self) -> bytes | None:
@@ -247,8 +262,13 @@ class State:
                 "DELETE FROM kv WHERE namespace='baseline' AND key=?",
                 [(key,) for key in stale_marks],
             )
+            # Rules are recorded with the baseline mark, and go with it
+            removed_rules = self._conn.execute(
+                "DELETE FROM kv WHERE namespace='ignore' AND key NOT IN "
+                "(SELECT key FROM kv WHERE namespace='baseline')"
+            ).rowcount
             self._conn.commit()
-            if removed or removed_validators or stale_marks:
+            if removed or removed_validators or stale_marks or removed_rules:
                 # reclaim empty so the file shrinks
                 self._conn.execute("VACUUM")
                 self._dirty = True
@@ -290,6 +310,28 @@ class State:
         """Record a successful fetch; the stamp is the latest one, so ``prune`` can expire it"""
         stamp = _now()
         rows = [("baseline", f"{source}:{target}", stamp) for source, target in targets]
+        if not rows:
+            return
+        with self._lock:
+            self._conn.executemany(
+                "INSERT INTO kv (namespace, key, value) VALUES (?,?,?) "
+                "ON CONFLICT(namespace, key) DO UPDATE SET value=excluded.value",
+                rows,
+            )
+            self._conn.commit()
+            self._dirty = True
+
+    # per target ignore rules
+
+    def ignore_rules_changed(self, source: str, target: str, ignore: frozenset[str]) -> bool:
+        """If ``ignore`` is different from the rules the target's last saved fetch ran under"""
+        return self.cache_get("ignore", f"{source}:{target}") != _rules_value(ignore)
+
+    def mark_ignore_rules(self, targets: Iterable[tuple[str, str, frozenset[str]]]) -> None:
+        rows = [
+            ("ignore", f"{source}:{target}", _rules_value(ignore))
+            for source, target, ignore in targets
+        ]
         if not rows:
             return
         with self._lock:

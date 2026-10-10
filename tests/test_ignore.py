@@ -194,6 +194,47 @@ def test_ignored_updates_are_not_recorded_as_seen(state, client):
 
 
 @respx.mock
+def test_removing_a_rule_shows_what_it_hid_even_if_the_feed_is_unchanged(state, client):
+    """A 304 carries no items, so the hidden ones must be fetched again once."""
+    body = fixture("github_releases.atom")
+    route = respx.get(RELEASES).mock(
+        side_effect=lambda request: (
+            httpx.Response(304)
+            if request.headers.get("If-None-Match") == '"v1"'
+            else httpx.Response(200, content=body, headers={"ETag": '"v1"'})
+        )
+    )
+    with_rule = _config([{"repo": "python/cpython", "ignore": ["prerelease"]}])
+    run(with_rule, state, client)
+    assert run(with_rule, state, client).updates == []
+    assert "If-None-Match" in route.calls[-1].request.headers
+
+    fresh = run(_config(["python/cpython"]), state, client)
+    assert len(fresh.updates) == FIXTURE_PRERELEASES
+    assert all("prerelease" in u.tags for u in fresh.updates)
+
+    # Rules unchanged since: back to conditional fetches
+    assert run(_config(["python/cpython"]), state, client).updates == []
+    assert "If-None-Match" in route.calls[-1].request.headers
+
+
+@respx.mock
+def test_a_preview_after_lifting_a_rule_leaves_the_full_fetch_to_the_real_run(state, client):
+    body = fixture("github_releases.atom")
+    respx.get(RELEASES).mock(
+        side_effect=lambda request: (
+            httpx.Response(304)
+            if request.headers.get("If-None-Match") == '"v1"'
+            else httpx.Response(200, content=body, headers={"ETag": '"v1"'})
+        )
+    )
+    run(_config([{"repo": "python/cpython", "ignore": ["prerelease"]}]), state, client)
+
+    without = _config(["python/cpython"])
+    assert len(run(without, state, client, save=False).updates) == FIXTURE_PRERELEASES
+    assert len(run(without, state, client).updates) == FIXTURE_PRERELEASES
+
+@respx.mock
 def test_ignoring_every_tag_leaves_a_clean_run(state, client):
     respx.get(RELEASES).mock(
         return_value=httpx.Response(200, content=fixture("github_releases.atom"))

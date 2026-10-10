@@ -29,6 +29,9 @@ except ImportError:  # pragma: no cover
 
 NETWORK_ERRORS = (httpx.HTTPError, SOCKSError)
 
+#: ``(url, etag, last_modified)`` from a 200, see :meth:`Client.deferred_validators`
+Validator = tuple[str, str | None, str | None]
+
 # Small pool of current desktop UAs. Rotating inside a plausible set
 # it blends in better, but can be changed here
 USER_AGENTS: tuple[str, ...] = (
@@ -220,6 +223,17 @@ class Client:
         finally:
             self._local.unconditional = previous
 
+    @contextmanager
+    def deferred_validators(self) -> "Iterator[list[Validator]]":
+        """Collect validators this thread receives instead of storing"""
+        previous = getattr(self._local, "pending", None)
+        pending: list[Validator] = []
+        self._local.pending = pending
+        try:
+            yield pending
+        finally:
+            self._local.pending = previous
+
     # internals
 
     def _user_agent(self) -> str:
@@ -339,11 +353,16 @@ class Client:
                     if self._run_active:
                         self._run_bodies[cache_key] = result
                 if conditional and self.state is not None:
-                    self.state.remember_validators(
+                    validator = (
                         url,
                         response.headers.get("etag"),
                         response.headers.get("last-modified"),
                     )
+                    pending = getattr(self._local, "pending", None)
+                    if pending is not None:
+                        pending.append(validator)
+                    else:
+                        self.state.remember_validators(*validator)
                 return result
 
             if response.status_code in soft:

@@ -164,13 +164,15 @@ class BrowserSource:
             return []
 
         # One version can appear several times as its rollout fraction grows: keeps the earliest start time per version.
-        starts: dict[str, datetime] = {}
+        starts: dict[str, datetime | None] = {}
         for release in fetched.json().get("releases", []):
             version = release.get("version")
             started = _parse_iso((release.get("serving") or {}).get("startTime"))
             if not version:
                 continue
-            if version not in starts or (started and started < starts[version]):
+            if version not in starts:
+                starts[version] = started
+            elif started and (starts[version] is None or started < starts[version]):
                 starts[version] = started
 
         ordered = sorted(

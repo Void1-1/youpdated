@@ -13,6 +13,29 @@ All notable changes to this project are documented here. The format follows
   order, so some fetches saw no files and fingerprinted a "new build". Successive
   runs each reported a different handful of games until every variant had been
   seen. Upload and timestamp parsing no longer depend on attribute order.
+- **YouTube Shorts no longer re-report when the feed falls back.** The official
+  feed links Shorts as `/shorts/<id>`, which was not recognised, so Shorts were
+  recorded as `yt:video:yt:video:<id>` there and `yt:video:<id>` through Invidious
+  or Data API. Each switch reported Shorts again. Existing
+  history is migrated on first open, so nothing already seen comes back.
+- **`--no-save` really leaves the state alone.** It still stored each feed's
+  ETag/Last-Modified, so the next real run was answered 304 and silently skipped
+  whatever the preview had shown. (Whoops)
+- **A target that fails partway no longer hides its new items.** If one of a
+  target's fetches failed (e.g. GitHub `watch: [releases, commits]` with commits
+  down), the others' validators were still stored while their items were
+  discarded, so the next run got a 304 and never reported them. Validators are
+  now stored only alongside the items they cover.
+- **Feeds listed oldest-first report new entries.** Entries were cut to the
+  limit in document order before sorting, so on an oldest-first feed longer than
+  the limit the newest posts never made it in. Affects `feed`, Steam, itch
+  devlogs, and GitHub atom feeds.
+- **Chrome no longer errors** when a version is first listed without a rollout
+  start time and later with.
+- **Removing an `ignore:` rule shows what it hid** Ignored items
+  are not recorded, but the feed's validators were, so hidden items stayed hidden until it next changed.
+  Each target's rules are now recorded, and a target whose rules changed is fetched fully once.
+  Every target is fetched in full once after upgrading.
 
 ## [0.3.0] — 2026-10-07
 

@@ -195,6 +195,26 @@ def test_chrome_releases(client):
     assert dated == sorted(dated, reverse=True)
 
 
+
+@respx.mock
+def test_chrome_tolerates_a_version_first_listed_without_a_start_time(client):
+    respx.get(CHROME_URL).mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "releases": [
+                    {"version": "130.0.1", "serving": {}},
+                    {"version": "130.0.1", "serving": {"startTime": "2026-01-01T00:00:00Z"}},
+                ]
+            },
+        )
+    )
+    source = get_source("browser")
+    (target,) = source.targets([{"browser": "chrome", "platform": "mac", "channel": "stable"}])
+    (update,) = list(source.fetch(target, client))
+
+    assert update.published == datetime(2026, 1, 1, tzinfo=timezone.utc)
+
 def _mock_brave_api():
     return respx.get(BRAVE_API_URL).mock(
         return_value=httpx.Response(200, content=fixture("brave_api_releases.json"))
@@ -380,6 +400,21 @@ def test_generic_feed_respects_an_explicit_name_and_limit(client):
 
     assert target.label == "Rust"
     assert len(updates) == 2
+
+
+def test_feed_limit_keeps_the_newest_entries_of_an_oldest_first_feed():
+    from youpdated.sources.feed import parse_feed
+
+    items = "".join(
+        f"<item><title>post {day}</title><guid>id-{day}</guid>"
+        f"<pubDate>{day:02d} Jan 2026 00:00:00 GMT</pubDate></item>"
+        for day in range(1, 26)
+    )
+    doc = f'<?xml version="1.0"?><rss version="2.0"><channel>{items}</channel></rss>'
+    updates = parse_feed(doc.encode(), source="feed", target="t", limit=20)
+
+    assert len(updates) == 20
+    assert updates[0].title == "post 25" and updates[-1].title == "post 6"
 
 
 @respx.mock
