@@ -8,6 +8,9 @@ on:
   # Lets the release workflow run this exact suite before publishing, rather
   # than keeping a second, drifting copy of it.
   workflow_call:
+  # Weekly, so CodeQL's new queries get run against code that hasn't changed.
+  schedule:
+    - cron: "17 4 * * 1"
 
 # Nothing here needs to write to the repo, so the token gets read-only access.
 # Without this, GITHUB_TOKEN inherits the repository default, which may be
@@ -77,3 +80,35 @@ jobs:
         with:
           name: dist
           path: dist/
+
+  # CodeQL only runs once everything above has passed: there is no point
+  # scanning code that doesn't work yet. This replaces GitHub's CodeQL
+  # "default setup", which can't be made to wait on other jobs, and must stay
+  # off in the repo settings or uploads from here are rejected.
+  codeql:
+    name: codeql · ${{ matrix.language }}
+    needs: [test, build]
+    # The release workflow calls this file to run the test matrix. It doesn't
+    # need a scan: the commit was already scanned when it landed on main. A
+    # called workflow sees its caller's name here, so this skips on release.
+    if: github.workflow == 'tests'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [actions, python]
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: github/codeql-action/init@v4
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: none
+
+      - uses: github/codeql-action/analyze@v4
+        with:
+          category: "/language:${{ matrix.language }}"
