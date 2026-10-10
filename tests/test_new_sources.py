@@ -85,6 +85,33 @@ def test_itch_build_uid_changes_only_when_the_build_changes(client):
 
 
 @respx.mock
+def test_itch_build_uid_ignores_attribute_order(client):
+    """itch shuffles attribute order between responses of the same unchanged page"""
+    page = fixture("itch_game_page.html").decode()
+    shuffled = page.replace('<strong title="', '<strong class="name" title="').replace(
+        '" class="name">', '">'
+    )
+    assert shuffled != page
+    route = respx.get(url__startswith="https://aak581.itch.io")
+    source = get_source("itch")
+    (target,) = source.targets(
+        [{"url": "https://aak581.itch.io/engineering-marvels-from-hell", "watch": ["releases"]}]
+    )
+
+    route.mock(return_value=httpx.Response(200, text=page))
+    (first,) = list(source.fetch(target, client))
+    route.mock(return_value=httpx.Response(200, text=shuffled))
+    (second,) = list(source.fetch(target, client))
+
+    assert second.uid == first.uid
+    assert second.body == first.body == (
+        "Engineering_Marvels_From_Hell_Win_1.4.zip (180 MB), "
+        "Engineering Marvels From Hell v1.4.apk (92 MB), "
+        "Engineering_Marvels_From_Hell_Mac_1.4.zip (234 MB), Bonus.zip (9.9 MB)"
+    )
+
+
+@respx.mock
 def test_itch_watches_both_by_default(client):
     devlog = respx.get(
         "https://aak581.itch.io/engineering-marvels-from-hell/devlog.rss"

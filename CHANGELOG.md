@@ -4,6 +4,16 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **itch builds no longer re-report on unchanged pages.** itch.io shuffles HTML
+  attribute order, and the upload list was only read in one
+  order, so some fetches saw no files and fingerprinted a "new build". Successive
+  runs each reported a different handful of games until every variant had been
+  seen. Upload and timestamp parsing no longer depend on attribute order.
+
 ## [0.3.0] — 2026-10-07
 
 ### Added
