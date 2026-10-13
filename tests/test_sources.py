@@ -8,7 +8,10 @@ import httpx
 import pytest
 import respx
 
+from youpdated.config import parse_config
+from youpdated.models import Update
 from youpdated.registry import get_source
+from youpdated.runner import run
 from youpdated.sources.base import ConfigEntryError
 
 from .conftest import fixture
@@ -86,6 +89,86 @@ def test_github_commits_have_no_version(client):
 
     assert updates
     assert all(u.version is None and "commit" in u.tags for u in updates)
+
+
+_RELEASES_ATOM = "https://github.com/python/cpython/releases.atom"
+_RELEASES_API = "https://api.github.com/repos/python/cpython/releases?per_page=20"
+_CPYTHON_TAGS = re.findall(r"Repository/81598961/([^<]+)</id>", fixture("github_releases.atom").decode())
+
+
+def _api_releases() -> list[dict]:
+    """The REST payload for the same releases the atom fixture lists."""
+    return [
+        {
+            "id": 1000 + n,
+            "tag_name": tag,
+            "name": tag,
+            "html_url": f"https://github.com/python/cpython/releases/tag/{tag}",
+            "published_at": "2026-08-12T13:57:54Z",
+            "draft": False,
+            "prerelease": False,
+            "body": "",
+        }
+        for n, tag in enumerate(_CPYTHON_TAGS)
+    ]
+
+
+def _mock_both_release_paths() -> None:
+    respx.get(_RELEASES_ATOM).mock(
+        return_value=httpx.Response(200, content=fixture("github_releases.atom"))
+    )
+    respx.get(_RELEASES_API).mock(return_value=httpx.Response(200, json=_api_releases()))
+
+
+@respx.mock
+def test_github_release_uids_agree_with_and_without_a_token(client, monkeypatch):
+    _mock_both_release_paths()
+    source = get_source("github")
+    (target,) = source.targets(["python/cpython"])
+
+    monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+    anonymous = {u.uid for u in source.fetch(target, client)}
+    monkeypatch.setenv("GITHUB_TOKEN", "t")
+    authed = {u.uid for u in source.fetch(target, client)}
+
+    assert anonymous == authed == {f"release:{tag}" for tag in _CPYTHON_TAGS}
+
+
+@pytest.mark.parametrize("first_token", [True, False])
+@respx.mock
+def test_switching_github_token_does_not_rereport(state, client, monkeypatch, first_token):
+    _mock_both_release_paths()
+    config = parse_config({"sources": {"github": ["python/cpython"]}})
+
+    for token in (first_token, not first_token):
+        if token:
+            monkeypatch.setenv("GITHUB_TOKEN", "t")
+        else:
+            monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+        result = run(config, state, client)
+        assert not result.updates
+
+
+@pytest.mark.parametrize("token", [True, False])
+@respx.mock
+def test_github_history_from_older_uids_still_counts(state, client, monkeypatch, token):
+    """State recorded before releases were keyed by tag is not reported again"""
+    _mock_both_release_paths()
+    if token:
+        monkeypatch.setenv("GITHUB_TOKEN", "t")
+    else:
+        monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+    old_uids = [f"release:{1000 + n}" for n in range(len(_CPYTHON_TAGS))] if token else [
+        f"tag:github.com,2008:Repository/81598961/{tag}" for tag in _CPYTHON_TAGS
+    ]
+    state.mark_seen(
+        Update(source="github", target="python/cpython", uid=uid, title="", url="")
+        for uid in old_uids
+    )
+
+    source = get_source("github")
+    (target,) = source.targets(["python/cpython"])
+    assert state.filter_new(source.fetch(target, client)) == []
 
 
 @respx.mock

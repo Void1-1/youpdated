@@ -4,6 +4,15 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **GitHub releases no longer re-report when `GITHUB_TOKEN` is set or unset** (#24).
+  The atom feed keyed releases by entry id and the REST API by release id, so
+  every switch reported each release again. Both now key them by tag. History
+  recorded under the old ids still counts as seen.
+
 ## [0.3.1] — 2026-10-10
 
 ### Fixed
