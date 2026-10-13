@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import json
 from datetime import datetime, timezone
 
 import httpx
 import pytest
 import respx
 
+from youpdated.http import FetchError
 from youpdated.registry import get_source
 from youpdated.sources.base import ConfigEntryError
 
@@ -455,3 +457,99 @@ def test_generic_feed_extracts_versions_from_release_titles():
     assert _version_from_title({"title": "Obsidian v1.5.3"}) == "1.5.3"
     assert _version_from_title({"title": "Announcing Rust 1.80.0"}) == "1.80.0"
     assert _version_from_title({"title": "A blog post"}) is None
+
+# homebrew
+
+BREW_WGET = "https://formulae.brew.sh/api/formula/wget.json"
+BREW_FIREFOX = "https://formulae.brew.sh/api/cask/firefox.json"
+
+@pytest.mark.parametrize(
+    "entry,key",
+    [
+        ("wget", "formula:wget"),
+        ("formula:wget", "formula:wget"),
+        ("cask:firefox", "cask:firefox"),
+        ({"formula": "python@3.12"}, "formula:python@3.12"),
+        ({"cask": "firefox", "name": "Firefox"}, "cask:firefox"),
+        ("libstdc++", "formula:libstdc++"),
+    ],
+)
+def test_homebrew_targets(entry, key):
+    (target,) = get_source("homebrew").targets([entry])
+    assert target.key == key
+
+@pytest.mark.parametrize(
+    "entry",
+    [
+        {"formula": "wget", "cask": "wget"},
+        {"name": "nothing to watch"},
+        "user/tap/thing",
+        "not a name",
+        "",
+    ],
+)
+def test_homebrew_rejects_bad_entries(entry):
+    with pytest.raises(ConfigEntryError):
+        get_source("homebrew").targets([entry])
+
+
+@respx.mock
+def test_homebrew_formula_version_includes_the_revision(client):
+    respx.get(BREW_WGET).mock(
+        return_value=httpx.Response(200, content=fixture("homebrew_wget.json"))
+    )
+    source = get_source("homebrew")
+    (target,) = source.targets(["wget"])
+    (update,) = source.fetch(target, client)
+
+    assert update.version == "1.25.0_2"
+    assert update.uid == "version:1.25.0_2"
+    assert update.url == "https://formulae.brew.sh/formula/wget"
+    assert update.tags == ("release",)
+    # stable across fetches of the same payload
+    assert [u.uid for u in source.fetch(target, client)] == [update.uid]
+
+
+@respx.mock
+def test_homebrew_formula_without_a_revision_is_the_bare_version(client):
+    doc = json.loads(fixture("homebrew_wget.json"))
+    doc["revision"] = 0
+    respx.get(BREW_WGET).mock(return_value=httpx.Response(200, json=doc))
+    source = get_source("homebrew")
+    (target,) = source.targets(["wget"])
+    (update,) = source.fetch(target, client)
+    assert update.version == "1.25.0"
+
+
+@respx.mock
+def test_homebrew_head_only_formula_reports_nothing(client):
+    doc = json.loads(fixture("homebrew_wget.json"))
+    doc["versions"]["stable"] = None
+    respx.get(BREW_WGET).mock(return_value=httpx.Response(200, json=doc))
+    source = get_source("homebrew")
+    (target,) = source.targets(["wget"])
+    assert list(source.fetch(target, client)) == []
+
+
+@respx.mock
+def test_homebrew_cask_version_is_as_given(client):
+    respx.get(BREW_FIREFOX).mock(
+        return_value=httpx.Response(200, content=fixture("homebrew_firefox.json"))
+    )
+    source = get_source("homebrew")
+    (target,) = source.targets([{"cask": "firefox"}])
+    (update,) = source.fetch(target, client)
+
+    assert update.version == "157.0.1"
+    assert update.url == "https://formulae.brew.sh/cask/firefox"
+
+
+@respx.mock
+def test_homebrew_unknown_name_says_so(client):
+    respx.get("https://formulae.brew.sh/api/formula/nope.json").mock(
+        return_value=httpx.Response(404, text="not found")
+    )
+    source = get_source("homebrew")
+    (target,) = source.targets(["nope"])
+    with pytest.raises(FetchError, match="no formula named `nope`"):
+        list(source.fetch(target, client))

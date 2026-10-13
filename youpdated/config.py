@@ -305,6 +305,10 @@ sources:
     - express
     - "@types/node"
 
+  homebrew:
+    - wget
+    - cask:firefox
+
   steam:
     - 440
     - appid: 730

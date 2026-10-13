@@ -25,6 +25,7 @@ It is built to be **privacy-preserving, anonymous, and customizable**: no accoun
 | --- | --- | --- |
 | `github` | Releases, tags, commits | `.atom` feeds (no auth needed) |
 | `npm` | Newly published versions | the public registry |
+| `homebrew` | New versions of a formula or cask | the formulae.brew.sh JSON API |
 | `steam` | Patch notes and news | the store's news feed |
 | `itch` | Devlog posts and new builds | `<game>/devlog.rss` + the game page |
 | `youtube` | New videos on a channel or playlist | the channel feed, with fallbacks |
@@ -131,6 +132,7 @@ sources:
 | --- | --- | --- |
 | A GitHub repo | `python/cpython` | The `owner/repo` part of the repo URL. A full `https://github.com/owner/repo` URL also works. |
 | An npm package | `express`, `"@types/node"` | The package name on npmjs.com. **Quote scoped names**: YAML treats a leading `@` specially. |
+| A Homebrew formula or cask | `wget`, `cask:firefox` | The name after `brew install`. A name is a formula; prefix casks with `cask:`. Only `homebrew/core` and `homebrew/cask` are covered. |
 | A Steam game | `440` | The number in the store URL: `store.steampowered.com/app/`**`440`**`/Team_Fortress_2/`. The full store URL also works, and the game's name is looked up for you. |
 | An itch.io game | `https://user.itch.io/game-name` | The game's page URL, exactly as it appears in the address bar. |
 | A YouTube channel | `"@NASA"` | The `@handle` from the channel URL. A `UC…` channel id or full channel URL also works. **Quote it**: YAML treats a leading `@` specially. |
@@ -167,6 +169,12 @@ sources:
     - "@types/node"
     - package: react
       tag: next                      # follow a dist-tag other than latest
+
+  homebrew:
+    - wget                           # a formula
+    - cask:firefox                   # a cask
+    - cask: docker                   # mapping form because a formula and a cask can share a name
+      name: Docker Desktop
 
   steam:
     - 440                            # appid; the store name is resolved for you
@@ -228,6 +236,7 @@ These are the tags each source sets:
 | --- | --- |
 | `github` | `release`, `prerelease`, `tag`, `commit` |
 | `npm` | `release`, `prerelease`, `latest` |
+| `homebrew` | `release` |
 | `itch` | `devlog`, `build`, `page` |
 | `browser` | `release`, plus the channel (`stable`, `beta`, `dev`, `canary`, `esr`, `nightly`) |
 | `youtube` | `video` |

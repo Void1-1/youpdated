@@ -1,0 +1,25 @@
+{
+  "name": "wget",
+  "full_name": "wget",
+  "tap": "homebrew/core",
+  "oldnames": [],
+  "aliases": [],
+  "versioned_formulae": [],
+  "desc": "Internet file retriever",
+  "license": "GPL-3.0-or-later",
+  "homepage": "https://www.gnu.org/software/wget/",
+  "versions": {
+    "stable": "1.25.0",
+    "head": "HEAD",
+    "bottle": true
+  },
+  "revision": 2,
+  "version_scheme": 0,
+  "deprecated": false,
+  "deprecation_date": null,
+  "deprecation_reason": null,
+  "disabled": false,
+  "disable_date": null,
+  "disable_reason": null,
+  "generated_date": "2026-10-13"
+}
