@@ -46,6 +46,8 @@ class Update:
     version: str | None = None
     body: str | None = None
     tags: tuple[str, ...] = ()
+    #: Older uids this item may already be recorded under; any of them counts as seen
+    aliases: tuple[str, ...] = ()
 
     @property
     def dedupe_key(self) -> tuple[str, str, str]:

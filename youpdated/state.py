@@ -151,10 +151,12 @@ class State:
     # already seen items
 
     def is_new(self, update: Update) -> bool:
+        uids = (update.uid, *update.aliases)
         with self._lock:
             row = self._conn.execute(
-                "SELECT 1 FROM seen WHERE source=? AND target=? AND uid=?",
-                update.dedupe_key,
+                "SELECT 1 FROM seen WHERE source=? AND target=? AND uid IN "
+                f"({','.join('?' * len(uids))})",
+                (update.source, update.target, *uids),
             ).fetchone()
         return row is None
 
