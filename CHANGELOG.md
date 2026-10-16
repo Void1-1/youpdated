@@ -13,6 +13,10 @@ All notable changes to this project are documented here. The format follows
   Formula versions include the revision (`1.25.0_2`), since a revision
   bump is a new build of the same version. The API only exposes the
   current version with no date, so each check reports at most one item.
+- **A config for the tool is found from any directory** (#28). Run from a
+  checkout, `youpdated.yaml` or `youpdated.yml` at its root is now used when the
+  current directory has none, ahead of the per-user config. `uninstall` lists it
+  with the other project configs.
 
 ### Fixed
 

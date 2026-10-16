@@ -105,11 +105,12 @@ This writes a commented starter config and **prints the path it used**, which is
 | Linux | `~/.config/youpdated/config.yaml` | `~/.local/share/youpdated/state.sqlite3` |
 | Windows | `%LOCALAPPDATA%\youpdated\config.yaml` | `%LOCALAPPDATA%\youpdated\state.sqlite3` |
 
-Three locations are checked, (in this order) the first one found chosen:
+Four locations are checked, (in this order) the first one found chosen:
 
 1. `--config PATH`, if you pass it
 2. `./youpdated.yaml` or `./youpdated.yml` in the current directory
-3. the per-user path in the table above
+3. `youpdated.yaml` or `youpdated.yml` beside the tool: the root of a checkout you run from source, so its config works from any directory
+4. the per-user path in the table above
 
 Use `youpdated init -c ./youpdated.yaml` if you'd rather keep the config in a project folder.
 Add `--force` to overwrite an existing file.

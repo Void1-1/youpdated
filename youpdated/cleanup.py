@@ -12,6 +12,7 @@ from .config import (
     data_dir,
     default_config_path,
     default_state_path,
+    project_config_paths,
 )
 
 APP_DIR_NAME = "youpdated"
@@ -51,8 +52,8 @@ def find_traces(
 
     if not keep_config:
         add(config_override, "config", "config file (--config)")
-        add(Path.cwd() / "youpdated.yaml", "config", "project config file")
-        add(Path.cwd() / "youpdated.yml", "config", "project config file")
+        for path in project_config_paths():
+            add(path, "config", "project config file")
         add(default_config_path(), "config", "config file")
 
     add(state_override, "state", "history database (--state)")
