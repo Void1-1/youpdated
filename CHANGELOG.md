@@ -6,6 +6,13 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- **A config for the tool is found from any directory** (#28). Run from a
+  checkout, `youpdated.yaml` or `youpdated.yml` at its root is now used when the
+  current directory has none, ahead of the per-user config. `uninstall` lists it
+  with the other project configs.
+
 ### Fixed
 
 - **GitHub releases no longer re-report when `GITHUB_TOKEN` is set or unset** (#24).
