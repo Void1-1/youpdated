@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from youpdated import cleanup
+from youpdated import cleanup, config
 from youpdated.cleanup import Trace, find_traces, package_removal_command, remove_traces
 
 
@@ -12,8 +12,9 @@ from youpdated.cleanup import Trace, find_traces, package_removal_command, remov
 def app_dir(tmp_path, monkeypatch):
     """Point config and data at temp directory"""
     directory = tmp_path / "youpdated"
-    # find_traces() also scans the working directory for a project config, so move off the checkout
+    # find_traces() also scans the working directory and the tool's folder for a project config, so move off the checkout
     monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(config, "tool_dir", lambda: tmp_path)
     monkeypatch.setattr(cleanup, "config_dir", lambda: directory)
     monkeypatch.setattr(cleanup, "data_dir", lambda: directory)
     monkeypatch.setattr(cleanup, "default_config_path", lambda: directory / "config.yaml")

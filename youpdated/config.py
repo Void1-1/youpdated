@@ -92,18 +92,29 @@ def default_state_path() -> Path:
     return data_dir() / "state.sqlite3"
 
 
+def tool_dir() -> Path:
+    """The folder holding the youpdated package: a checkout's root when run from source."""
+    return Path(__file__).resolve().parent.parent
+
+
+def project_config_paths() -> list[Path]:
+    """Config files kept with a project: in the working directory, then beside the tool.
+
+    Beside the tool lets a checkout's config work when run from elsewhere. For a pip install
+    that folder is site-packages, which never has one.
+    """
+    folders = dict.fromkeys([Path.cwd(), tool_dir()])
+    return [folder / name for folder in folders for name in ("youpdated.yaml", "youpdated.yml")]
+
+
 def find_config(explicit: str | Path | None = None) -> Path | None:
-    """Resolve the config file to use: --config, then ./youpdated.yaml, then XDG."""
+    """Resolve the config file to use: --config, then a project config, then XDG."""
     if explicit:
         path = Path(explicit).expanduser()
         if not path.is_file():
             raise ConfigError(f"config file not found: {path}")
         return path
-    for candidate in (
-        Path.cwd() / "youpdated.yaml",
-        Path.cwd() / "youpdated.yml",
-        default_config_path(),
-    ):
+    for candidate in (*project_config_paths(), default_config_path()):
         if candidate.is_file():
             return candidate
     return None

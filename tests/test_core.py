@@ -10,7 +10,7 @@ import httpx
 import pytest
 import respx
 
-from youpdated.config import ConfigError, parse_config
+from youpdated.config import ConfigError, find_config, parse_config
 from youpdated.http import Client, FetchError, retry_after_seconds
 from youpdated.models import Update
 from youpdated.render import json_out, rss_out
@@ -40,6 +40,38 @@ def test_minimal_config_parses():
     config = parse_config({"sources": {"npm": ["express"]}})
     assert config.sources == {"npm": ["express"]}
     assert config.privacy.user_agent == "rotate"
+
+
+@pytest.fixture
+def config_places(tmp_path, monkeypatch):
+    """Separate working, tool, and per-user folders, each without a config yet."""
+    places = {name: tmp_path / name for name in ("cwd", "tool", "user")}
+    for folder in places.values():
+        folder.mkdir()
+    monkeypatch.chdir(places["cwd"])
+    monkeypatch.setattr("youpdated.config.tool_dir", lambda: places["tool"])
+    monkeypatch.setattr(
+        "youpdated.config.default_config_path", lambda: places["user"] / "config.yaml"
+    )
+    return places
+
+
+def test_config_beside_the_tool_is_found_from_elsewhere(config_places):
+    (config_places["tool"] / "youpdated.yml").write_text("sources: {}\n")
+    (config_places["user"] / "config.yaml").write_text("sources: {}\n")
+    assert find_config() == config_places["tool"] / "youpdated.yml"
+
+
+def test_config_in_the_working_directory_wins_over_the_tool_folder(config_places):
+    (config_places["cwd"] / "youpdated.yaml").write_text("sources: {}\n")
+    (config_places["tool"] / "youpdated.yaml").write_text("sources: {}\n")
+    assert find_config() == config_places["cwd"] / "youpdated.yaml"
+
+
+def test_per_user_config_is_the_fallback(config_places):
+    assert find_config() is None
+    (config_places["user"] / "config.yaml").write_text("sources: {}\n")
+    assert find_config() == config_places["user"] / "config.yaml"
 
 
 def test_privacy_settings_parse():
