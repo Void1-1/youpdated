@@ -13,6 +13,7 @@ import re
 from dataclasses import replace
 from datetime import datetime, timezone
 from typing import Any, ClassVar, Iterable
+from urllib.parse import unquote
 
 from ..http import Client
 from ..models import Target, Update
@@ -115,6 +116,8 @@ class GitHubSource:
         )
         if tag == "commit":
             return updates
+        if tag == "release":
+            updates = [_with_release_uid(update) for update in updates]
         # Match the authenticated path, which gets `prerelease` from the api
         return [
             replace(update, tags=update.tags + ("prerelease",))
@@ -144,11 +147,14 @@ class GitHubSource:
             if release.get("draft"):
                 continue
             published = release.get("published_at") or release.get("created_at")
+            legacy = f"release:{release['id']}"
+            tag_name = release.get("tag_name")
             updates.append(
                 Update(
                     source=self.name,
                     target=target.key,
-                    uid=f"release:{release['id']}",
+                    # Keyed by tag so the atom path, which has no release id, agrees
+                    uid=f"release:{tag_name}" if tag_name else legacy,
                     title=(release.get("name") or release.get("tag_name") or "").strip()
                     or "(untitled)",
                     url=release.get("html_url", ""),
@@ -156,9 +162,19 @@ class GitHubSource:
                     version=release.get("tag_name"),
                     body=html_to_text(release.get("body")),
                     tags=("release",) + (("prerelease",) if release.get("prerelease") else ()),
+                    # <= 0.3.1 keyed this path by release id
+                    aliases=(legacy,) if tag_name else (),
                 )
             )
         return updates
+
+
+def _with_release_uid(update: Update) -> Update:
+    match = re.search(r"/releases/tag/(.+)$", update.url)
+    if not match:
+        return update
+    # <= 0.3.1 keyed this path by the atom entry id
+    return replace(update, uid=f"release:{unquote(match.group(1))}", aliases=(update.uid,))
 
 
 def _version_from_entry(entry: Any) -> str | None:
