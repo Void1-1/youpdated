@@ -14,6 +14,13 @@ All notable changes to this project are documented here. The format follows
   bump is a new build of the same version. The API only exposes the
   current version with no date, so each check reports at most one item.
 
+### Fixed
+
+- **GitHub releases no longer re-report when `GITHUB_TOKEN` is set or unset** (#24).
+  The atom feed keyed releases by entry id and the REST API by release id, so
+  every switch reported each release again. Both now key them by tag. History
+  recorded under the old ids still counts as seen.
+
 ## [0.3.1] — 2026-10-10
 
 ### Fixed
