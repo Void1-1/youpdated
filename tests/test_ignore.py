@@ -11,7 +11,7 @@ from youpdated.models import Target, Update
 from youpdated.render import json_out, terminal
 from youpdated.registry import get_source
 from youpdated.runner import build_targets, run
-from youpdated.sources.github import _is_prerelease
+from youpdated.sources.git import _is_prerelease
 
 from .conftest import fixture
 
@@ -22,7 +22,7 @@ FIXTURE_TOTAL = 10
 
 
 def _config(entries, ignore=None) -> Config:
-    raw = {"sources": {"github": entries}}
+    raw = {"sources": {"git": entries}}
     if ignore is not None:
         raw["ignore"] = ignore
     config = parse_config(raw)
@@ -117,8 +117,8 @@ def test_entry_rules_add_to_the_global_ones():
 
     assert not errors
     by_key = {t.key: t for t in targets}
-    assert by_key["python/cpython"].ignore == frozenset({"commit"})
-    assert by_key["astral-sh/uv"].ignore == frozenset({"commit", "prerelease"})
+    assert by_key["github.com/python/cpython"].ignore == frozenset({"commit"})
+    assert by_key["github.com/astral-sh/uv"].ignore == frozenset({"commit", "prerelease"})
 
 
 def test_entry_rules_do_not_leak_between_entries():
@@ -126,8 +126,8 @@ def test_entry_rules_do_not_leak_between_entries():
     targets, _ = build_targets(config)
     by_key = {t.key: t for t in targets}
 
-    assert by_key["a/one"].ignore == frozenset({"tag"})
-    assert by_key["b/two"].ignore == frozenset()
+    assert by_key["github.com/a/one"].ignore == frozenset({"tag"})
+    assert by_key["github.com/b/two"].ignore == frozenset()
 
 
 def test_ignore_is_stripped_before_the_source_sees_it():
@@ -316,7 +316,7 @@ def test_github_atom_tags_prereleases_without_a_token(client, monkeypatch):
     respx.get(RELEASES).mock(
         return_value=httpx.Response(200, content=fixture("github_releases.atom"))
     )
-    source = get_source("github")
+    source = get_source("git")
     (target,) = source.targets(["python/cpython"])
     updates = list(source.fetch(target, client))
 
@@ -333,7 +333,7 @@ def test_github_commits_are_never_marked_prerelease(client, monkeypatch):
     respx.get("https://github.com/python/cpython/commits.atom").mock(
         return_value=httpx.Response(200, content=fixture("github_commits.atom"))
     )
-    source = get_source("github")
+    source = get_source("git")
     (target,) = source.targets([{"repo": "python/cpython", "watch": ["commits"]}])
     updates = list(source.fetch(target, client))
 

@@ -21,7 +21,10 @@ keywords = [
     "itch",
     "npm",
     "github",
+    "gitlab",
+    "forgejo",
     "youtube",
+    "notifications",
     "cli",
 ]
 classifiers = [

@@ -4,6 +4,7 @@ import argparse
 import sys
 import threading
 from contextlib import ExitStack
+from dataclasses import replace
 from pathlib import Path
 
 from rich.console import Console
@@ -18,7 +19,7 @@ from rich.progress import (
 )
 from rich.table import Column
 
-from . import __version__, crypto
+from . import __version__, crypto, notify
 from .cleanup import find_traces, package_removal_command, remove_traces
 from .config import (
     EXAMPLE_CONFIG,
@@ -28,9 +29,10 @@ from .config import (
     default_state_path,
     find_config,
     load_config,
+    split_command,
 )
 from .http import Client, ProxyUnavailable, probe_proxy
-from .registry import all_sources
+from .registry import all_aliases, all_sources
 from .render import json_out, rss_out, terminal
 from .runner import parse_since, run
 from .state import State
@@ -67,6 +69,18 @@ def build_parser() -> argparse.ArgumentParser:
     check.add_argument(
         "--fail-on-error", action="store_true",
         help="exit non-zero if any source failed",
+    )
+    check.add_argument(
+        "--notify-cmd", action="append", metavar="CMD",
+        help="run CMD once per new update, ex: 'notify-send {title} {url}' (repeatable)",
+    )
+    notify_mode = check.add_mutually_exclusive_group()
+    notify_mode.add_argument(
+        "--notify", action="store_true",
+        help="send notifications even with --all or --no-save",
+    )
+    notify_mode.add_argument(
+        "--no-notify", action="store_true", help="send no notifications this run"
     )
 
     sub.add_parser("sources", help="list available sources")
@@ -108,8 +122,11 @@ def build_parser() -> argparse.ArgumentParser:
 
 def cmd_sources(console: Console) -> int:
     console.print("[bold]Available sources[/]\n")
+    aliases = all_aliases()
     for name, source in sorted(all_sources().items()):
         console.print(f"  [cyan]{name:<10}[/] {getattr(source, 'summary', '')}")
+        for alias in sorted(a for a, of in aliases.items() if of == name):
+            console.print(f"  [dim]{alias:<10} same as `{name}`[/]")
     console.print("\n[dim]Add entries under `sources:` in your config.[/]")
     return 0
 
@@ -403,7 +420,21 @@ def cmd_check(args: argparse.Namespace, console: Console) -> int:
         except ValueError as exc:
             raise ConfigError(str(exc)) from exc
 
-    unknown = set(args.sources or []) - set(all_sources())
+    notify_config = config.notify
+    if args.notify_cmd:
+        notify_config = replace(
+            notify_config,
+            commands=notify_config.commands
+            + [split_command(cmd, name="--notify-cmd") for cmd in args.notify_cmd],
+        )
+    # --all and --no-save report things already seen, they will not send notification by default
+    send_notifications = (
+        notify_config.enabled
+        and not args.no_notify
+        and (args.notify or not (args.all or args.no_save))
+    )
+
+    unknown = set(args.sources or []) - set(all_sources()) - set(all_aliases())
     if unknown:
         raise ConfigError(
             f"unknown source(s): {', '.join(sorted(unknown))}. "
@@ -453,11 +484,20 @@ def cmd_check(args: argparse.Namespace, console: Console) -> int:
                 )
 
             if args.test:
+                if send_notifications:
+                    for line in notify.describe(notify_config):
+                        status.print(f"[dim]notify: {escape(line)}[/]")
                 status.print(
                     f"\n[dim]{len(client.requested_urls)} request(s) planned; "
                     "none sent.[/]"
                 )
                 return 0
+
+            if send_notifications:
+                # save first: a run killed while a slow webhook answers must not notify twice
+                state.flush()
+                labels = {(t.source, t.key): t.display for t in result.targets}
+                result.errors.extend(notify.send(result.updates, labels, notify_config, client))
 
     if args.json:
         print(json_out.render(result))

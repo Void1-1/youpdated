@@ -23,9 +23,10 @@ from .conftest import fixture
 @pytest.mark.parametrize(
     "source,entries,expected_keys",
     [
-        ("github", ["python/cpython"], ["python/cpython"]),
-        ("github", ["https://github.com/astral-sh/uv"], ["astral-sh/uv"]),
-        ("github", [{"repo": "a/b", "watch": ["releases", "commits"]}], ["a/b"]),
+        ("git", ["python/cpython"], ["github.com/python/cpython"]),
+        ("git", ["https://github.com/astral-sh/uv"], ["github.com/astral-sh/uv"]),
+        ("git", [{"repo": "a/b", "watch": ["releases", "commits"]}], ["github.com/a/b"]),
+        ("github", ["python/cpython"], ["github.com/python/cpython"]),  # the old name
         ("npm", ["express", "@types/node"], ["express", "@types/node"]),
         ("steam", [440, "730"], ["440", "730"]),
         ("steam", ["https://store.steampowered.com/app/620/Portal_2/"], ["620"]),
@@ -43,8 +44,8 @@ def test_scalar_and_mapping_entries_normalize(source, entries, expected_keys):
 @pytest.mark.parametrize(
     "source,entries",
     [
-        ("github", ["not a repo"]),
-        ("github", [{"repo": "a/b", "watch": ["nonsense"]}]),
+        ("git", ["not a repo"]),
+        ("git", [{"repo": "a/b", "watch": ["nonsense"]}]),
         ("steam", ["no-digits-here"]),
         ("itch", ["https://example.com/game"]),
         ("youtube", ["just-a-string"]),
@@ -63,12 +64,12 @@ def test_github_releases(client):
     respx.get("https://github.com/python/cpython/releases.atom").mock(
         return_value=httpx.Response(200, content=fixture("github_releases.atom"))
     )
-    source = get_source("github")
+    source = get_source("git")
     (target,) = source.targets(["python/cpython"])
     updates = list(source.fetch(target, client))
 
     assert updates
-    assert all(u.source == "github" and u.target == "python/cpython" for u in updates)
+    assert all(u.source == "git" and u.target == "github.com/python/cpython" for u in updates)
     assert all("release" in u.tags for u in updates)
     # The tag is recovered from the atom entry id
     assert any(u.version and u.version.startswith("v3.") for u in updates)
@@ -83,7 +84,7 @@ def test_github_commits_have_no_version(client):
     respx.get("https://github.com/astral-sh/uv/commits.atom").mock(
         return_value=httpx.Response(200, content=fixture("github_commits.atom"))
     )
-    source = get_source("github")
+    source = get_source("git")
     (target,) = source.targets([{"repo": "astral-sh/uv", "watch": ["commits"]}])
     updates = list(source.fetch(target, client))
 
@@ -123,7 +124,7 @@ def _mock_both_release_paths() -> None:
 @respx.mock
 def test_github_release_uids_agree_with_and_without_a_token(client, monkeypatch):
     _mock_both_release_paths()
-    source = get_source("github")
+    source = get_source("git")
     (target,) = source.targets(["python/cpython"])
 
     monkeypatch.delenv("GITHUB_TOKEN", raising=False)
@@ -162,11 +163,11 @@ def test_github_history_from_older_uids_still_counts(state, client, monkeypatch,
         f"tag:github.com,2008:Repository/81598961/{tag}" for tag in _CPYTHON_TAGS
     ]
     state.mark_seen(
-        Update(source="github", target="python/cpython", uid=uid, title="", url="")
+        Update(source="git", target="github.com/python/cpython", uid=uid, title="", url="")
         for uid in old_uids
     )
 
-    source = get_source("github")
+    source = get_source("git")
     (target,) = source.targets(["python/cpython"])
     assert state.filter_new(source.fetch(target, client)) == []
 

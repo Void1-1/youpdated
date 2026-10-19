@@ -131,7 +131,7 @@ class Recorder:
 
 def _config(*repos: str) -> Config:
     return Config(
-        sources={"github": list(repos)},
+        sources={"git": list(repos)},
         privacy=PrivacyConfig(jitter=(0.0, 0.0), concurrency=2),
     )
 
@@ -151,10 +151,10 @@ def test_run_reports_every_target(state, client):
     run(config, state, client, progress=reporter)
 
     assert reporter.total == 2
-    assert sorted(reporter.started) == ["astral-sh/uv", "python/cpython"]
+    assert sorted(reporter.started) == ["github.com/astral-sh/uv", "github.com/python/cpython"]
     assert sorted(name for name, _ in reporter.finished) == [
-        "astral-sh/uv",
-        "python/cpython",
+        "github.com/astral-sh/uv",
+        "github.com/python/cpython",
     ]
     assert all(err is None for _, err in reporter.finished)
 
@@ -167,8 +167,8 @@ def test_run_reports_a_failing_target_with_its_error(state, client):
     result = run(_config("python/cpython"), state, client, progress=reporter)
 
     assert reporter.total == 1
-    assert reporter.started == ["python/cpython"]
-    assert reporter.finished == [("python/cpython", "FetchError")]
+    assert reporter.started == ["github.com/python/cpython"]
+    assert reporter.finished == [("github.com/python/cpython", "FetchError")]
     # collected, not raised
     assert result.errors
 

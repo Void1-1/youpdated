@@ -11,7 +11,7 @@ from typing import Any, Protocol, runtime_checkable
 from .config import Config, ConfigError, parse_duration, parse_ignore_list
 from .http import Client, Validator
 from .models import RunError, Target, Update
-from .registry import all_sources
+from .registry import all_sources, canonical_name
 from .state import State
 
 
@@ -57,7 +57,8 @@ def build_targets(config: Config) -> tuple[list[Target], list[RunError]]:
     errors: list[RunError] = []
 
     for name, entries in config.sources.items():
-        source = available.get(name)
+        canonical = canonical_name(name)
+        source = available.get(canonical)
         if source is None:
             errors.append(
                 RunError(
@@ -68,7 +69,10 @@ def build_targets(config: Config) -> tuple[list[Target], list[RunError]]:
                 )
             )
             continue
-        base = config.ignored_tags(name)
+        base = config.ignored_tags(canonical)
+        if canonical != name:
+            # `ignore: {github: [...]}` still covers entries listed under `github:`
+            base |= config.ignored_tags(name)
         try:
             for entry in entries:
                 entry_ignore, cleaned = _split_entry_ignore(entry, name)
@@ -76,7 +80,7 @@ def build_targets(config: Config) -> tuple[list[Target], list[RunError]]:
                     target.ignore = base | entry_ignore
                     targets.append(target)
         except Exception as exc:
-            errors.append(RunError(source=name, target="-", message=str(exc)))
+            errors.append(RunError(source=canonical, target="-", message=str(exc)))
 
     return targets, errors
 
@@ -107,7 +111,7 @@ def run(
     unlisted = {e.source for e in errors}
     targets = configured
     if only_sources:
-        wanted = set(only_sources)
+        wanted = {canonical_name(name) for name in only_sources}
         targets = [t for t in targets if t.source in wanted]
         errors = [e for e in errors if e.source in wanted]
 
@@ -172,6 +176,8 @@ def run(
                 validators.extend(pending)
                 succeeded.setdefault((target.source, target.key), target)
 
+    # One repo can be listed twice, e.g. under both `github:` and `git:` while moving over
+    fetched = list({u.dedupe_key: u for u in reversed(fetched)}.values())[::-1]
     result.total_fetched = len(fetched)
 
     fresh = set() if show_all else {

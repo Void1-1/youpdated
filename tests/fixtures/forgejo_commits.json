@@ -1,0 +1,47 @@
+[
+  {
+    "url": "https://codeberg.org/api/v1/repos/forgejo/forgejo/git/commits/0475ce4868b9110dd69c7e4a4f24d37ff5fd1e10",
+    "sha": "0475ce4868b9110dd69c7e4a4f24d37ff5fd1e10",
+    "created": "2026-10-18T20:14:06+02:00",
+    "html_url": "https://codeberg.org/forgejo/forgejo/commit/0475ce4868b9110dd69c7e4a4f24d37ff5fd1e10",
+    "commit": {
+      "message": "chore: migrate toast module to Typescript (#14890)\n\nThis PR converts our `toast` module to Typescript, adding appropriate types along the way. This continues !14508's scoped approach to tightening our frontend type-checks, in line with the feedback in https://codeberg.org/forgejo/forgejo/pulls/5859#issuecomment-2560264.\n\nReviewed-on: https://codeberg.org/forgejo/forgejo/pulls/14890\nReviewed-by: Gu",
+      "author": {
+        "date": "2026-10-18T20:14:06+02:00"
+      },
+      "committer": {
+        "date": "2026-10-18T20:14:06+02:00"
+      }
+    }
+  },
+  {
+    "url": "https://codeberg.org/api/v1/repos/forgejo/forgejo/git/commits/b00a6fc9a7f158b978b5c78f0ab6f1998f3482ae",
+    "sha": "b00a6fc9a7f158b978b5c78f0ab6f1998f3482ae",
+    "created": "2026-10-18T18:39:16+02:00",
+    "html_url": "https://codeberg.org/forgejo/forgejo/commit/b00a6fc9a7f158b978b5c78f0ab6f1998f3482ae",
+    "commit": {
+      "message": "git(mirror): silently ignore non-agit PR deletion instead of failing (#14901)\n\nOversight of #13661, discovered will working on !14885.\n\nA `git push --mirror` will try to delete all `refs/pull/.../head` references, not only the Agit ones.\nAdjust the code to silently ignore all PR deletion attempts.\n\nReviewed-on: https://codeberg.org/forgejo/forgejo/pulls/14901\nReviewed-by: Gusted <gusted@noreply.co",
+      "author": {
+        "date": "2026-10-18T18:39:16+02:00"
+      },
+      "committer": {
+        "date": "2026-10-18T18:39:16+02:00"
+      }
+    }
+  },
+  {
+    "url": "https://codeberg.org/api/v1/repos/forgejo/forgejo/git/commits/27ae2d7b675d2a4b3589cc7f2489b105b628275e",
+    "sha": "27ae2d7b675d2a4b3589cc7f2489b105b628275e",
+    "created": "2026-10-18T18:32:57+02:00",
+    "html_url": "https://codeberg.org/forgejo/forgejo/commit/27ae2d7b675d2a4b3589cc7f2489b105b628275e",
+    "commit": {
+      "message": "Update module github.com/go-ldap/ldap/v3 to v3.4.15 (forgejo) (#14894)\n\nReviewed-on: https://codeberg.org/forgejo/forgejo/pulls/14894\nReviewed-by: Gusted <gusted@noreply.codeberg.org>\n",
+      "author": {
+        "date": "2026-10-18T18:32:57+02:00"
+      },
+      "committer": {
+        "date": "2026-10-18T18:32:57+02:00"
+      }
+    }
+  }
+]

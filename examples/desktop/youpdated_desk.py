@@ -45,7 +45,7 @@ THUMB = "#33333d"
 THUMB_HOVER = "#45454f"
 
 SOURCE_COLOR = {
-    "github": "#a9b1d6",
+    "git": "#a9b1d6",
     "npm": "#e0736d",
     "steam": "#7aa2f7",
     "itch": "#f38ba8",

@@ -11,13 +11,17 @@ if TYPE_CHECKING:
     from .sources.base import Source
 
 _SOURCES: dict[str, "Source"] = {}
+#: Old or alternate config names -> the source that now handles
+_ALIASES: dict[str, str] = {}
 _ENTRY_POINTS_LOADED = False
 
 
 def register(cls):
-    """Class decorator: instantiate and register a source by ``name``."""
+    """Class decorator: instantiate and register a source by ``name`` and any ``aliases``"""
     instance = cls()
     _SOURCES[cls.name] = instance
+    for alias in getattr(cls, "aliases", ()):
+        _ALIASES[alias] = cls.name
     return cls
 
 
@@ -46,4 +50,15 @@ def all_sources() -> dict[str, "Source"]:
 
 
 def get_source(name: str) -> "Source | None":
-    return all_sources().get(name)
+    return all_sources().get(canonical_name(name))
+
+
+def canonical_name(name: str) -> str:
+    """The source a config or ``--source`` name refers to: itself, or what it is an alias of"""
+    sources = all_sources()
+    return name if name in sources else _ALIASES.get(name, name)
+
+
+def all_aliases() -> dict[str, str]:
+    all_sources()
+    return dict(_ALIASES)
