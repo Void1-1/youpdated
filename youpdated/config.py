@@ -473,6 +473,10 @@ sources:
     - wget
     - cask:firefox
 
+  pypi:
+    - httpx
+    - youpdated
+
   steam:
     - 440
     - appid: 730

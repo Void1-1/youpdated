@@ -553,3 +553,222 @@ def test_homebrew_unknown_name_says_so(client):
     (target,) = source.targets(["nope"])
     with pytest.raises(FetchError, match="no formula named `nope`"):
         list(source.fetch(target, client))
+
+# pypi
+
+PYPI_HTTPX = "https://pypi.org/simple/httpx/"
+
+
+def _pypi_doc():
+    return json.loads(fixture("pypi_httpx_simple.json"))
+
+
+def _pypi_updates(client, doc=None):
+    respx.get(PYPI_HTTPX).mock(return_value=httpx.Response(200, json=doc or _pypi_doc()))
+    source = get_source("pypi")
+    (target,) = source.targets(["httpx"])
+    return list(source.fetch(target, client))
+
+
+def _pypi_file(filename, uploaded="2026-01-01T00:00:00Z", yanked=False):
+    return {"filename": filename, "upload-time": uploaded, "yanked": yanked}
+
+
+@pytest.mark.parametrize(
+    "entry,key",
+    [
+        ("httpx", "httpx"),
+        ({"package": "httpx", "name": "HTTPX"}, "httpx"),
+        ("Django", "django"),
+        ("typing_extensions", "typing-extensions"),
+        ("zope.interface", "zope-interface"),
+    ],
+)
+def test_pypi_targets_normalize_the_name(entry, key):
+    (target,) = get_source("pypi").targets([entry])
+    assert target.key == key
+
+
+@pytest.mark.parametrize(
+    "entry",
+    ["", "owner/package", "not a name", "-leading", "trailing.", {"name": "nothing to watch"}],
+)
+def test_pypi_rejects_bad_entries(entry):
+    with pytest.raises(ConfigEntryError):
+        get_source("pypi").targets([entry])
+
+
+@respx.mock
+def test_pypi_asks_for_the_json_index(client):
+    _pypi_updates(client)
+    (call,) = respx.calls
+    assert call.request.headers["Accept"] == "application/vnd.pypi.simple.v1+json"
+
+
+@respx.mock
+def test_pypi_reports_newest_releases(client):
+    updates = _pypi_updates(client)
+
+    assert len(updates) == 10
+    assert updates[0].version == "1.0.dev6"
+    assert updates[0].uid == "version:1.0.dev6"
+    assert updates[0].url == "https://pypi.org/project/httpx/1.0.dev6/"
+    assert updates[0].title == "httpx 1.0.dev6"
+    dated = [u.published for u in updates]
+    assert all(d and d.tzinfo for d in dated)
+    assert dated == sorted(dated, reverse=True)
+    # the first upload of a release is its date
+    assert updates[0].published == datetime(2026, 8, 31, 17, 59, 54, 190125, tzinfo=timezone.utc)
+
+
+@respx.mock
+def test_pypi_tags_latest_and_prereleases(client):
+    tags = {u.version: u.tags for u in _pypi_updates(client)}
+
+    # 1.0.dev6 is newer, but the latest is the highest final release
+    assert tags["0.28.1"] == ("release", "latest")
+    assert tags["0.28.0"] == ("release",)
+    assert tags["1.0.dev6"] == ("release", "prerelease")
+
+
+@respx.mock
+def test_pypi_latest_is_the_highest_version_not_the_newest(client):
+    doc = _pypi_doc()
+    # a backport uploaded after 0.28.1
+    doc["versions"].append("0.27.3")
+    doc["files"].append(_pypi_file("httpx-0.27.3.tar.gz", "2026-09-01T00:00:00Z"))
+    tags = {u.version: u.tags for u in _pypi_updates(client, doc)}
+
+    assert tags["0.27.3"] == ("release",)
+    assert tags["0.28.1"] == ("release", "latest")
+
+
+@respx.mock
+def test_pypi_latest_falls_back_to_a_prerelease(client):
+    doc = {
+        "name": "httpx",
+        "versions": ["1.0a1", "1.0b1"],
+        "files": [_pypi_file("httpx-1.0a1.tar.gz"), _pypi_file("httpx-1.0b1.tar.gz")],
+    }
+    tags = {u.version: u.tags for u in _pypi_updates(client, doc)}
+    assert tags["1.0b1"] == ("release", "prerelease", "latest")
+
+
+@pytest.mark.parametrize(
+    "version,pre",
+    [
+        ("1.0a1", True),
+        ("6.1rc1", True),
+        ("2.0.0b3", True),
+        ("1.0.dev6", True),
+        ("1.0-beta", True),
+        ("1.0.post1", False),
+        ("2.0", False),
+        ("1.0+abc", False),
+        ("2004d", False),
+    ],
+)
+def test_pypi_prerelease_detection(version, pre):
+    from youpdated.sources.pypi import _is_prerelease
+
+    assert _is_prerelease(version) is pre
+
+
+@pytest.mark.parametrize(
+    "filename,project,version",
+    [
+        ("httpx-0.28.1-py3-none-any.whl", "httpx", "0.28.1"),
+        ("httpx-0.28.1.tar.gz", "httpx", "0.28.1"),
+        ("typing_extensions-4.16.0-py3-none-any.whl", "typing-extensions", "4.16.0"),
+        ("PyYAML-3.10.zip", "pyyaml", "3.10"),
+        ("zope.interface-4.0.tar.gz", "zope-interface", "4.0"),
+        ("pywin32-218.win32-py2.7.exe", "pywin32", "218"),
+        ("distribute-0.6-py2.4.egg", "distribute", "0.6"),
+        ("thing-1.0-beta.tar.gz", "thing", "1.0-beta"),
+        # filename spelled 69.3 for version 69.3.0
+        ("setuptools-69.3.tar.gz", "setuptools", "69.3.0"),
+        # a wheel build tag is not part of the version
+        ("thing-1.0-1-py3-none-any.whl", "thing", "1.0"),
+        ("other-1.0.tar.gz", "thing", None),
+        ("thing-9.9.tar.gz", "thing", None),
+    ],
+)
+def test_pypi_matches_files_to_versions(filename, project, version):
+    from youpdated.sources.pypi import _canonical, _version_of
+
+    versions = ["0.28.1", "4.16.0", "3.10", "4.0", "218", "0.6", "1.0", "1.0-beta", "1.0.post1", "69.3.0"]
+    by_canonical = {_canonical(v): v for v in versions}
+    assert _version_of(filename, project, set(versions), by_canonical) == version
+
+
+@respx.mock
+def test_pypi_skips_versions_with_no_live_files(client):
+    doc = _pypi_doc()
+    for file in doc["files"]:
+        if file["filename"].startswith("httpx-1.0.dev6"):
+            file["yanked"] = "broken build"
+    # one live file keeps a release, dated by that file
+    for file in doc["files"]:
+        if file["filename"] == "httpx-1.0.dev5-py3-none-any.whl":
+            file["yanked"] = True
+    doc["versions"].append("2.0")
+    updates = _pypi_updates(client, doc)
+    versions = [u.version for u in updates]
+
+    assert "1.0.dev6" not in versions
+    assert "2.0" not in versions
+    assert versions[0] == "1.0.dev5"
+    assert updates[0].published == datetime(2026, 8, 21, 10, 59, 58, 520677, tzinfo=timezone.utc)
+
+
+@respx.mock
+def test_pypi_uids_are_stable(client):
+    first = _pypi_updates(client)
+    second = _pypi_updates(client)
+    assert [u.uid for u in first] == [u.uid for u in second]
+
+
+@pytest.mark.parametrize("status", ["archived", "deprecated", "quarantined"])
+@respx.mock
+def test_pypi_reports_a_project_status(client, status):
+    doc = _pypi_doc()
+    doc["project-status"] = {"status": status, "reason": "no longer maintained"}
+    updates = _pypi_updates(client, doc)
+    alert = updates[0]
+
+    assert alert.uid == f"status:{status}"
+    assert alert.title == f"httpx is {status}"
+    assert alert.url == "https://pypi.org/project/httpx/"
+    assert alert.body == "no longer maintained"
+    assert alert.tags == ("status", status)
+    assert len(updates) == 11
+
+
+@pytest.mark.parametrize("project_status", [{"status": "active"}, {}, None])
+@respx.mock
+def test_pypi_active_or_unmarked_project_has_no_status_item(client, project_status):
+    doc = _pypi_doc()
+    if project_status is None:
+        del doc["project-status"]
+    else:
+        doc["project-status"] = project_status
+    assert not any("status" in u.tags for u in _pypi_updates(client, doc))
+
+
+@respx.mock
+def test_pypi_quarantined_project_lists_only_the_status(client):
+    doc = {"name": "httpx", "project-status": {"status": "quarantined"}, "versions": [], "files": []}
+    (update,) = _pypi_updates(client, doc)
+    assert update.uid == "status:quarantined"
+    assert update.body is None
+
+
+@respx.mock
+def test_pypi_unknown_package_says_so(client):
+    respx.get("https://pypi.org/simple/nope/").mock(
+        return_value=httpx.Response(404, text="Not Found")
+    )
+    source = get_source("pypi")
+    (target,) = source.targets(["nope"])
+    with pytest.raises(FetchError, match="no package named `nope` on PyPI"):
+        list(source.fetch(target, client))

@@ -8,6 +8,15 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- **`pypi` source** (#32). Watches a Python package's releases through
+  PyPI's JSON Simple API, the index pip reads. Names are normalized, so
+  `typing_extensions` and `Typing-Extensions` are considered the same. Releases
+  whose every file is yanked are skipped; alphas, betas, release candidates,
+  and dev releases are `prerelease`, and the highest final release is
+  tagged `latest`. A project marked archived, deprecated, or quarantined is
+  reported once, tagged `status` and the status.
+- **New dependency: `packaging`** (`>=22`), the PyPA's library pip itself
+  uses, to order and classify versions the way pip does.
 - **`homebrew` source** (#20). Watches a formula or cask through the
   formulae.brew.sh JSON API. A bare name is a formula; use `cask:firefox` or `cask: firefox` for a cask.
   Formula versions include the revision (`1.25.0_2`), since a revision

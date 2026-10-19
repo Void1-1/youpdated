@@ -1,0 +1,196 @@
+{
+  "meta": {
+    "_last-serial": 40585097,
+    "api-version": "1.4"
+  },
+  "name": "httpx",
+  "project-status": {
+    "status": "active"
+  },
+  "versions": [
+    "0.25.1",
+    "0.25.2",
+    "0.26.0",
+    "0.27.0",
+    "0.27.1",
+    "0.27.2",
+    "0.28.0",
+    "0.28.1",
+    "1.0.dev1",
+    "1.0.dev2",
+    "1.0.dev3",
+    "1.0.dev4",
+    "1.0.dev5",
+    "1.0.dev6"
+  ],
+  "files": [
+    {
+      "filename": "httpx-0.25.1-py3-none-any.whl",
+      "upload-time": "2023-11-03T13:28:55.775813Z",
+      "url": "https://files.pythonhosted.org/packages/82/61/a5fca4a1e88e40969bbd0cf0d981f3aa76d5057db160b94f49603fc18740/httpx-0.25.1-py3-none-any.whl",
+      "yanked": false
+    },
+    {
+      "filename": "httpx-0.25.1.tar.gz",
+      "upload-time": "2023-11-03T13:28:58.795224Z",
+      "url": "https://files.pythonhosted.org/packages/1c/fe/c0523094193929a68b288e0ae3eb865725f1ee9faca0f21693a86e96c943/httpx-0.25.1.tar.gz",
+      "yanked": false
+    },
+    {
+      "filename": "httpx-0.25.2-py3-none-any.whl",
+      "upload-time": "2023-11-24T12:36:31.403560Z",
+      "url": "https://files.pythonhosted.org/packages/a2/65/6940eeb21dcb2953778a6895281c179efd9100463ff08cb6232bb6480da7/httpx-0.25.2-py3-none-any.whl",
+      "yanked": false
+    },
+    {
+      "filename": "httpx-0.25.2.tar.gz",
+      "upload-time": "2023-11-24T12:36:33.988435Z",
+      "url": "https://files.pythonhosted.org/packages/8c/23/911d93a022979d3ea295f659fbe7edb07b3f4561a477e83b3a6d0e0c914e/httpx-0.25.2.tar.gz",
+      "yanked": false
+    },
+    {
+      "filename": "httpx-0.26.0-py3-none-any.whl",
+      "upload-time": "2023-12-20T11:02:55.395888Z",
+      "url": "https://files.pythonhosted.org/packages/39/9b/4937d841aee9c2c8102d9a4eeb800c7dad25386caabb4a1bf5010df81a57/httpx-0.26.0-py3-none-any.whl",
+      "yanked": false
+    },
+    {
+      "filename": "httpx-0.26.0.tar.gz",
+      "upload-time": "2023-12-20T11:02:58.032990Z",
+      "url": "https://files.pythonhosted.org/packages/bd/26/2dc654950920f499bd062a211071925533f821ccdca04fa0c2fd914d5d06/httpx-0.26.0.tar.gz",
+      "yanked": false
+    },
+    {
+      "filename": "httpx-0.27.0-py3-none-any.whl",
+      "upload-time": "2024-02-21T13:07:50.455078Z",
+      "url": "https://files.pythonhosted.org/packages/41/7b/ddacf6dcebb42466abd03f368782142baa82e08fc0c1f8eaa05b4bae87d5/httpx-0.27.0-py3-none-any.whl",
+      "yanked": false
+    },
+    {
+      "filename": "httpx-0.27.0.tar.gz",
+      "upload-time": "2024-02-21T13:07:52.434411Z",
+      "url": "https://files.pythonhosted.org/packages/5c/2d/3da5bdf4408b8b2800061c339f240c1802f2e82d55e50bd39c5a881f47f0/httpx-0.27.0.tar.gz",
+      "yanked": false
+    },
+    {
+      "filename": "httpx-0.27.1-py3-none-any.whl",
+      "upload-time": "2024-08-27T11:30:38.325755Z",
+      "url": "https://files.pythonhosted.org/packages/91/5a/b1f107483825b85fcac9db8ba41dd7d6e5b41542a66468e6910321b158e6/httpx-0.27.1-py3-none-any.whl",
+      "yanked": false
+    },
+    {
+      "filename": "httpx-0.27.1.tar.gz",
+      "upload-time": "2024-08-27T11:30:40.002698Z",
+      "url": "https://files.pythonhosted.org/packages/67/78/d716ef978b5c5b25b50c5ad9ed39b5e83c1e653cbcd86122a9a73814264c/httpx-0.27.1.tar.gz",
+      "yanked": false
+    },
+    {
+      "filename": "httpx-0.27.2-py3-none-any.whl",
+      "upload-time": "2024-08-27T12:53:59.653912Z",
+      "url": "https://files.pythonhosted.org/packages/56/95/9377bcb415797e44274b51d46e3249eba641711cf3348050f76ee7b15ffc/httpx-0.27.2-py3-none-any.whl",
+      "yanked": false
+    },
+    {
+      "filename": "httpx-0.27.2.tar.gz",
+      "upload-time": "2024-08-27T12:54:01.334048Z",
+      "url": "https://files.pythonhosted.org/packages/78/82/08f8c936781f67d9e6b9eeb8a0c8b4e406136ea4c3d1f89a5db71d42e0e6/httpx-0.27.2.tar.gz",
+      "yanked": false
+    },
+    {
+      "filename": "httpx-0.28.0-py3-none-any.whl",
+      "upload-time": "2024-11-28T14:54:55.141752Z",
+      "url": "https://files.pythonhosted.org/packages/8f/fb/a19866137577ba60c6d8b69498dc36be479b13ba454f691348ddf428f185/httpx-0.28.0-py3-none-any.whl",
+      "yanked": false
+    },
+    {
+      "filename": "httpx-0.28.0.tar.gz",
+      "upload-time": "2024-11-28T14:54:56.977187Z",
+      "url": "https://files.pythonhosted.org/packages/10/df/676b7cf674dd1bdc71a64ad393c89879f75e4a0ab8395165b498262ae106/httpx-0.28.0.tar.gz",
+      "yanked": false
+    },
+    {
+      "filename": "httpx-0.28.1-py3-none-any.whl",
+      "upload-time": "2024-12-06T15:37:21.509172Z",
+      "url": "https://files.pythonhosted.org/packages/2a/39/e50c7c3a983047577ee07d2a9e53faf5a69493943ec3f6a384bdc792deb2/httpx-0.28.1-py3-none-any.whl",
+      "yanked": false
+    },
+    {
+      "filename": "httpx-0.28.1.tar.gz",
+      "upload-time": "2024-12-06T15:37:23.222462Z",
+      "url": "https://files.pythonhosted.org/packages/b1/df/48c586a5fe32a0f01324ee087459e112ebb7224f646c0b5023f5e79e9956/httpx-0.28.1.tar.gz",
+      "yanked": false
+    },
+    {
+      "filename": "httpx-1.0.dev1-py3-none-any.whl",
+      "upload-time": "2025-07-02T18:49:48.960456Z",
+      "url": "https://files.pythonhosted.org/packages/b4/81/d65a66fce59b891e0b3dbc09f222b438d8fddb2b8fe08aa9004516378a0e/httpx-1.0.dev1-py3-none-any.whl",
+      "yanked": false
+    },
+    {
+      "filename": "httpx-1.0.dev1.tar.gz",
+      "upload-time": "2025-07-02T18:49:50.669154Z",
+      "url": "https://files.pythonhosted.org/packages/85/93/5d9ca697697028ee22fe549d05ea69dbb7ab788c0271104e90eb40aeec4c/httpx-1.0.dev1.tar.gz",
+      "yanked": false
+    },
+    {
+      "filename": "httpx-1.0.dev2-py3-none-any.whl",
+      "upload-time": "2025-08-04T16:41:09.446798Z",
+      "url": "https://files.pythonhosted.org/packages/64/41/040868194820a2259b0c818a3ac26d57361581ceba3da9f37c83d3bbba67/httpx-1.0.dev2-py3-none-any.whl",
+      "yanked": false
+    },
+    {
+      "filename": "httpx-1.0.dev2.tar.gz",
+      "upload-time": "2025-08-04T16:41:27.897030Z",
+      "url": "https://files.pythonhosted.org/packages/ff/35/70f38e64878f0db8ac8399f7644e921215660abd3eb92aadab3f96d551cc/httpx-1.0.dev2.tar.gz",
+      "yanked": false
+    },
+    {
+      "filename": "httpx-1.0.dev3-py3-none-any.whl",
+      "upload-time": "2025-09-15T16:15:10.458000Z",
+      "url": "https://files.pythonhosted.org/packages/97/8d/ff4f018c9a813994e28fabb998f8d76542fc2b46c1210d4c1b2c615eea7f/httpx-1.0.dev3-py3-none-any.whl",
+      "yanked": false
+    },
+    {
+      "filename": "httpx-1.0.dev3.tar.gz",
+      "upload-time": "2025-09-15T16:15:12.087154Z",
+      "url": "https://files.pythonhosted.org/packages/25/40/b6f25020eeafd822fc473394a5db45a5964a64c88788eb5dc49ffabb64e7/httpx-1.0.dev3.tar.gz",
+      "yanked": false
+    },
+    {
+      "filename": "httpx-1.0.dev4-py3-none-any.whl",
+      "upload-time": "2026-08-19T12:36:32.651987Z",
+      "url": "https://files.pythonhosted.org/packages/f5/fd/3b14144b8727974bfd81b0c40432653eff9ac994359407bad4c50a6bdfa4/httpx-1.0.dev4-py3-none-any.whl",
+      "yanked": false
+    },
+    {
+      "filename": "httpx-1.0.dev4.tar.gz",
+      "upload-time": "2026-08-19T12:36:34.069581Z",
+      "url": "https://files.pythonhosted.org/packages/1f/eb/204731fe1c8228815a548a30952261d2c84da25f2c8a03c6a986c14407d7/httpx-1.0.dev4.tar.gz",
+      "yanked": false
+    },
+    {
+      "filename": "httpx-1.0.dev5-py3-none-any.whl",
+      "upload-time": "2026-08-21T10:59:57.494587Z",
+      "url": "https://files.pythonhosted.org/packages/fc/a2/b5ebbdbdf44f598ef6552c37faad06ec9684ac26d92012fdd10db2e12b16/httpx-1.0.dev5-py3-none-any.whl",
+      "yanked": false
+    },
+    {
+      "filename": "httpx-1.0.dev5.tar.gz",
+      "upload-time": "2026-08-21T10:59:58.520677Z",
+      "url": "https://files.pythonhosted.org/packages/51/1b/1471c9b33061b8bb8fe32a5dcf488371ec890550c033981f3c625fc2689e/httpx-1.0.dev5.tar.gz",
+      "yanked": false
+    },
+    {
+      "filename": "httpx-1.0.dev6-py3-none-any.whl",
+      "upload-time": "2026-08-31T17:59:54.190125Z",
+      "url": "https://files.pythonhosted.org/packages/74/bc/dc055edab7b3aad9da517f4b4581ee233b1b3a4df4ec9d5f84407f74bc08/httpx-1.0.dev6-py3-none-any.whl",
+      "yanked": false
+    },
+    {
+      "filename": "httpx-1.0.dev6.tar.gz",
+      "upload-time": "2026-08-31T17:59:55.135021Z",
+      "url": "https://files.pythonhosted.org/packages/fb/cf/b69904e914caa43e662c2275612a347c8a3f084cba7ecbcab45bb0487d63/httpx-1.0.dev6.tar.gz",
+      "yanked": false
+    }
+  ]
+}
