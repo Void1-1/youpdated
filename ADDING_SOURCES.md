@@ -2,6 +2,10 @@
 
 A source is one class with two methods. This guide builds a complete, working one: a `pypi` source that reports new releases of a Python package.
 
+> Youpdated now ships a fuller `pypi` source ([youpdated/sources/pypi.py](youpdated/sources/pypi.py)).
+> The version here is kept short to teach the contract. If you build it to follow along, give it
+> another `name`: a plugin whose name is already taken by a built-in source is ignored.
+
 - [The contract](#the-contract)
 - [Two ways to add one](#two-ways-to-add-one)
 - [Step 1: normalize config into targets](#step-1-normalize-config-into-targets)

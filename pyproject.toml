@@ -20,6 +20,7 @@ keywords = [
     "steam",
     "itch",
     "npm",
+    "pypi",
     "github",
     "gitlab",
     "forgejo",
@@ -47,6 +48,7 @@ classifiers = [
 dependencies = [
     "httpx[socks]>=0.27",
     "feedparser>=6.0",
+    "packaging>=22",
     "rich>=13.0",
     "PyYAML>=6.0",
     "platformdirs>=4.0",
