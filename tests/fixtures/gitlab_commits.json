@@ -1,0 +1,29 @@
+[
+  {
+    "id": "a300719a2aac26acb25eee65fe08398188c99a0e",
+    "short_id": "a300719a",
+    "created_at": "2026-10-16T10:11:42.000-05:00",
+    "title": "Merge branch 'fix-checkout-remote' into 'main'",
+    "committed_date": "2026-10-16T10:11:42.000-05:00",
+    "web_url": "https://gitlab.com/gitlab-org/cli/-/commit/a300719a2aac26acb25eee65fe08398188c99a0e",
+    "message": "Merge branch 'fix-checkout-remote' into 'main'\n\nfix(checkout): fetch through the matched remote so the tracking ref is created\n\nCloses #7685\n\nSee merge request https://gitlab.com/gitlab-org/cli/-/merge_requests/1765\n\nMerged-by: Kai Armstrong <karmstrong@gitlab.com>\nApproved-by: GitLab Duo <gitlab-duo@gitlab.com>\nApproved-by: Kai Armstrong <karmstrong@gitlab.com>\nReviewed-by: Gary Holtz is no longe"
+  },
+  {
+    "id": "a220667cd872c096ce5f44fc2397af98484f3ae1",
+    "short_id": "a220667c",
+    "created_at": "2026-10-16T10:11:41.000-05:00",
+    "title": "fix(checkout): fetch through the matched remote so the tracking ref is created",
+    "committed_date": "2026-10-16T10:11:41.000-05:00",
+    "web_url": "https://gitlab.com/gitlab-org/cli/-/commit/a220667cd872c096ce5f44fc2397af98484f3ae1",
+    "message": "fix(checkout): fetch through the matched remote so the tracking ref is created\n"
+  },
+  {
+    "id": "ce99c24356c3599f5b5a8c1265e88facc966732a",
+    "short_id": "ce99c243",
+    "created_at": "2026-10-16T15:28:12.000+10:00",
+    "title": "Merge branch 'jmc-mcp-deprecation-feedback-link' into 'main'",
+    "committed_date": "2026-10-16T15:28:12.000+10:00",
+    "web_url": "https://gitlab.com/gitlab-org/cli/-/commit/ce99c24356c3599f5b5a8c1265e88facc966732a",
+    "message": "Merge branch 'jmc-mcp-deprecation-feedback-link' into 'main'\n\nfix(mcp): link the deprecation feedback issue in the warning\n\nSee merge request https://gitlab.com/gitlab-org/cli/-/merge_requests/4120\n\nMerged-by: Jay McCure <jmccure@gitlab.com>\nApproved-by: GitLab Duo <gitlab-duo@gitlab.com>\nApproved-by: James Hebden <jhebden@gitlab.com>\n"
+  }
+]

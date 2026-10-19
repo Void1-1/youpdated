@@ -1,0 +1,35 @@
+[
+  {
+    "name": "v1.123.0",
+    "tag_name": "v1.123.0",
+    "created_at": "2026-10-13T12:25:25.860Z",
+    "released_at": "2026-10-13T12:25:25.860Z",
+    "upcoming_release": false,
+    "description": "## Changelog   \n### ✨ Features   \n* 13ee9952: feat(df): fail closed on unparseable in-scope proxy traffic (Michael Eddington <meddington@gitlab.com>)   \n* 2d427c3f: feat(repo): add --exclude-subgroup to group clone (Radek Antoniuk <radek.antoniuk@gmail.com>)   \n* dcd1c99c: feat(skills): install remote orbit skill from the self-updating wrapper (Dmitry Gruzd <dgruzd@gitlab.com>)   \n* c3151df7: feat",
+    "_links": {
+      "self": "https://gitlab.com/gitlab-org/cli/-/releases/v1.123.0"
+    }
+  },
+  {
+    "name": "v1.122.0",
+    "tag_name": "v1.122.0",
+    "created_at": "2026-10-09T06:40:31.189Z",
+    "released_at": "2026-10-09T06:40:31.189Z",
+    "upcoming_release": false,
+    "description": "## Changelog   \n### ✨ Features   \n* 107b35dc: feat(api): detect Kiro terminal sessions (Himanshu Jha <jhahimanshu653@gmail.com>)   \n* daecf6fc: feat(api): support custom placeholder values (Radek Antoniuk <radek.antoniuk@gmail.com>)   \n* b479524a: feat(auth): add JSON output to auth status (Radek Antoniuk <radek.antoniuk@gmail.com>)   \n* 172280be: feat(govern): sync Codex and Cursor sessions throu",
+    "_links": {
+      "self": "https://gitlab.com/gitlab-org/cli/-/releases/v1.122.0"
+    }
+  },
+  {
+    "name": "v1.121.0",
+    "tag_name": "v1.121.0",
+    "created_at": "2026-10-06T12:17:32.971Z",
+    "released_at": "2026-10-06T12:17:32.971Z",
+    "upcoming_release": false,
+    "description": "## Changelog   \n### ✨ Features   \n* c5fece4b: feat(stack): add --skip-push for local stack synchronization (Ahmed Anwar <ahmed.anwar444442@gmail.com>)   \n* e924cf16: feat: add update subcommand for managed binaries (Kai Armstrong <karmstrong@gitlab.com>)   \n### 🐛 Bug Fixes   \n* a70f5c8c: fix(ci): scroll and reveal truncated job names (Aleksandr Sheikin <a.a.sheykin@gmail.com>)   \n* dc4a00ea: fix(c",
+    "_links": {
+      "self": "https://gitlab.com/gitlab-org/cli/-/releases/v1.121.0"
+    }
+  }
+]

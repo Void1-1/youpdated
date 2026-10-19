@@ -12,8 +12,8 @@ It is built to be **privacy-preserving, anonymous, and customizable**: no accoun
 │   • CLTF2 Halloween Cup   7d ago                                 │
 │     https://store.steampowered.com/news/app/440/view/6728766547… │
 ╰──────────────────────────────────────────────────────────────────╯
-╭─ github ─────────────────────────────────────────────────────────╮
-│ python/cpython                                                   │
+╭─ git ────────────────────────────────────────────────────────────╮
+│ github.com/python/cpython                                        │
 │   • v3.14.7   5d ago                                             │
 │     https://github.com/python/cpython/releases/tag/v3.14.7       │
 ╰──────────────────────────────────────────────────────────────────╯
@@ -23,7 +23,7 @@ It is built to be **privacy-preserving, anonymous, and customizable**: no accoun
 
 | Source | What it watches | Endpoint |
 | --- | --- | --- |
-| `github` | Releases, tags, commits | `.atom` feeds (no auth needed) |
+| `git` | Releases, tags, commits on GitHub, GitLab, Codeberg, or any Forgejo/Gitea instance | GitHub's `.atom` feeds (no auth needed), each other forge's public API |
 | `npm` | Newly published versions | the public registry |
 | `homebrew` | New versions of a formula or cask | the formulae.brew.sh JSON API |
 | `steam` | Patch notes and news | the store's news feed |
@@ -121,7 +121,7 @@ Open the file printed. Every source entry takes **a bare value** or **a mapping*
 
 ```yaml
 sources:
-  github:
+  git:
     - python/cpython
   npm:
     - express
@@ -132,6 +132,7 @@ sources:
 | You want to watch | Put this in the config | How to find it |
 | --- | --- | --- |
 | A GitHub repo | `python/cpython` | The `owner/repo` part of the repo URL. A full `https://github.com/owner/repo` URL also works. |
+| A GitLab, Codeberg, or Forgejo/Gitea repo | `https://gitlab.com/gitlab-org/cli` | The repo's URL as it appears in the address bar, or `host/owner/repo`. GitLab subgroups (`group/sub/project`) work. See [Git forges](#git-forges). |
 | An npm package | `express`, `"@types/node"` | The package name on npmjs.com. **Quote scoped names**: YAML treats a leading `@` specially. |
 | A Homebrew formula or cask | `wget`, `cask:firefox` | The name after `brew install`. A name is a formula; prefix casks with `cask:`. Only `homebrew/core` and `homebrew/cask` are covered. |
 | A Steam game | `440` | The number in the store URL: `store.steampowered.com/app/`**`440`**`/Team_Fortress_2/`. The full store URL also works, and the game's name is looked up for you. |
@@ -153,17 +154,25 @@ privacy:
 
 ignore:                              # update types you never want reported
   '*': [prerelease]                  # '*' is every source
-  github: [commit]
+  git: [commit]
 
 expiry: 1y                           # forget items missing from every fetch this long
 
 sources:
-  github:
-    - python/cpython                 # easy
+  git:                               # GitHub, GitLab, Codeberg, Forgejo/Gitea
+    - python/cpython                 # easy: owner/repo means GitHub
     - repo: astral-sh/uv             # advanced:
       watch: [releases, commits]     # releases | tags | commits
       branch: main                   # for `commits`
       ignore: [tag]                  # adds to the rules above, this entry only
+    - https://gitlab.com/gitlab-org/cli
+    - codeberg.org/forgejo/forgejo
+    - repo: https://gitlab.gnome.org/GNOME/gtk
+      watch: [releases, tags]        # releases | tags | commits
+    - repo: tools/deploy             # a self-hosted instance
+      host: git.example.org
+      forge: forgejo                 # github | gitlab | forgejo (gitea is forgejo)
+      token_env: EXAMPLE_GIT_TOKEN   # name of an env var holding a token
 
   npm:
     - express
@@ -204,7 +213,35 @@ sources:
     - url: https://github.com/obsidianmd/obsidian-releases/releases.atom
       name: Obsidian
       limit: 5
+
+notify:                              # optional: push new updates somewhere
+  webhooks:
+    - https://ntfy.sh/my-private-topic
+  command: notify-send "{label}" "{title}"
 ```
+
+### Git forges
+
+The `git` source watches a repository on GitHub, GitLab, or Forgejo/Gitea (Codeberg runs
+Forgejo) with one shape: a repo URL, `host/owner/repo`, or `owner/repo` for GitHub.
+Every forge takes `watch:` (`releases`, `tags`, `commits`) and `branch:` for commits.
+
+The forge is known for `github.com`, `gitlab.com`, `codeberg.org` and `gitea.com`, and guessed for
+a self-hosted host with `gitlab`, `gitea`, `forgejo` or `github` in its name
+(`gitlab.gnome.org`). Anything else needs `forge:`. GitHub Enterprise hosts use `forge: github`.
+
+No forge needs credentials for public repos. A token only raises rate limits, and is read from an
+environment variable, never the config. `GITHUB_TOKEN` can be used for `github.com` and
+`GITLAB_TOKEN` for `gitlab.com`. A host's token is only ever sent to that host, named per
+entry with `token_env:`
+
+Updates are reported under the `git` source with the host in the name:
+`github.com/python/cpython`, not `python/cpython`.
+
+`github:` was a separate source up to 0.3.1. It still works as another name for `git`, and
+`ignore: {github: [...]}` still applies to the entries listed under it. History recorded under
+`github` is moved over the first time the new version opens it, so nothing is reported again.
+Listing a repo under both names reports each update once.
 
 ### Ignoring update types
 
@@ -218,14 +255,14 @@ ignore: [prerelease]          # shorthand: applies to every source
 ```yaml
 ignore:
   '*': [prerelease]           # every source
-  github: [commit, tag]       # just this source
+  git: [commit, tag]          # just this source
 ```
 
 Either form can be combined with a per-entry rule, which **adds** to it:
 
 ```yaml
 sources:
-  github:
+  git:
     - python/cpython                    # global rules only
     - repo: astral-sh/uv
       ignore: [tag]                     # global rules + `tag`
@@ -235,7 +272,7 @@ These are the tags each source sets:
 
 | Source | Tags |
 | --- | --- |
-| `github` | `release`, `prerelease`, `tag`, `commit` |
+| `git` | `release`, `prerelease`, `tag`, `commit` |
 | `npm` | `release`, `prerelease`, `latest` |
 | `homebrew` | `release` |
 | `itch` | `devlog`, `build`, `page` |
@@ -256,7 +293,9 @@ devlog posts, and ignoring `release` everywhere leaves itch alone.
 
 Without a `GITHUB_TOKEN`, `prerelease` is inferred from the tag name
 (`v3.15.0rc2`, `1.2.0-beta.1`), since the anonymous `.atom` feeds carry no
-prerelease flag. With a token set, GitHub's own flag is used instead.
+prerelease flag. With a token set, GitHub's own flag is used instead. GitLab has
+no prerelease flag at all, so it is always inferred there; Forgejo's own flag is
+always used.
 
 ### How long history is kept
 
@@ -320,12 +359,15 @@ Baseline recorded for 1 new target(s): npm:react. Their existing items were not 
 youpdated check                       # what's new since last run (the default command)
 youpdated check --all                 # everything currently published, ignoring history
 youpdated check --since 7d            # only items from the last week (30m, 12h, 7d, 2w, 1y)
-youpdated check -s github -s npm      # limit to some sources
+youpdated check -s git -s npm         # limit to some sources
 youpdated check --json                # machine-readable output
 youpdated check --rss ~/feeds/you.xml # aggregated Atom feed for a reader
 youpdated check --test -v             # test to show what it would request
 youpdated check --no-save             # report without recording anything as seen
-youpdated check --fail-on-error       # exit 2 if any source failed
+youpdated check --fail-on-error       # exit 2 if any source or notification failed
+youpdated check --notify-cmd 'notify-send {title} {url}'  # run a command per new update
+youpdated check --no-notify           # skip notifications this run
+youpdated check --all --notify        # notify even with --all or --no-save
 youpdated check -v                    # show each request, its status, and item summaries
 youpdated check --state ./test.db     # use a throwaway history file
 youpdated sources                     # list available sources
@@ -341,10 +383,10 @@ Running `youpdated` with no arguments runs `youpdated check`.
 `--json` writes **only** JSON to stdout; progress and errors go to stderr, so this is safe:
 
 ```sh
-youpdated check --json | jq '.updates[] | select(.source == "github") | .title'
+youpdated check --json | jq '.updates[] | select(.target | startswith("github.com/")) | .title'
 ```
 
-Exit codes: `0` success, `1` config, encryption, or proxy error, `2` with `--fail-on-error` when a source failed, `130` on interrupt.
+Exit codes: `0` success, `1` config, encryption, or proxy error, `2` with `--fail-on-error` when a source or notification failed, `130` on interrupt.
 
 ## Running it on schedule
 
@@ -381,6 +423,57 @@ Once a day is plenty, most of these sources change slowly, and conditional reque
 </dict></plist>
 ```
 
+## Notifications
+
+Youpdated only reports when it runs. To hear about updates without reading a log, add a `notify:`
+block. Each scheduled run then pushes whatever it found:
+
+```yaml
+notify:
+  webhooks:
+    - https://ntfy.sh/my-private-topic                     # format guessed from the URL
+    - https://discord.com/api/webhooks/123/abc
+    - https://hooks.slack.com/services/T000/B000/xyz
+    - url: https://example.com/youpdated
+      format: json                                         # json | discord | slack | ntfy
+      headers:
+        Authorization: Bearer abc123
+  command: notify-send "{label}" "{title}"                 # once per update
+  timeout: 30                                              # seconds per command
+```
+
+Notifications are sent only for new updates, after the run is recorded. A baseline run sends
+nothing, and neither would `--all` and `--no-save`, which re-show already recorded updates. Add `--notify`
+to send anyway or `--no-notify` to skip a run's notifications
+
+**Webhooks** get one request per run listing every update. Discord and Slack get a few requests
+when there are many updates, since they cap message size.
+
+| Format | Picked for | Sends |
+| --- | --- | --- |
+| `discord` | `discord.com/api/webhooks/…` | an embed per update, 10 per message |
+| `slack` | `hooks.slack.com` | a linked line per update |
+| `ntfy` | `ntfy.sh/<topic>`; set `format: ntfy` for a self-hosted server | one push; a single update opens its link when tapped |
+| `json` | anything else | `{"generated", "count", "updates": [...]}`, each update as in `--json` plus its `label` |
+
+**Commands** run once per new update. Placeholders `{source}`, `{target}`, `{label}`, `{title}`,
+`{url}`, `{version}`, `{published}`, `{tags}`, and `{body}` are filled in. The same values are in
+the environment as `YOUPDATED_TITLE`, `YOUPDATED_URL`, and so on, and the update arrives as JSON on
+stdin. `--notify-cmd` adds a command from the command line, and can be repeated.
+
+A command is never run through a shell. Titles come from the sites you watch, so a release named
+`$(rm -rf ~)` stays plain text. If you need a shell, call one and read the environment, which
+is safe inside double quotes:
+
+```yaml
+notify:
+  command: [sh, -c, 'echo "$YOUPDATED_LABEL: $YOUPDATED_TITLE" >> ~/updates.txt']
+```
+
+A failed webhook or command shows in the `problems` panel and counts for `--fail-on-error`. The
+updates are still recorded, so they are not sent again. Webhook URLs usually contain their secret,
+so errors and `-v` show only the host. Webhooks go through `privacy.proxy` like everything else.
+
 ## Troubleshooting
 
 | Symptom | Cause and fix |
@@ -391,6 +484,8 @@ Once a day is plenty, most of these sources change slowly, and conditional reque
 | `--all` shows fewer items than expected | Nothing is wrong; sources cap how much history they expose (10–20 items each). |
 | A source appears in the yellow `problems` panel | That one source failed; the rest of the run still completed. Re-run with `-v` to see the request and status. |
 | `unknown source 'X'` | Check spelling against `youpdated sources`. |
+| `can't tell which forge X runs` | A self-hosted `git` host with no hint in its name. Add `forge: github`, `gitlab`, or `forgejo`. |
+| `notify` in the `problems` panel | A webhook or command failed. The updates were still recorded, so they won't be sent again. Check the URL, or run the command by hand. |
 | YouTube fails every path | Its feed throttles intermittently. Retry, or set `privacy.proxy`, or export `YOUTUBE_API_KEY`. |
 | An itch game reports nothing | It has neither a devlog nor a file listing. Confirm with `youpdated check -s itch --all -v`. |
 | Everything reports as new again | The history database was deleted or `--state` points somewhere new. |
@@ -521,8 +616,8 @@ Don't use encryption with untrusted sources or non-official code without verifyi
 
 ## Privacy
 
-- **No credentials.** Every source works unauthenticated. `GITHUB_TOKEN` and `YOUTUBE_API_KEY` are read from the environment if set (only for raising rate limits) and are never written to config.
-- **Local only.** Config and history live in your platform's config/data directories. Nothing is sent anywhere except the sources you list. They can be [encrypted at rest](#encryption-at-rest).
+- **No credentials.** Every source works unauthenticated. `GITHUB_TOKEN`, `GITLAB_TOKEN`, `YOUTUBE_API_KEY` and any `token_env:` are read from the environment if set (only for raising rate limits), are never written to config, and are only sent to the host they belong to.
+- **Local only.** Config and history live in your platform's config/data directories. Nothing is sent anywhere except the sources you list, and the [notification](#notifications) endpoints if you configure any. They can be [encrypted at rest](#encryption-at-rest).
 - **One HTTP path.** Every request goes through [youpdated/http.py](https://github.com/Void1-1/youpdated/blob/main/youpdated/http.py). `privacy.proxy` covers all traffic. To check:
 
   ```sh

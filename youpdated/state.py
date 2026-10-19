@@ -105,6 +105,26 @@ class State:
         ).rowcount
         if fixed:
             self._dirty = True
+        self._migrate_github_to_git()
+
+    def _migrate_github_to_git(self) -> None:
+        """<= 0.3.1 had a `github` source keyed by owner/repo; it is now `git`, keyed by host"""
+        moved = self._conn.execute(
+            "UPDATE OR IGNORE seen SET source = 'git', target = 'github.com/' || target "
+            "WHERE source = 'github'"
+        ).rowcount
+        # Leftovers were already recorded under `git` too
+        moved += self._conn.execute("DELETE FROM seen WHERE source = 'github'").rowcount
+        # Baselines and ignore rules are kept as `source:target`
+        moved += self._conn.execute(
+            "UPDATE OR IGNORE kv SET key = 'git:github.com/' || substr(key, 8) "
+            "WHERE namespace IN ('baseline', 'ignore') AND key LIKE 'github:%'"
+        ).rowcount
+        moved += self._conn.execute(
+            "DELETE FROM kv WHERE namespace IN ('baseline', 'ignore') AND key LIKE 'github:%'"
+        ).rowcount
+        if moved:
+            self._dirty = True
 
     def _read_encrypted(self) -> bytes | None:
         """Decrypt the state file into a database image, or None if there is no file yet."""

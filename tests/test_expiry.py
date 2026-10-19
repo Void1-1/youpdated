@@ -17,7 +17,7 @@ from youpdated.state import State
 YEAR = timedelta(days=365)
 
 
-def make_update(uid: str = "1", target: str = "a/b", source: str = "github") -> Update:
+def make_update(uid: str = "1", target: str = "a/b", source: str = "git") -> Update:
     return Update(source=source, target=target, uid=uid, title=uid, url="https://e.com")
 
 
@@ -102,7 +102,7 @@ def test_prune_leaves_kept_targets_and_sources_alone():
         ])
         backdate(state, 2 * YEAR)
 
-        removed = state.prune(keep_targets={("github", "failing")}, keep_sources={"npm"})
+        removed = state.prune(keep_targets={("git", "failing")}, keep_sources={"npm"})
         assert removed == 1
         assert state.is_new(make_update(target="dropped"))
         assert not state.is_new(make_update(target="failing"))
@@ -146,7 +146,7 @@ def test_an_old_database_gains_last_seen(tmp_path):
         "CREATE TABLE seen (source TEXT NOT NULL, target TEXT NOT NULL, uid TEXT NOT NULL, "
         "first_seen TEXT NOT NULL, PRIMARY KEY (source, target, uid))"
     )
-    conn.execute("INSERT INTO seen VALUES ('github', 'a/b', '1', '2020-01-01T00:00:00+00:00')")
+    conn.execute("INSERT INTO seen VALUES ('git', 'a/b', '1', '2020-01-01T00:00:00+00:00')")
     conn.commit()
     conn.close()
 

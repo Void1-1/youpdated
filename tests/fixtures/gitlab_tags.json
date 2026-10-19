@@ -1,0 +1,47 @@
+[
+  {
+    "name": "v1.123.0",
+    "message": "Release v1.123.0",
+    "target": "68419deecb449e6192f1a7756087728317413ed7",
+    "created_at": "2026-10-13T12:09:05.000Z",
+    "protected": true,
+    "commit": {
+      "id": "5686d7484e65cb08b6e3b92f86d2ccffb415bdc0",
+      "short_id": "5686d748",
+      "created_at": "2026-10-13T20:10:24.000+09:00",
+      "title": "Merge branch 'docs-contributing-squash-link' into 'main'",
+      "committed_date": "2026-10-13T20:10:24.000+09:00",
+      "web_url": "https://gitlab.com/gitlab-org/cli/-/commit/5686d7484e65cb08b6e3b92f86d2ccffb415bdc0"
+    }
+  },
+  {
+    "name": "v1.122.0",
+    "message": "Release v1.122.0",
+    "target": "c902a41588affa42e7506f8e02c55bf0478f28e5",
+    "created_at": "2026-10-09T06:30:55.000Z",
+    "protected": true,
+    "commit": {
+      "id": "89d0008af1df78a62f5b446fb9b1bfc479771279",
+      "short_id": "89d0008a",
+      "created_at": "2026-10-09T16:06:30.000+10:00",
+      "title": "Merge branch 'govern-codex-cursor-sync' into 'main'",
+      "committed_date": "2026-10-09T16:06:30.000+10:00",
+      "web_url": "https://gitlab.com/gitlab-org/cli/-/commit/89d0008af1df78a62f5b446fb9b1bfc479771279"
+    }
+  },
+  {
+    "name": "v1.121.0",
+    "message": "Release v1.121.0",
+    "target": "e3abc8e79c419e580779d26c1f72ab463095ac70",
+    "created_at": "2026-10-06T12:08:58.000Z",
+    "protected": true,
+    "commit": {
+      "id": "4d447cc6c19858928884626d802c8f7b7c5f799e",
+      "short_id": "4d447cc6",
+      "created_at": "2026-10-06T11:37:36.000+02:00",
+      "title": "Merge branch 'renovate/github.com-tidwall-pretty-1.x' into 'main'",
+      "committed_date": "2026-10-06T11:37:36.000+02:00",
+      "web_url": "https://gitlab.com/gitlab-org/cli/-/commit/4d447cc6c19858928884626d802c8f7b7c5f799e"
+    }
+  }
+]

@@ -33,7 +33,7 @@ posix_only = pytest.mark.skipif(
 
 
 def update(uid: str = "v1") -> Update:
-    return Update(source="github", target="python/cpython", uid=uid, title=uid, url="")
+    return Update(source="git", target="github.com/python/cpython", uid=uid, title=uid, url="")
 
 
 def _no_backend():
@@ -141,7 +141,7 @@ def test_encrypted_config_loads_with_passphrase(tmp_path):
     crypto.write_private(path, crypto.encrypt(EXAMPLE_CONFIG.encode(), PASSPHRASE))
 
     config = load_config(path, passphrase=PASSPHRASE)
-    assert "github" in config.sources
+    assert "git" in config.sources
 
     with pytest.raises(ConfigError, match="encrypted"):
         load_config(path)
@@ -152,7 +152,7 @@ def test_encrypted_config_loads_with_passphrase(tmp_path):
 def test_plain_config_ignores_passphrase(tmp_path):
     path = tmp_path / "youpdated.yaml"
     path.write_text(EXAMPLE_CONFIG, encoding="utf-8")
-    assert "github" in load_config(path, passphrase=PASSPHRASE).sources
+    assert "git" in load_config(path, passphrase=PASSPHRASE).sources
 
 
 # state
@@ -305,7 +305,7 @@ def test_init_encrypt_never_writes_plaintext(tmp_path, monkeypatch):
     assert b"sources" not in config.read_bytes()
 
     # And it is a real config once unlocked.
-    assert "github" in load_config(config, passphrase=PASSPHRASE).sources
+    assert "git" in load_config(config, passphrase=PASSPHRASE).sources
 
 
 def test_init_encrypt_respects_force(tmp_path, monkeypatch, capsys):

@@ -17,16 +17,20 @@ Youpdated is a local CLI that reads public endpoints. The interesting attack sur
 - **Untrusted response content.** Every source parses data from a remote server. Feed titles,
   release notes, and HTML are attacker-influenced if a watched service is compromised. Anything
   that turns that content into code execution, a path outside the config/data directories, or a
-  request to an unintended host is in scope.
+  request to an unintended host is in scope. That includes `notify.command`: update fields reach
+  it only as separate arguments, environment variables, and stdin, never through a shell.
 - **Privacy leaks.** Youpdated promises that when `privacy.proxy` is set, *every* request goes
-  through it, and that nothing is sent anywhere except the configured sources. A path that bypasses
+  through it, and that nothing is sent anywhere except the configured sources and notification
+  webhooks. A path that bypasses
   the proxy, leaks the config or history off the machine, or attaches identifying data to requests
   is a vulnerability, not just a bug. This includes failing *open*: if the proxy is unreachable, no
   request may fall back to a direct connection. It also includes resolving a watched hostname
   locally instead of handing it to the proxy, which would leak the whole watch list to your DNS
   resolver even though the requests themselves are proxied.
-- **Credential handling.** `GITHUB_TOKEN` and `YOUTUBE_API_KEY` are read from the environment and
-  must never be written to disk, logged, or sent to any host other than the one they belong to.
+- **Credential handling.** `GITHUB_TOKEN`, `GITLAB_TOKEN`, `YOUTUBE_API_KEY`, and any `git`
+  entry's `token_env:` are read from the environment and must never be written to disk, logged, or
+  sent to any host other than the one they belong to. Webhook URLs carry their secret in the path
+  and must never be logged or shown beyond their host.
 - **`youpdated uninstall`.** It deletes files. Any way to make it remove something outside its own
   config and data directories is in scope.
 - **Encryption at rest.** When the config or history is encrypted, the passphrase and the decrypted

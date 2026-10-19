@@ -22,7 +22,7 @@ from .conftest import fixture
 
 def make_update(uid: str = "1", **kw) -> Update:
     base = dict(
-        source="github",
+        source="git",
         target="a/b",
         uid=uid,
         title=f"item {uid}",

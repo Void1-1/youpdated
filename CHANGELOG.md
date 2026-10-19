@@ -17,6 +17,37 @@ All notable changes to this project are documented here. The format follows
   checkout, `youpdated.yaml` or `youpdated.yml` at its root is now used when the
   current directory has none, ahead of the per-user config. `uninstall` lists it
   with the other project configs.
+- **`git` source for GitHub, GitLab, and Forgejo/Gitea** (#33, #34, #35). One
+  entry for any forge: a repo URL, `host/owner/repo`, or `owner/repo` for
+  GitHub. Watches releases, tags, and commits. The forge is known for
+  github.com, gitlab.com, codeberg.org, and gitea.com, guessed from a
+  self-hosted hostname, or set with `forge:`. GitLab subgroups and GitHub
+  Enterprise function. Tokens are optional and read from the environment
+  (`GITHUB_TOKEN`, `GITLAB_TOKEN`, or per-entry `token_env:`).
+- **Notifications** (#36). A `notify:` block pushes each run's new updates to
+  webhooks (ntfy, Discord, Slack, or plain JSON, with the format guessed from
+  URL) and/or a command run once per update. A command is never run through a
+  shell: update fields are passed as `{placeholder}` arguments, `YOUPDATED_*`
+  environment variables, and JSON on stdin. `--notify-cmd` adds a command from the
+  command line, and `--no-notify`/`--notify` force sending off or on.
+  Baselines, `--all`, and `--no-save`, by default, send nothing. Failures show in
+  the problems panel and count for `--fail-on-error`, with webhook URLs reduced
+  to their host.
+
+### Changed
+
+- **Breaking: the `github` source is now part of `git`** (#35). GitHub updates
+  are reported with source `git`, and their target includes the host:
+  `github.com/python/cpython` instead of `python/cpython`. This shows in the
+  terminal, `--json`, `--rss`, and notifications. Scripts that match
+  `.source == "github"` or a bare `owner/repo` target will match nothing, with no
+  error. Match `.target | startswith("github.com/")` instead.
+
+  Configs should continue to work: `github:` is another name for `git`, `-s github` selects
+  `git`, and `ignore: {github: [...]}` still covers the entries listed under
+  `github:`. History is moved to the new names the first time it is opened, so
+  nothing is reported again. A repo listed under both `github:` and `git:` reports
+  each update once. (Reach out if any errors occur to the GitHub)
 
 ### Fixed
 

@@ -69,6 +69,13 @@ def retry_after_seconds(value: str | None, now: datetime | None = None) -> float
     return max(0.0, (when - now).total_seconds())
 
 
+def redact_url(url: str) -> str:
+    """``scheme://host/…``: tell endpoints apart without leaking secret paths"""
+    parts = urlsplit(url)
+    tail = "/…" if parts.path.strip("/") or parts.query else ""
+    return f"{parts.scheme}://{parts.netloc.rpartition('@')[2]}{tail}"
+
+
 class FetchError(Exception):
     """Network or unexpected-status failure for one URL."""
 
@@ -374,22 +381,83 @@ class Client:
                 )
 
             if response.status_code in RETRY_STATUSES and attempt < retries:
-                wait = None
-                if response.status_code in RETRY_AFTER_STATUSES:
-                    wait = retry_after_seconds(response.headers.get("retry-after"))
-                if wait is None:
-                    time.sleep(self.retry_backoff * (attempt + 1))
-                elif wait > self.retry_after_max:
-                    raise FetchError(
-                        f"{url}: HTTP {response.status_code} (server asked to retry "
-                        f"after {wait:.0f}s, over the {self.retry_after_max:.0f}s limit)"
-                    )
-                else:
-                    self.note(f"GET {url} -> waiting {wait:.0f}s as Retry-After asks")
-                    # The next _pace sleeps until the held slot
-                    self._hold_host(host, wait)
+                self._wait_to_retry(response, attempt, host, "GET", url)
                 continue
 
             raise FetchError(f"{url}: HTTP {response.status_code}")
 
         raise FetchError(f"{url}: {last_error}")
+
+    def post(
+        self,
+        url: str,
+        *,
+        json: Any = None,
+        headers: dict[str, str] | None = None,
+        retries: int = 2,
+    ) -> Fetched | None:
+        """POST ``json`` to ``url``. For notifications only
+
+        Webhook URLs carry secret in path, so only the host is logged or raised.
+        Returns ``None`` with ``test``
+        """
+        shown = redact_url(url)
+        if self.test:
+            self.note(f"[test] POST {shown}")
+            return None
+
+        request_headers = {"User-Agent": self._user_agent()}
+        if headers:
+            request_headers.update(headers)
+        host = urlsplit(url).netloc
+
+        for attempt in range(retries + 1):
+            self._pace(host)
+            try:
+                self._client.cookies.clear()
+                response = self._client.post(url, json=json, headers=request_headers)
+            except NETWORK_ERRORS as exc:
+                self.note(f"POST {shown} -> {type(exc).__name__}")
+                if attempt < retries:
+                    time.sleep(self.retry_backoff * (attempt + 1))
+                    continue
+                raise FetchError(f"{shown}: {type(exc).__name__}") from exc
+
+            self.note(f"POST {shown} -> {response.status_code}")
+            if 200 <= response.status_code < 300:
+                return Fetched(
+                    url=shown,
+                    status=response.status_code,
+                    content=response.content,
+                    headers=dict(response.headers),
+                )
+            if response.status_code in RETRY_STATUSES and attempt < retries:
+                self._wait_to_retry(response, attempt, host, "POST", shown)
+                continue
+            raise FetchError(f"{shown}: HTTP {response.status_code}")
+
+        raise FetchError(f"{shown}: gave up after {retries + 1} attempts")
+
+    def _wait_to_retry(
+        self,
+        response: httpx.Response,
+        attempt: int,
+        host: str,
+        method: str,
+        url: str,
+    ) -> None:
+        """Wait before retrying with applicable status, or raise if the server asks too much"""
+        wait = None
+        if response.status_code in RETRY_AFTER_STATUSES:
+            wait = retry_after_seconds(response.headers.get("retry-after"))
+        if wait is None:
+            time.sleep(self.retry_backoff * (attempt + 1))
+        elif wait > self.retry_after_max:
+            raise FetchError(
+                f"{url}: HTTP {response.status_code} (server asked to retry "
+                f"after {wait:.0f}s, over the {self.retry_after_max:.0f}s limit)"
+            )
+        else:
+            self.note(f"{method} {url} -> waiting {wait:.0f}s as Retry-After asks")
+            # The next _pace sleeps until the held slot
+            self._hold_host(host, wait)

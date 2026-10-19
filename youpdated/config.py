@@ -5,11 +5,14 @@ A source entry either bare scalar or a mapping
 
 from __future__ import annotations
 
+import os
 import re
+import shlex
 from dataclasses import dataclass, field
 from datetime import timedelta
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
 import yaml
 from platformdirs import PlatformDirs
@@ -34,6 +37,28 @@ class PrivacyConfig:
     jitter: tuple[float, float] = (0.5, 3.0)
     concurrency: int = 4
     timeout: float = 20.0
+
+# More to be added potentially
+WEBHOOK_FORMATS = ("json", "discord", "slack", "ntfy")
+
+
+@dataclass
+class Webhook:
+    url: str
+    format: str = "json"
+    headers: dict[str, str] = field(default_factory=dict)
+
+
+@dataclass
+class NotifyConfig:
+    webhooks: list[Webhook] = field(default_factory=list)
+    # argv lists, run once per update
+    commands: list[list[str]] = field(default_factory=list)
+    timeout: float = 30.0
+
+    @property
+    def enabled(self) -> bool:
+        return bool(self.webhooks or self.commands)
 
 
 #: top-level `ignore:` mapping applied to every source
@@ -67,6 +92,7 @@ class Config:
     ignore: dict[str, frozenset[str]] = field(default_factory=dict)
     #: Forget seen items absent from every fetch this long. ``None`` keeps them forever
     expiry: timedelta | None = DEFAULT_EXPIRY
+    notify: NotifyConfig = field(default_factory=NotifyConfig)
     path: Path | None = None
 
     def ignored_tags(self, source: str) -> frozenset[str]:
@@ -178,6 +204,7 @@ def parse_config(raw: Any, path: Path | None = None) -> Config:
         sources=sources,
         ignore=_parse_ignore(raw.get("ignore"), where),
         expiry=_parse_expiry(raw.get("expiry", DEFAULT_EXPIRY), where),
+        notify=_parse_notify(raw.get("notify"), where),
         path=path,
     )
 
@@ -234,6 +261,123 @@ def _parse_ignore(raw: Any, where: str) -> dict[str, frozenset[str]]:
         if tags:
             parsed[str(name)] = tags
     return parsed
+
+
+def split_command(command: Any, where: str = "", name: str = "`notify.command`") -> list[str]:
+    """notify command as argv. A string is split like a shell would"""
+    if isinstance(command, list):
+        if not command or not all(isinstance(part, (str, int, float)) for part in command):
+            raise ConfigError(f"{where}{name} list must hold non-empty strings")
+        return [str(part) for part in command]
+    if not isinstance(command, str) or not command.strip():
+        raise ConfigError(f"{where}{name} must be a command string or a list")
+    try:
+        if os.name == "nt":
+            # posix=False keeps backslashes in Windows paths, but also keeps the quotes
+            parts = shlex.split(command, posix=False)
+            return [
+                p[1:-1] if len(p) > 1 and p[0] == p[-1] and p[0] in "\"'" else p for p in parts
+            ]
+        return shlex.split(command)
+    except ValueError as exc:
+        raise ConfigError(f"{where}{name}: {exc}: {command}") from exc
+
+
+# best guess of a format
+def guess_webhook_format(url: str) -> str:
+    parts = urlsplit(url)
+    host = (parts.hostname or "").lower()
+    if host.removeprefix("ptb.").removeprefix("canary.") in ("discord.com", "discordapp.com"):
+        return "discord"
+    if host == "hooks.slack.com":
+        return "slack"
+    if host == "ntfy.sh":
+        return "ntfy"
+    return "json"
+
+
+# RFC 9110 token characters. httpx accepted in a header name
+_HEADER_NAME_RE = re.compile(r"[!#$%&'*+\-.^_`|~0-9A-Za-z]+")
+_WEBHOOK_KEYS = {"url", "format", "headers"}
+
+
+def _parse_webhook(raw: Any, where: str) -> Webhook:
+    fields = {"url": raw} if isinstance(raw, str) else raw
+    if not isinstance(fields, dict):
+        raise ConfigError(f"{where}`notify.webhooks` entries must be a URL or a mapping")
+    unknown = set(fields) - _WEBHOOK_KEYS
+    if unknown:
+        raise ConfigError(
+            f"{where}unknown `notify.webhooks` option(s): "
+            f"{', '.join(sorted(map(str, unknown)))}; expected {sorted(_WEBHOOK_KEYS)}"
+        )
+    url = fields.get("url")
+    try:
+        parts = urlsplit(url.strip()) if isinstance(url, str) else None
+    except ValueError:  # e.g. an unclosed IPv6 bracket
+        parts = None
+    if parts is None or parts.scheme not in ("http", "https") or not parts.hostname:
+        raise ConfigError(f"{where}`notify.webhooks` entry needs an http(s) `url`")
+    url = url.strip()
+
+    fmt = fields.get("format")
+    if fmt is None:
+        fmt = guess_webhook_format(url)
+    elif not isinstance(fmt, str) or fmt.strip().lower() not in WEBHOOK_FORMATS:
+        raise ConfigError(
+            f"{where}`notify.webhooks` format must be one of {list(WEBHOOK_FORMATS)}"
+        )
+    fmt = fmt.strip().lower()
+    if fmt == "ntfy" and not parts.path.strip("/"):
+        raise ConfigError(
+            f"{where}`notify.webhooks` ntfy URL needs a topic: https://ntfy.sh/my-topic"
+        )
+
+    headers = fields.get("headers") or {}
+    if not isinstance(headers, dict) or not all(
+        isinstance(k, str) and isinstance(v, (str, int)) and not isinstance(v, bool)
+        for k, v in headers.items()
+    ):
+        raise ConfigError(f"{where}`notify.webhooks` headers must map names to values")
+    for name, value in headers.items():
+        if not _HEADER_NAME_RE.fullmatch(name):
+            raise ConfigError(f"{where}`notify.webhooks` header name is not valid: {name!r}")
+        if any(c in str(value) for c in "\r\n\0"):
+            raise ConfigError(
+                f"{where}`notify.webhooks` header {name} has a line break in its value"
+            )
+    return Webhook(url=url, format=fmt, headers={k: str(v) for k, v in headers.items()})
+
+
+def _parse_notify(raw: Any, where: str) -> NotifyConfig:
+    """Parse top-level ``notify:``"""
+    if raw is None:
+        return NotifyConfig()
+    if not isinstance(raw, dict):
+        raise ConfigError(f"{where}`notify` must be a mapping with `webhooks` and/or `command`")
+
+    notify = NotifyConfig()
+    hooks = raw.get("webhooks")
+    if hooks is not None:
+        for hook in hooks if isinstance(hooks, list) else [hooks]:
+            notify.webhooks.append(_parse_webhook(hook, where))
+
+    command = raw.get("command")
+    if command is not None:
+        notify.commands.append(split_command(command, where))
+
+    timeout = raw.get("timeout")
+    if timeout is not None:
+        if not isinstance(timeout, (int, float)) or isinstance(timeout, bool) or timeout <= 0:
+            raise ConfigError(f"{where}`notify.timeout` must be a positive number of seconds")
+        notify.timeout = float(timeout)
+
+    unknown = set(raw) - {"webhooks", "command", "timeout"}
+    if unknown:
+        raise ConfigError(
+            f"{where}unknown `notify` option(s): {', '.join(sorted(map(str, unknown)))}"
+        )
+    return notify
 
 
 def _parse_privacy(raw: Any, where: str) -> PrivacyConfig:
@@ -302,15 +446,24 @@ privacy:
 # everywhere; a mapping narrows it to one source ('*' means all).
 # ignore:
 #   '*': [prerelease]
-#   github: [commit]
+#   git: [commit]
+
+# Push each run's new updates to a webhook and/or a command run once per update.
+# notify:
+#   webhooks:
+#     - https://ntfy.sh/my-private-topic
+#   command: notify-send "{label}" "{title}"
 
 sources:
-  github:
-    - python/cpython
+  # GitHub, GitLab, Codeberg, or any Forgejo/Gitea instance
+  git:
+    - python/cpython                     # owner/repo means GitHub
     - repo: astral-sh/uv
       watch: [releases, commits]
       # Per-entry rules add to the ones above.
       ignore: [prerelease]
+    - https://gitlab.com/gitlab-org/cli
+    - codeberg.org/forgejo/forgejo
 
   npm:
     - express
