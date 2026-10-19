@@ -33,6 +33,11 @@ All notable changes to this project are documented here. The format follows
   Baselines, `--all`, and `--no-save`, by default, send nothing. Failures show in
   the problems panel and count for `--fail-on-error`, with webhook URLs reduced
   to their host.
+- **A weekly canary against live services.** The test suite runs on recorded
+  fixtures, so it can't check if a source changes anything important. The `canary`
+  workflow runs every source against a real target (`.github/canary/canary.yaml`),
+  fails a source that errors or parses nothing, and keeps a `canary` issue open
+  until a later run passes.
 
 ### Changed
 
