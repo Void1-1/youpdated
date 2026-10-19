@@ -1,0 +1,99 @@
+name: canary
+
+on:
+  schedule:
+    - cron: "47 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  canary:
+    name: ${{ matrix.source }}
+    runs-on: ubuntu-latest
+    # Shared runner IPs get throttled by some services. A source marked flaky still shows red on the run, but does not open an issue.
+    continue-on-error: ${{ matrix.flaky == true }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - source: git
+          - source: npm
+          - source: homebrew
+          - source: steam
+          - source: itch
+          - source: youtube
+            flaky: true
+          - source: browser
+          - source: feed
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install .
+
+      # Try again after a minute, so a slight drop doesn't open an issue
+      - name: Check ${{ matrix.source }} against the live service
+        env:
+          SOURCE: ${{ matrix.source }}
+        run: |
+          for attempt in 1 2; do
+            if youpdated check -c .github/canary/canary.yaml \
+                 --state "$RUNNER_TEMP/canary.sqlite3" -s "$SOURCE" \
+                 --all --no-save --no-notify --json > "$RUNNER_TEMP/out.json" \
+               && python .github/canary/verify.py "$RUNNER_TEMP/out.json"; then
+              exit 0
+            fi
+            if [ "$attempt" = 1 ]; then
+              echo "::notice::$SOURCE failed; retrying in 60s"
+              sleep 60
+            fi
+          done
+          exit 1
+
+  report:
+    needs: canary
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RESULT: ${{ needs.canary.result }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - name: Open, update, or close the canary issue
+        run: |
+          open=$(gh issue list --label canary --state open --json number --jq '.[0].number // empty')
+
+          if [ "$RESULT" = success ]; then
+            if [ -n "$open" ]; then
+              gh issue close "$open" --comment "Passing again: $RUN_URL"
+            fi
+            exit 0
+          fi
+
+          if [ -n "$open" ]; then
+            gh issue comment "$open" --body "Still failing: $RUN_URL"
+          else
+            gh label create canary --color FBCA04 \
+              --description "The weekly live-upstream check is failing" 2>/dev/null || true
+            gh issue create --label canary \
+              --title "Canary: a source is failing against its live service" \
+              --body "The weekly canary failed: $RUN_URL
+
+          Each failing source's job says what broke. Usually an upstream service changed its
+          feed, page, or API, and the source needs a fix and a refreshed fixture.
+
+          This issue closes itself when a later run passes. Re-run it from the Actions tab
+          (canary → Run workflow) after merging a fix."
+          fi
