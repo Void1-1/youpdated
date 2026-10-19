@@ -1,0 +1,42 @@
+# Config for the weekly canary (.github/workflows/canary.yml).
+#
+# Run it locally the same way CI does:
+#   youpdated check -c .github/canary/canary.yaml --state /tmp/canary.sqlite3 \
+#     --all --no-save --no-notify --json | python .github/canary/verify.py
+
+privacy:
+  # A bot on shared datacenter IPs announces itself, unlike how user runs work
+  # also makes a block easy to find
+  user_agent: "youpdated-canary (+https://github.com/Void1-1/youpdated)"
+  concurrency: 2
+
+sources:
+  git:
+    - python/cpython
+    - https://gitlab.com/gitlab-org/cli
+    - codeberg.org/forgejo/forgejo
+
+  npm:
+    - express
+
+  homebrew:
+    - wget
+    - cask:firefox
+
+  steam:
+    - 440
+
+  itch:
+    - https://hempuli.itch.io/baba-is-you
+
+  youtube:
+    - "@NASA"
+
+  browser:
+    - chrome
+    - brave
+    - firefox
+    - edge
+
+  feed:
+    - https://pypi.org/rss/project/youpdated/releases.xml
