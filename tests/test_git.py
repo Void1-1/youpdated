@@ -156,6 +156,20 @@ def test_gitlab_token_is_sent_to_gitlab_com_only(client, monkeypatch):
 
 
 @respx.mock
+def test_gitlab_token_is_not_carried_by_a_redirect_off_gitlab(client, monkeypatch):
+    # httpx strips Authorization on its own, but not GitLab's PRIVATE-TOKEN
+    monkeypatch.setenv("GITLAB_TOKEN", "glpat-secret")
+    respx.get(f"{GL_API}/releases?per_page=20").mock(
+        return_value=httpx.Response(302, headers={"Location": "https://elsewhere.net/r"})
+    )
+    landed = respx.get("https://elsewhere.net/r").mock(return_value=httpx.Response(200, json=[]))
+
+    list(get_source("git").fetch(one("gitlab.com/gitlab-org/cli"), client))
+
+    assert "PRIVATE-TOKEN" not in landed.calls.last.request.headers
+
+
+@respx.mock
 def test_nested_gitlab_groups_are_encoded_whole(client):
     route = respx.get(
         "https://gitlab.com/api/v4/projects/group%2Fsub%2Fproject/releases?per_page=20"

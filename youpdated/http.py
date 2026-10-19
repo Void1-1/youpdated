@@ -48,6 +48,20 @@ RETRY_STATUSES = frozenset({429, 500, 502, 503, 504})
 #: Statuses whose ``Retry-After`` header is honored (RFC 6585 §4, RFC 9110 §10.2.3).
 RETRY_AFTER_STATUSES = frozenset({429, 503})
 
+#: httpx's own default
+MAX_REDIRECTS = 20
+#: Headers a caller may pass that carry nothing secret, so a redirect to another host keeps them
+_PORTABLE_HEADERS = frozenset({"user-agent", "accept", "accept-language"})
+
+
+def _same_origin(a: httpx.URL, b: httpx.URL) -> bool:
+    """same scheme, host, and port, or the same host from http to https"""
+    if a.host != b.host:
+        return False
+    if a.scheme == b.scheme:
+        return a.port == b.port
+    return (a.scheme, b.scheme) == ("http", "https") and a.port in (None, 80) and b.port in (None, 443)
+
 
 def retry_after_seconds(value: str | None, now: datetime | None = None) -> float | None:
     """Seconds a ``Retry-After`` header asks for, or ``None`` if absent or unreadable.
@@ -179,7 +193,8 @@ class Client:
         self._client = httpx.Client(
             proxy=self.privacy.proxy,
             timeout=self.privacy.timeout,
-            follow_redirects=True,
+            # Followed by hand in _send, so headers can be dropped on the way off-host
+            follow_redirects=False,
             transport=transport,
             headers={"Accept-Language": "en-US,en;q=0.9"},
         )
@@ -326,7 +341,7 @@ class Client:
             try:
                 # Cookies dropped every request
                 self._client.cookies.clear()
-                response = self._client.get(url, headers=request_headers)
+                response = self._send("GET", url, request_headers, private=headers or ())
             except NETWORK_ERRORS as exc:
                 last_error = exc
                 self.note(f"GET {url} -> {type(exc).__name__}: {exc}")
@@ -415,7 +430,9 @@ class Client:
             self._pace(host)
             try:
                 self._client.cookies.clear()
-                response = self._client.post(url, json=json, headers=request_headers)
+                response = self._send(
+                    "POST", url, request_headers, private=headers or (), json=json
+                )
             except NETWORK_ERRORS as exc:
                 self.note(f"POST {shown} -> {type(exc).__name__}")
                 if attempt < retries:
@@ -437,6 +454,33 @@ class Client:
             raise FetchError(f"{shown}: HTTP {response.status_code}")
 
         raise FetchError(f"{shown}: gave up after {retries + 1} attempts")
+
+    def _send(
+        self,
+        method: str,
+        url: str,
+        headers: dict[str, str],
+        *,
+        private: Iterable[str],
+        **kwargs: Any,
+    ) -> httpx.Response:
+        """Send a request and follow redirects"""
+        private = [name for name in private if name.lower() not in _PORTABLE_HEADERS]
+        request = self._client.build_request(method, url, headers=headers, **kwargs)
+        origin = request.url
+        response = self._client.send(request)
+        for _ in range(MAX_REDIRECTS):
+            hop = response.next_request
+            if hop is None:
+                return response
+            if not _same_origin(origin, hop.url):
+                for name in private:
+                    hop.headers.pop(name, None)
+            response.close()
+            response = self._client.send(hop)
+        if response.next_request is None:
+            return response
+        raise httpx.TooManyRedirects("Exceeded maximum allowed redirects.", request=response.request)
 
     def _wait_to_retry(
         self,

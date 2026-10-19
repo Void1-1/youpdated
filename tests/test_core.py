@@ -232,6 +232,75 @@ def test_unexpected_status_raises_but_soft_status_does_not(client):
         client.get("https://e.com/a")
     assert client.get("https://e.com/b", soft_statuses=(404,)).status == 404
 
+# redirects: httpx strips only Authorization off-host, everything else a caller passes needs to be dropped by youpdated
+
+@respx.mock
+def test_caller_headers_do_not_follow_a_redirect_to_another_host(client):
+    respx.get("https://e.com/api").mock(
+        return_value=httpx.Response(302, headers={"Location": "https://elsewhere.net/api"})
+    )
+    landed = respx.get("https://elsewhere.net/api").mock(return_value=httpx.Response(200))
+
+    fetched = client.get(
+        "https://e.com/api",
+        headers={"PRIVATE-TOKEN": "glpat-secret", "Authorization": "Bearer t", "Accept": "a/b"},
+    )
+
+    sent = landed.calls.last.request.headers
+    assert fetched.url == "https://elsewhere.net/api"
+    assert "PRIVATE-TOKEN" not in sent and "Authorization" not in sent
+    assert sent["Accept"] == "a/b" and sent["User-Agent"]
+
+
+@respx.mock
+def test_caller_headers_follow_a_redirect_on_the_same_origin(client):
+    respx.get("http://e.com/old").mock(
+        return_value=httpx.Response(301, headers={"Location": "https://e.com/new"})
+    )
+    landed = respx.get("https://e.com/new").mock(return_value=httpx.Response(200))
+
+    client.get("http://e.com/old", headers={"PRIVATE-TOKEN": "glpat-secret"})
+
+    assert landed.calls.last.request.headers["PRIVATE-TOKEN"] == "glpat-secret"
+
+
+@respx.mock
+def test_a_header_dropped_off_host_stays_dropped_on_the_way_back(client):
+    respx.get("https://e.com/a").mock(
+        return_value=httpx.Response(302, headers={"Location": "https://elsewhere.net/b"})
+    )
+    respx.get("https://elsewhere.net/b").mock(
+        return_value=httpx.Response(302, headers={"Location": "https://e.com/c"})
+    )
+    back = respx.get("https://e.com/c").mock(return_value=httpx.Response(200))
+
+    client.get("https://e.com/a", headers={"PRIVATE-TOKEN": "glpat-secret"})
+
+    assert "PRIVATE-TOKEN" not in back.calls.last.request.headers
+
+
+@respx.mock
+def test_webhook_headers_do_not_follow_a_redirect_to_another_host(client):
+    respx.post("https://hooks.e.com/x").mock(
+        return_value=httpx.Response(307, headers={"Location": "https://elsewhere.net/x"})
+    )
+    landed = respx.post("https://elsewhere.net/x").mock(return_value=httpx.Response(204))
+
+    client.post("https://hooks.e.com/x", json={"a": 1}, headers={"X-Gotify-Key": "secret"})
+
+    assert "X-Gotify-Key" not in landed.calls.last.request.headers
+    assert json.loads(landed.calls.last.request.content) == {"a": 1}
+
+
+@respx.mock
+def test_a_redirect_loop_gives_up(client):
+    route = respx.get("https://e.com/loop").mock(
+        return_value=httpx.Response(302, headers={"Location": "https://e.com/loop"})
+    )
+    with pytest.raises(FetchError, match="TooManyRedirects"):
+        client.get("https://e.com/loop", retries=0)
+    assert route.call_count == 21
+
 
 @pytest.mark.parametrize(
     "value, expected",

@@ -101,6 +101,39 @@ def test_tampered_kdf_params_rejected():
         crypto.decrypt(bytes(blob), PASSPHRASE)
 
 
+def _with_kdf(blob: bytes, log2_n: int, r: int, p: int) -> bytes:
+    start = len(crypto.MAGIC) + 2
+    return blob[:start] + bytes([log2_n, r, p]) + blob[start + 3 :]
+
+
+@pytest.mark.parametrize(
+    "log2_n,r,p",
+    [(24, 255, 255), (24, 8, 1), (21, 8, 1), (16, 255, 1), (16, 8, 255)],
+)
+def test_inflated_kdf_params_refused_before_deriving(monkeypatch, log2_n, r, p):
+    # The cost is read before the tag can be checked, so it must be refused without running
+    # scrypt at all: (24, 255, 1) alone would ask for ~510 GiB.
+    blob = crypto.encrypt(b"hello", PASSPHRASE)
+    monkeypatch.setattr(crypto.hashlib, "scrypt", lambda *a, **k: pytest.fail("scrypt ran"))
+    with pytest.raises(crypto.EncryptionError, match="cost above"):
+        crypto.decrypt(_with_kdf(blob, log2_n, r, p), PASSPHRASE)
+
+
+def test_kdf_cost_at_the_ceiling_is_still_derived(monkeypatch):
+    # Files from a future build that raises the cost stay readable up to the cap.
+    blob = crypto.encrypt(b"hello", PASSPHRASE)
+    asked = {}
+
+    def fake_scrypt(password, *, salt, n, r, p, dklen, maxmem):
+        asked.update(n=n, r=r, p=p)
+        return bytes(dklen)
+
+    monkeypatch.setattr(crypto.hashlib, "scrypt", fake_scrypt)
+    with pytest.raises(crypto.EncryptionError, match="wrong passphrase"):
+        crypto.decrypt(_with_kdf(blob, 20, 8, 1), PASSPHRASE)
+    assert asked == {"n": 1 << 20, "r": 8, "p": 1}
+
+
 def test_empty_passphrase_rejected():
     with pytest.raises(crypto.EncryptionError, match="must not be empty"):
         crypto.encrypt(b"hello", "")

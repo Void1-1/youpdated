@@ -52,10 +52,12 @@ _NONCE_LEN = 12
 _KEY_LEN = 32
 _HEADER_LEN = len(MAGIC) + 5 + _SALT_LEN + _NONCE_LEN
 
-# ~0.2s and ~67 MB to derive a key. Raising log2_n stays readable by older versions b/c the cost is stored in the header.
+# ~0.2s and ~67 MB to derive a key. Raising log2_n stays readable by older versions b/c the cost is stored in the header,
+# up to _MAX_WORK.
 _LOG2_N = 16
 _R = 8
 _P = 1
+_MAX_WORK = 16 * (1 << _LOG2_N) * _R * _P
 
 PASSPHRASE_ENV = "YOUPDATED_PASSPHRASE"
 
@@ -151,6 +153,10 @@ def decrypt(blob: bytes, passphrase: str) -> bytes:
         raise EncryptionError(f"unknown key derivation id {kdf}. Upgrade youpdated.")
     if not 1 <= log2_n <= 24 or r < 1 or p < 1:
         raise EncryptionError("encrypted file has invalid key derivation parameters")
+    if (1 << log2_n) * r * p > _MAX_WORK:
+        raise EncryptionError(
+            "encrypted file asks for a key derivation cost above what this build allows"
+        )
 
     header = blob[:_HEADER_LEN]
     nonce = blob[_HEADER_LEN - _NONCE_LEN : _HEADER_LEN]
