@@ -44,7 +44,7 @@ def _no_backend():
 
 
 def test_public_surface_is_importable_and_real():
-    """`crypto.__all__` is documented in the README as supported"""
+    """`crypto.__all__` is documented in docs/encryption.md as supported"""
     missing = [name for name in crypto.__all__ if not hasattr(crypto, name)]
     assert not missing, f"__all__ names that do not exist: {missing}"
 
