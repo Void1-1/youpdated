@@ -69,6 +69,19 @@ All notable changes to this project are documented here. The format follows
   The atom feed keyed releases by entry id and the REST API by release id, so
   every switch reported each release again. Both now key them by tag. History
   recorded under the old ids still counts as seen.
+- **Tokens and webhook headers no longer follow redirects to another host.**
+  httpx strips `Authorization` when a redirect leaves the origin, but nothing
+  else, so a GitLab server answering with a redirect elsewhere was able to carry
+  `PRIVATE-TOKEN`, same for a webhook's custom auth header.
+  Redirects are now followed by Youpdated, and every header a source or
+  webhook supplies is dropped on the first hop to a different origin (keeping
+  only `User-Agent`, `Accept`, and `Accept-Language`). Same-host redirects and
+  http to https upgrades keep headers.
+- **An encrypted file can't ask for an unbounded key derivation.** The
+  scrypt cost is read from the header before the file can be authenticated, so
+  a crafted file could request hundreds of GiB of memory. Costs above 16× the
+  default (about 1 GiB) are refused before scrypt runs. Every file Youpdated has
+  written uses the default and is unaffected. This was only potentially an issue if a malicious actor was able to create a youpdated config on a machine, at which point, security is mostly lost anyways, but is still now fixed.
 
 ## [0.3.1] — 2026-10-10
 

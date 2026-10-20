@@ -29,14 +29,15 @@ Youpdated is a local CLI that reads public endpoints. The interesting attack sur
   resolver even though the requests themselves are proxied.
 - **Credential handling.** `GITHUB_TOKEN`, `GITLAB_TOKEN`, `YOUTUBE_API_KEY`, and any `git`
   entry's `token_env:` are read from the environment and must never be written to disk, logged, or
-  sent to any host other than the one they belong to. Webhook URLs carry their secret in the path
-  and must never be logged or shown beyond their host.
+  sent to any host other than the one they belong to, including by following a redirect. The same
+  goes for headers set on a webhook. Webhook URLs carry their secret in the path and must never be
+  logged or shown beyond their host.
 - **`youpdated uninstall`.** It deletes files. Any way to make it remove something outside its own
   config and data directories is in scope.
 - **Encryption at rest.** When the config or history is encrypted, the passphrase and the decrypted
   contents must exist only in memory. Anything that writes plaintext to disk, logs the passphrase,
-  accepts a file whose authentication tag does not verify, or lets the KDF parameters be weakened
-  is in scope. So is a way to read an encrypted file's contents without the passphrase.
+  accepts a file whose authentication tag does not verify, lets the KDF parameters be weakened, or
+  lets a crafted file run the KDF at a cost large enough to exhaust memory or CPU is in scope. So is a way to read an encrypted file's contents without the passphrase.
 
 ## What's out of scope
 
