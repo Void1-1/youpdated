@@ -43,7 +43,7 @@ Youpdated is a local CLI that reads public endpoints. The interesting attack sur
 - A watched service returning wrong or malicious data that is merely displayed as text. Report
   it as a bug if the output is mangled.
 - Rate limiting or blocking by an upstream service (YouTube's feed does this intermittently by
-  design: see the README).
+  design: see [docs/troubleshooting.md](docs/troubleshooting.md)).
 - Requiring a proxy or Tor to be running. Youpdated does not start or manage one.
 - Anything reachable while Youpdated is running with an unlocked setup: the passphrase is in the
   process's memory by necessity, and `YOUPDATED_PASSPHRASE` is readable by other processes of the

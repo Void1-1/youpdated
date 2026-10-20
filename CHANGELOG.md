@@ -126,7 +126,7 @@ All notable changes to this project are documented here. The format follows
   An update is dropped if it carries any listed tag. Ignored items are not
   recorded as seen, so removing a rule later shows what it was hiding.
   The run summary and `--json` both count what was dropped.
-  See [Ignoring update types](README.md#ignoring-update-types) for the tag vocabulary per source.
+  See [Ignoring update types](docs/configuration.md#ignoring-update-types) for the tag vocabulary per source.
 
 - **GitHub prereleases are tagged without a token.** `prerelease` previously came only from the
   REST API, which needs `GITHUB_TOKEN`, so on the anonymous `.atom` path nothing was tagged.
