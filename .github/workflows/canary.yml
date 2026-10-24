@@ -27,6 +27,7 @@ jobs:
             flaky: true
           - source: browser
           - source: feed
+          - source: pypi
 
     steps:
       - uses: actions/checkout@v7
