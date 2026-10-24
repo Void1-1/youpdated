@@ -49,6 +49,11 @@ youpdated check --all --notify        # notify even with --all or --no-save
 youpdated check -v                    # show each request, its status, and item summaries
 youpdated check --state ./test.db     # use a throwaway history file
 youpdated sources                     # list available sources
+youpdated add git neovim/neovim       # start watching something (several at once is fine)
+youpdated add https://pypi.org/project/rich/ # the source can be left out when the link includes the information
+youpdated add --test steam 440        # show the change to the config without writing it
+youpdated remove git neovim/neovim    # stop watching it; any form works, like the full URL
+youpdated rm --wipe 440               # and delete its history
 youpdated init --force                # rewrite the starter config
 youpdated init --encrypt              # starter config written encrypted from the start
 youpdated encrypt                     # lock the config and history behind a passphrase
@@ -57,6 +62,14 @@ youpdated uninstall --test            # list every file the tool wrote
 ```
 
 Running `youpdated` without arguments assumes `youpdated check`.
+
+`add` and `rm` (or `remove`) edit the config in place and keep comments and layout. `rm` removes entries watching what you name, including options and comments.
+
+The source can be left out when an entry can only mean one: a GitHub, GitLab, or Codeberg repo, `owner/repo`, a feed URL, a Steam app id or store page, an itch.io page, a YouTube `@handle` or channel, a browser name, `cask:name`, a scoped `@scope/name` npm package, or a package page on npmjs.com, pypi.org, or formulae.brew.sh. Package pages are written as the package name. A bare name like `express` could be npm, PyPI, or Homebrew, so name the source for those. Entries without a source can mix sources: `youpdated add https://github.com/neovim/neovim @types/react`.
+
+A removed target's history is forgotten after [`expiry`](configuration.md#how-long-history-is-kept). `rm --wipe` forgets it immediately: seen items, baseline, names cached for it, and cached addresses it fetched. An address another target still fetches keeps its cache.
+
+If the config is written in a way these can't edit safely, they refuse and say to add or remove by hand.
 
 ## Machine-readable output
 

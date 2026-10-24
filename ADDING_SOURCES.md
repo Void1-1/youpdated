@@ -263,6 +263,29 @@ if cached is None:
 
 `client.state` may be `None`
 
+If the key is the target's `key`, list the namespace on the source so `youpdated rm --wipe` forgets it with the rest of the target's history:
+
+```python
+caches: ClassVar[tuple[str, ...]] = ("my_namespace",)
+```
+
+### Recognizing your entries
+
+`youpdated add <value>` works without a source when only one source claims the value. To use, add an optional `claim()` returning the config entry for a value that can only be yours, or `None`. `accepted()` returns the entry if your `targets()` reads it, and `url_parts()` splits a URL:
+
+```python
+from .base import accepted, url_parts
+
+def claim(self, value: str) -> str | None:
+    """A project page on pypi.org"""
+    url = url_parts(value)
+    if url and url[0] == "pypi.org" and url[1].startswith("/project/"):
+        return accepted(self, url[1].split("/")[2])
+    return None
+```
+
+Claim only what is distinguishable and unique: a host you own, or a shape no other source uses. A bare name like `httpx` could be several sources' entry, and two sources claiming a value stops both from getting it. Like `targets()`, `claim()` must not touch the network.
+
 ### Thread
 
 Targets are fetched concurrently. Keep everything in local variables or on the `Target`; don't mutate shared state on the source instance.
@@ -355,4 +378,5 @@ Users then configure it like any built-in source. A plugin that fails to import 
 - [ ] `published` is timezone-aware UTC (or `None`)
 - [ ] `tags` describe the update type, so `ignore:` rules can match them
 - [ ] Tests cover parsing, both config shapes, and uid stability
+- [ ] Optional: `claim()` for values only this source can mean, `caches` for namespaces keyed by target
 - [ ] Registered — `@register` plus an import, or an entry point

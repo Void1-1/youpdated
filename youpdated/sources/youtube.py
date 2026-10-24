@@ -21,7 +21,7 @@ from typing import Any, ClassVar, Iterable
 from ..http import Client, FetchError
 from ..models import Target, Update
 from ..registry import register
-from .base import ConfigEntryError, entry_fields, require
+from .base import ConfigEntryError, accepted, entry_fields, require, url_parts
 from .feed import feed_title, parse_document, parse_entries
 
 CHANNEL_ID_RE = re.compile(r"^UC[A-Za-z0-9_-]{22}$")
@@ -38,6 +38,18 @@ MAX_INSTANCES = 4
 class YouTubeSource:
     name: ClassVar[str] = "youtube"
     summary: ClassVar[str] = "New videos on a channel or playlist"
+    caches: ClassVar[tuple[str, ...]] = (CHANNEL_CACHE,)
+
+    def claim(self, value: str) -> str | None:
+        """@handle, channel id, or channel's URL"""
+        url = url_parts(value)
+        if (
+            (value.startswith("@") and "/" not in value)
+            or CHANNEL_ID_RE.match(value)
+            or (url and url[0] in ("youtube.com", "m.youtube.com"))
+        ):
+            return accepted(self, value)
+        return None
 
     def targets(self, entries: list[Any]) -> list[Target]:
         targets = []

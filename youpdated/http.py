@@ -13,7 +13,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
-from typing import Any, Iterable, Iterator, Sequence
+from typing import Any, Generator, Iterable, Sequence
 from urllib.parse import urlsplit
 
 import httpx
@@ -21,13 +21,13 @@ import httpx
 from .config import PrivacyConfig
 from .state import State
 
+NETWORK_ERRORS: tuple[type[Exception], ...]
 try:  # ships with httpx[socks]; guard anyway so an HTTP-proxy-only install still imports
     from socksio.exceptions import SOCKSError
-except ImportError:  # pragma: no cover
-    class SOCKSError(Exception):
-        """Placeholder when socksio is absent."""
 
-NETWORK_ERRORS = (httpx.HTTPError, SOCKSError)
+    NETWORK_ERRORS = (httpx.HTTPError, SOCKSError)
+except ImportError:  # pragma: no cover
+    NETWORK_ERRORS = (httpx.HTTPError,)
 
 #: ``(url, etag, last_modified)`` from a 200, see :meth:`Client.deferred_validators`
 Validator = tuple[str, str | None, str | None]
@@ -220,7 +220,7 @@ class Client:
         )
 
     @contextmanager
-    def run_scope(self) -> "Iterator[Client]":
+    def run_scope(self) -> "Generator[Client, None, None]":
         """Reuse each fetched document for the duration of one run.
 
         Bodies are dropped again on exit so a client reused for a later run never serves stale data.
@@ -236,7 +236,7 @@ class Client:
                 self._run_active = False
 
     @contextmanager
-    def unconditional(self) -> "Iterator[Client]":
+    def unconditional(self) -> "Generator[Client, None, None]":
         """Send no stored validators from this thread, so every GET returns a body"""
         previous = getattr(self._local, "unconditional", False)
         self._local.unconditional = True
@@ -246,7 +246,7 @@ class Client:
             self._local.unconditional = previous
 
     @contextmanager
-    def deferred_validators(self) -> "Iterator[list[Validator]]":
+    def deferred_validators(self) -> "Generator[list[Validator], None, None]":
         """Collect validators this thread receives instead of storing"""
         previous = getattr(self._local, "pending", None)
         pending: list[Validator] = []
@@ -255,6 +255,17 @@ class Client:
             yield pending
         finally:
             self._local.pending = previous
+
+    @contextmanager
+    def tracked_urls(self) -> "Generator[list[str], None, None]":
+        """collect conditional URLs this thread asks for"""
+        previous = getattr(self._local, "urls", None)
+        urls: list[str] = []
+        self._local.urls = urls
+        try:
+            yield urls
+        finally:
+            self._local.urls = previous
 
     # internals
 
@@ -315,6 +326,9 @@ class Client:
         (itch.io answers 404 for a game that simply has no devlog)
         """
         self.requested_urls.append(url)
+        tracked = getattr(self._local, "urls", None)
+        if conditional and tracked is not None:
+            tracked.append(url)
         if self.test:
             self.note(f"[test] GET {url}")
             return None

@@ -18,8 +18,8 @@ import httpx
 from ..http import Client
 from ..models import Target, Update
 from ..registry import register
-from .base import ConfigEntryError, entry_fields, require
-from .feed import html_to_text, parse_feed
+from .base import ConfigEntryError, accepted, entry_fields, require
+from .feed import html_to_text, is_feed_url, parse_feed
 
 VALID_WATCH = ("releases", "tags", "commits")
 FORGES = ("github", "gitlab", "forgejo")
@@ -131,6 +131,12 @@ class GitSource:
     summary: ClassVar[str] = "Releases, tags, and commits on GitHub, GitLab, or Forgejo/Gitea"
     #: Config keys that list entries for this source (`github` was its own source <= 0.3.1)
     aliases: ClassVar[tuple[str, ...]] = ("github",)
+
+    def claim(self, value: str) -> str | None:
+        """`owner/repo`, or a repo on a forge known by its host"""
+        if value.startswith("@") or is_feed_url(value):
+            return None
+        return accepted(self, value)
 
     def targets(self, entries: list[Any]) -> list[Target]:
         targets = []

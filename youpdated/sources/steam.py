@@ -11,7 +11,7 @@ from typing import Any, ClassVar, Iterable
 from ..http import Client, FetchError
 from ..models import Target, Update
 from ..registry import register
-from .base import ConfigEntryError, entry_fields, require
+from .base import ConfigEntryError, accepted, entry_fields, require, url_parts
 from .feed import parse_feed
 
 NAME_CACHE = "steam_app_names"
@@ -21,6 +21,16 @@ NAME_CACHE = "steam_app_names"
 class SteamSource:
     name: ClassVar[str] = "steam"
     summary: ClassVar[str] = "Patch notes and news for Steam games"
+    caches: ClassVar[tuple[str, ...]] = (NAME_CACHE,)
+
+    def claim(self, value: str) -> str | None:
+        """plain number, or store or community page for an app"""
+        url = url_parts(value)
+        if value.isdigit() or (
+            url and url[0] in ("store.steampowered.com", "steamcommunity.com") and "/app/" in url[1]
+        ):
+            return accepted(self, value)
+        return None
 
     def targets(self, entries: list[Any]) -> list[Target]:
         targets = []

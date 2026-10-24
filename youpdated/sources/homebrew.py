@@ -13,7 +13,7 @@ from typing import Any, ClassVar, Iterable
 from ..http import Client, FetchError
 from ..models import Target, Update
 from ..registry import register
-from .base import ConfigEntryError, entry_fields
+from .base import ConfigEntryError, accepted, entry_fields, url_parts
 
 KINDS = ("formula", "cask")
 # Formulae generally use `@` for versioned names (python@3.12) and `+` in a few (libstdc++)
@@ -46,6 +46,17 @@ def _kind_and_name(fields: dict[str, Any], source: str) -> tuple[str, str]:
 class HomebrewSource:
     name: ClassVar[str] = "homebrew"
     summary: ClassVar[str] = "New versions of a Homebrew formula or cask"
+
+    def claim(self, value: str) -> str | None:
+        """`cask:name`, or a formula or cask page on formulae.brew.sh"""
+        if value.startswith("cask:"):
+            return accepted(self, value)
+        url = url_parts(value)
+        if url and url[0] == "formulae.brew.sh":
+            kind, _, name = url[1].strip("/").partition("/")
+            if kind in KINDS and name and "/" not in name:
+                return accepted(self, name if kind == "formula" else f"cask:{name}")
+        return None
 
     def targets(self, entries: list[Any]) -> list[Target]:
         targets = []

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from typing import Any, ClassVar, Iterable, Protocol, runtime_checkable
+from urllib.parse import urlsplit
 
 from ..http import Client
 from ..models import Target, Update
@@ -23,6 +24,28 @@ class Source(Protocol):
 
     def fetch(self, target: Target, client: Client) -> Iterable[Update]:
         """Fetch current items for one target. May raise errs; collected."""
+
+
+def accepted(source: Source, entry: str) -> str | None:
+    """``entry`` if ``source`` reads it, for a ``claim()`` to return"""
+    try:
+        source.targets([entry])
+    except ConfigEntryError:
+        return None
+    return entry
+
+
+def url_parts(value: str) -> tuple[str, str] | None:
+    """``(host, path)`` of an http(s) URL, host lowercased without `www.`; else None"""
+    if "://" not in value:
+        return None
+    try:
+        parts = urlsplit(value)
+    except ValueError:
+        return None
+    if parts.scheme not in ("http", "https") or not parts.hostname:
+        return None
+    return parts.hostname.removeprefix("www."), parts.path
 
 
 def entry_fields(entry: Any, scalar_key: str, source: str) -> dict[str, Any]:

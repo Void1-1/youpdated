@@ -124,10 +124,12 @@ def run(
     succeeded: dict[tuple[str, str], Target] = {}
     # Stored only for targets whose items are recorded, see Client.deferred_validators
     validators: list[Validator] = []
+    # (source, target, url) for `State.forget` to find target's validators with
+    links: list[tuple[str, str, str]] = []
 
     def work(
         target: Target,
-    ) -> tuple[Target, list[Update] | Exception, int, list[Validator]]:
+    ) -> tuple[Target, list[Update] | Exception, int, list[Validator], list[str]]:
         if progress is not None:
             progress.target_started(target)
         outcome: list[Update] | Exception
@@ -140,6 +142,7 @@ def run(
         try:
             with (
                 client.deferred_validators() as pending,
+                client.tracked_urls() as urls,
                 client.unconditional() if full else nullcontext(),
             ):
                 items = list(sources[target.source].fetch(target, client))
@@ -153,7 +156,7 @@ def run(
             progress.target_finished(
                 target, outcome if isinstance(outcome, Exception) else None
             )
-        return target, outcome, dropped, pending
+        return target, outcome, dropped, pending, urls
 
     if progress is not None:
         progress.run_started(len(targets))
@@ -161,7 +164,7 @@ def run(
     workers = max(1, min(config.privacy.concurrency, len(targets)))
     # run_scope: targets that share an upstream document fetch it once between them
     with client.run_scope(), ThreadPoolExecutor(max_workers=workers) as pool:
-        for target, outcome, dropped, pending in pool.map(work, targets):
+        for target, outcome, dropped, pending, urls in pool.map(work, targets):
             result.ignored += dropped
             if isinstance(outcome, Exception):
                 result.errors.append(
@@ -174,6 +177,7 @@ def run(
             else:
                 fetched.extend(outcome)
                 validators.extend(pending)
+                links.extend((target.source, target.key, url) for url in urls)
                 succeeded.setdefault((target.source, target.key), target)
 
     # One repo can be listed twice, e.g. under both `github:` and `git:` while moving over
@@ -200,6 +204,7 @@ def run(
         state.mark_seen(fetched)
         for validator in validators:
             state.remember_validators(*validator)
+        state.link_urls(links)
         state.mark_baselined(succeeded)
         state.mark_ignore_rules((s, k, t.ignore) for (s, k), t in succeeded.items())
         state.set_last_run()

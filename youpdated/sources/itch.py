@@ -18,7 +18,7 @@ from typing import Any, ClassVar, Iterable
 from ..http import Client
 from ..models import Target, Update
 from ..registry import register
-from .base import ConfigEntryError, entry_fields, require
+from .base import ConfigEntryError, accepted, entry_fields, require, url_parts
 from .feed import parse_feed
 
 GAME_URL_RE = re.compile(
@@ -55,6 +55,11 @@ VALID_WATCH = ("devlog", "releases")
 class ItchSource:
     name: ClassVar[str] = "itch"
     summary: ClassVar[str] = "Devlog posts and new builds for an itch.io game"
+
+    def claim(self, value: str) -> str | None:
+        """game page on itch.io"""
+        url = url_parts(value)
+        return accepted(self, value) if url and url[0].endswith(".itch.io") else None
 
     def targets(self, entries: list[Any]) -> list[Target]:
         targets = []
