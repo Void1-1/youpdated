@@ -251,7 +251,7 @@ class YouTubeSource:
                     title=snippet.get("title") or "(untitled)",
                     url=f"https://www.youtube.com/watch?v={vid}",
                     published=_parse_iso(snippet.get("publishedAt")),
-                    body=(snippet.get("description") or None)[:400] if snippet.get("description") else None,
+                    body=(snippet.get("description") or "")[:400] or None,
                     tags=("video",),
                 )
             )

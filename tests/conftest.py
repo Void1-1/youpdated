@@ -2,8 +2,10 @@ from pathlib import Path
 
 import pytest
 
+from youpdated import registry
 from youpdated.config import PrivacyConfig
 from youpdated.http import Client
+from youpdated.sources.base import Source
 from youpdated.state import State
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -11,6 +13,13 @@ FIXTURES = Path(__file__).parent / "fixtures"
 
 def fixture(name: str) -> bytes:
     return (FIXTURES / name).read_bytes()
+
+
+def get_source(name: str) -> Source:
+    """``registry.get_source`` for a source the test knows is there"""
+    source = registry.get_source(name)
+    assert source is not None, f"no source named {name!r}"
+    return source
 
 
 @pytest.fixture

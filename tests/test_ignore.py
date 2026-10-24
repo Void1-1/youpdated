@@ -9,11 +9,10 @@ import respx
 from youpdated.config import Config, ConfigError, PrivacyConfig, parse_config
 from youpdated.models import Target, Update
 from youpdated.render import json_out, terminal
-from youpdated.registry import get_source
 from youpdated.runner import build_targets, run
 from youpdated.sources.git import _is_prerelease
 
-from .conftest import fixture
+from .conftest import fixture, get_source
 
 RELEASES = "https://github.com/python/cpython/releases.atom"
 # The fixture holds 7 stable tags and 3 prereleases (rc1, b4, b3).

@@ -11,12 +11,11 @@ import respx
 
 from youpdated.config import parse_config
 from youpdated.models import Update
-from youpdated.registry import get_source
 from youpdated.runner import build_targets, run
 from youpdated.sources.base import ConfigEntryError
 from youpdated.state import _SCHEMA, State
 
-from .conftest import fixture
+from .conftest import fixture, get_source
 
 GL_API = "https://gitlab.com/api/v4/projects/gitlab-org%2Fcli"
 CB_API = "https://codeberg.org/api/v1/repos/forgejo/forgejo"

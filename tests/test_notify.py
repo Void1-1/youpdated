@@ -7,6 +7,7 @@ import os
 import sys
 import time
 from datetime import datetime, timezone
+from typing import Any, Sequence
 
 import httpx
 import pytest
@@ -25,7 +26,7 @@ LABELS = {("npm", "express"): "Express"}
 
 
 def make_update(n: int = 1, **overrides) -> Update:
-    fields = dict(
+    fields: dict[str, Any] = dict(
         source="npm",
         target="express",
         uid=f"version:{n}",
@@ -280,7 +281,7 @@ def _setup(tmp_path, notify_block: str) -> list[str]:
     return ["check", "-c", str(config), "--state", str(tmp_path / "state.db"), "--json"]
 
 
-def _two_runs(args: list[str], extra: list[str] = (), capsys=None) -> int:
+def _two_runs(args: list[str], extra: Sequence[str] = (), capsys=None) -> int:
     """Baseline from a feed missing its newest entry, then a run that finds it"""
     feed = respx.get("https://github.com/python/cpython/releases.atom")
     full = fixture("github_releases.atom").decode()
