@@ -40,3 +40,6 @@ sources:
 
   feed:
     - https://pypi.org/rss/project/youpdated/releases.xml
+
+  pypi:
+    - youpdated
