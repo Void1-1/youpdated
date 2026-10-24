@@ -255,9 +255,15 @@ def test_live_progress_counts_failures():
     assert live._failures() == "1 failed"
 
 
+def _written(console) -> str:
+    """everything a console from `_live` has printed so far"""
+    assert isinstance(console.file, io.StringIO)
+    return console.file.getvalue()
+
+
 def _rendered(live, console) -> str:
     console.print(live._progress.get_renderable())
-    return console.file.getvalue()
+    return _written(console)
 
 
 def test_live_progress_keeps_the_bar_still_as_names_change():
@@ -301,11 +307,11 @@ def test_live_progress_renders_and_clears():
         target = Target(source="github", key="python/cpython")
         live.target_started(target)
         live._progress.refresh()
-        assert "python/cpython" in console.file.getvalue()
+        assert "python/cpython" in _written(console)
         live.target_finished(target, None)
 
     # transient=True, so the bar is wiped rather than left in the scrollback.
-    assert "python/cpython" not in console.file.getvalue().splitlines()[-1]
+    assert "python/cpython" not in _written(console).splitlines()[-1]
 
 
 def test_live_progress_ignores_calls_before_run_started():

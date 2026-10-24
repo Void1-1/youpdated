@@ -174,9 +174,10 @@ class BrowserSource:
             started = _parse_iso((release.get("serving") or {}).get("startTime"))
             if not version:
                 continue
+            earliest = starts.get(version)
             if version not in starts:
                 starts[version] = started
-            elif started and (starts[version] is None or started < starts[version]):
+            elif started and (earliest is None or started < earliest):
                 starts[version] = started
 
         ordered = sorted(

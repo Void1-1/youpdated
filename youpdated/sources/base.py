@@ -21,9 +21,11 @@ class Source(Protocol):
 
     def targets(self, entries: list[Any]) -> list[Target]:
         """Normalize raw config into targets"""
+        ...
 
     def fetch(self, target: Target, client: Client) -> Iterable[Update]:
         """Fetch current items for one target. May raise errs; collected."""
+        ...
 
 
 def accepted(source: Source, entry: str) -> str | None:

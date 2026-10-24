@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import Any, Protocol, runtime_checkable
 
-from .config import Config, ConfigError, parse_duration, parse_ignore_list
+from .config import Config, parse_duration, parse_ignore_list
 from .http import Client, Validator
 from .models import RunError, Target, Update
 from .registry import all_sources, canonical_name
@@ -134,6 +134,9 @@ def run(
             progress.target_started(target)
         outcome: list[Update] | Exception
         dropped = 0
+        # bound up front so a failure entering the scopes below is still collected
+        pending: list[Validator] = []
+        urls: list[str] = []
         # A first fetch must see the whole document, same with one thats ignore rules changed
         full = (
             not state.is_baselined(target.source, target.key)

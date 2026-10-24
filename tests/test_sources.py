@@ -10,11 +10,10 @@ import respx
 
 from youpdated.config import parse_config
 from youpdated.models import Update
-from youpdated.registry import get_source
 from youpdated.runner import run
 from youpdated.sources.base import ConfigEntryError
 
-from .conftest import fixture
+from .conftest import fixture, get_source
 
 
 # config normalization

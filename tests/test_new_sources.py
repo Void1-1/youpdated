@@ -10,10 +10,9 @@ import pytest
 import respx
 
 from youpdated.http import FetchError
-from youpdated.registry import get_source
 from youpdated.sources.base import ConfigEntryError
 
-from .conftest import fixture
+from .conftest import fixture, get_source
 
 CHROME_URL = (
     "https://versionhistory.googleapis.com/v1/chrome/platforms/mac/"
@@ -43,7 +42,7 @@ def test_itch_reports_a_build_for_a_game_with_no_devlog(client):
     assert len(updates) == 1
     assert updates[0].tags == ("build",)
     assert "2 file(s)" in updates[0].title
-    assert "Baba Is You (zip)" in updates[0].body
+    assert "Baba Is You (zip)" in (updates[0].body or "")
 
 
 @respx.mock
@@ -58,7 +57,7 @@ def test_itch_build_uses_the_updated_timestamp_when_present(client):
     (update,) = list(source.fetch(target, client))
 
     assert update.published == datetime(2026, 8, 17, 10, 34, tzinfo=timezone.utc)
-    assert "Engineering_Marvels_From_Hell_Win_1.4.zip" in update.body
+    assert "Engineering_Marvels_From_Hell_Win_1.4.zip" in (update.body or "")
 
 
 @respx.mock
@@ -614,8 +613,8 @@ def test_pypi_reports_newest_releases(client):
     assert updates[0].uid == "version:1.0.dev6"
     assert updates[0].url == "https://pypi.org/project/httpx/1.0.dev6/"
     assert updates[0].title == "httpx 1.0.dev6"
-    dated = [u.published for u in updates]
-    assert all(d and d.tzinfo for d in dated)
+    dated = [u.published for u in updates if u.published and u.published.tzinfo]
+    assert len(dated) == len(updates)
     assert dated == sorted(dated, reverse=True)
     # the first upload of a release is its date
     assert updates[0].published == datetime(2026, 8, 31, 17, 59, 54, 190125, tzinfo=timezone.utc)

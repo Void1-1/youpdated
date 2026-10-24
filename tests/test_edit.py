@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import stat
+from typing import Sequence
 
 import pytest
 import yaml
@@ -33,7 +34,7 @@ def remove(text: str, source: str, *values: str) -> str:
     return remove_from_config(text, source, list(values)).text
 
 
-def is_subsequence(short: list[str], long: list[str]) -> bool:
+def is_subsequence(short: Sequence[str], long: Sequence[str]) -> bool:
     rest = iter(long)
     return all(line in rest for line in short)
 

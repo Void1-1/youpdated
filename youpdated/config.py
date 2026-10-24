@@ -312,13 +312,13 @@ def _parse_webhook(raw: Any, where: str) -> Webhook:
             f"{', '.join(sorted(map(str, unknown)))}; expected {sorted(_WEBHOOK_KEYS)}"
         )
     url = fields.get("url")
+    url = url.strip() if isinstance(url, str) else ""
     try:
-        parts = urlsplit(url.strip()) if isinstance(url, str) else None
+        parts = urlsplit(url)
     except ValueError:  # e.g. an unclosed IPv6 bracket
         parts = None
     if parts is None or parts.scheme not in ("http", "https") or not parts.hostname:
         raise ConfigError(f"{where}`notify.webhooks` entry needs an http(s) `url`")
-    url = url.strip()
 
     fmt = fields.get("format")
     if fmt is None:

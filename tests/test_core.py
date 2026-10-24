@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import time
 from datetime import datetime, timedelta, timezone
+from typing import Any
 
 import httpx
 import pytest
@@ -21,7 +22,7 @@ from .conftest import fixture
 
 
 def make_update(uid: str = "1", **kw) -> Update:
-    base = dict(
+    base: dict[str, Any] = dict(
         source="git",
         target="a/b",
         uid=uid,
@@ -793,7 +794,7 @@ def test_rss_output_is_valid_atom():
     # Every Atom entry needs id, title, and updated.
     for required in ("a:id", "a:title", "a:updated"):
         assert entries[0].find(required, ns) is not None
-    assert "v1.2.3" in entries[0].find("a:summary", ns).text
+    assert "v1.2.3" in entries[0].findtext("a:summary", default="", namespaces=ns)
 
 
 def test_rss_entry_ids_are_stable_across_renders():
@@ -803,6 +804,6 @@ def test_rss_entry_ids_are_stable_across_renders():
 
     def ids():
         tree = ET.fromstring(rss_out.render(_result_with([make_update("1")])))
-        return [e.find("a:id", ns).text for e in tree.findall("a:entry", ns)]
+        return [e.findtext("a:id", namespaces=ns) for e in tree.findall("a:entry", ns)]
 
     assert ids() == ids()

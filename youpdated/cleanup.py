@@ -41,7 +41,7 @@ def find_traces(
     traces: list[Trace] = []
     seen: set[Path] = set()
 
-    def add(path: Path | None, kind: str, note: str) -> None:
+    def add(path: str | Path | None, kind: str, note: str) -> None:
         if path is None:
             return
         resolved = Path(path).expanduser()

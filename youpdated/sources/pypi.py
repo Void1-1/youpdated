@@ -72,7 +72,8 @@ class PyPISource:
         latest = _latest(dated)
         dated.sort(key=lambda pair: pair[1] or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
 
-        updates = [_status_update(doc, target)] if _status(doc) else []
+        status = _status(doc)
+        updates = [_status_update(doc, target, status)] if status else []
         for version, published in dated[:MAX_VERSIONS]:
             tags = ("release",)
             if _is_prerelease(version):
@@ -100,8 +101,7 @@ def _status(doc: dict[str, Any]) -> str | None:
     return status if status and status != "active" else None
 
 
-def _status_update(doc: dict[str, Any], target: Target) -> Update:
-    status = _status(doc)
+def _status_update(doc: dict[str, Any], target: Target, status: str) -> Update:
     return Update(
         source=PyPISource.name,
         target=target.key,
