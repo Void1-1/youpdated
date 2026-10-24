@@ -15,7 +15,7 @@ from packaging.version import InvalidVersion, Version
 from ..http import Client, FetchError
 from ..models import Target, Update
 from ..registry import register
-from .base import ConfigEntryError, entry_fields, require
+from .base import ConfigEntryError, accepted, entry_fields, require, url_parts
 
 MAX_VERSIONS = 10
 SIMPLE_JSON = "application/vnd.pypi.simple.v1+json"
@@ -37,6 +37,13 @@ def normalize(name: str) -> str:
 class PyPISource:
     name: ClassVar[str] = "pypi"
     summary: ClassVar[str] = "New releases of a PyPI package"
+
+    def claim(self, value: str) -> str | None:
+        """project page on pypi.org"""
+        url = url_parts(value)
+        if url and url[0] == "pypi.org" and url[1].startswith("/project/"):
+            return accepted(self, url[1].split("/")[2])
+        return None
 
     def targets(self, entries: list[Any]) -> list[Target]:
         targets = []

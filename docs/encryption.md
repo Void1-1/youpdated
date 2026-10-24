@@ -13,8 +13,10 @@ Starting fresh, you can skip the plaintext step. `init --encrypt` writes the sta
 youpdated init --encrypt
 ```
 
-You can't edit in place while encrypted: run `youpdated decrypt`, edit, then `youpdated encrypt` again. That does put the config on disk in plaintext while you work on it, so `init --encrypt` isn't worth much, or you edit before encrypting the first time.
-> (This will be changed once proper `youpdated add ...` commands are implemented)
+`youpdated add` and `youpdated rm` work on an encrypted config: they decrypt it in memory, edit, and write back encrypted.
+
+For any other edit, run `youpdated decrypt`, edit, then `youpdated encrypt` again.
+Note: That does put the config on disk in plaintext while you work on it.
 
 Encryption asks for a passphrase twice and rewrites both files. Afterward, every command asks for it once, decrypts **into memory**, and writes back encrypted after the run.
 

@@ -4,12 +4,12 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from typing import Any, ClassVar, Iterable
-from urllib.parse import quote
+from urllib.parse import quote, unquote
 
 from ..http import Client
 from ..models import Target, Update
 from ..registry import register
-from .base import ConfigEntryError, entry_fields, require
+from .base import ConfigEntryError, accepted, entry_fields, require, url_parts
 
 # keys alongside real versions in the registry `time` map
 _NON_VERSION_KEYS = {"created", "modified"}
@@ -20,6 +20,19 @@ MAX_VERSIONS = 10
 class NpmSource:
     name: ClassVar[str] = "npm"
     summary: ClassVar[str] = "New published versions of a package"
+
+    def claim(self, value: str) -> str | None:
+        """scoped `@scope/name`, or package page on npmjs.com"""
+        url = url_parts(value)
+        if url and url[0] == "npmjs.com" and url[1].startswith("/package/"):
+            # /package/name/v/1.0.0, /package/@scope/name
+            segments = unquote(url[1]).split("/")[2:]
+            if segments and segments[0]:
+                name = "/".join(segments[:2]) if segments[0].startswith("@") else segments[0]
+                return accepted(self, name)
+        if value.startswith("@") and value.count("/") == 1:
+            return accepted(self, value)
+        return None
 
     def targets(self, entries: list[Any]) -> list[Target]:
         targets = []

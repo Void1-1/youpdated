@@ -23,7 +23,7 @@ from typing import Any, ClassVar, Iterable
 from ..http import Client, FetchError
 from ..models import Target, Update
 from ..registry import register
-from .base import ConfigEntryError, entry_fields, require
+from .base import ConfigEntryError, accepted, entry_fields, require
 from .feed import html_to_text, parse_feed
 
 MAX_VERSIONS = 10
@@ -89,6 +89,10 @@ def _host_platform() -> str:
 class BrowserSource:
     name: ClassVar[str] = "browser"
     summary: ClassVar[str] = "New releases of Chrome, Brave, Firefox, or Edge"
+
+    def claim(self, value: str) -> str | None:
+        """a browser's name"""
+        return accepted(self, value) if value.lower() in BROWSERS else None
 
     def targets(self, entries: list[Any]) -> list[Target]:
         targets = []

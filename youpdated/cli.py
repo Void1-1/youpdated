@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import difflib
 import sys
 import threading
 from contextlib import ExitStack
@@ -25,16 +26,21 @@ from .config import (
     EXAMPLE_CONFIG,
     Config,
     ConfigError,
+    PrivacyConfig,
     default_config_path,
     default_state_path,
     find_config,
     load_config,
+    read_config_text,
     split_command,
 )
+from .edit import add_to_config, guess_source, remove_from_config, write_config
 from .http import Client, ProxyUnavailable, probe_proxy
-from .registry import all_aliases, all_sources
+from .models import Target
+from .registry import all_aliases, all_sources, get_source
 from .render import json_out, rss_out, terminal
 from .runner import parse_since, run
+from .sources.base import Source
 from .state import State
 
 
@@ -85,6 +91,29 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("sources", help="list available sources")
 
+    for name, aliases, help_text, verb, extra in (
+        ("add", [], "start watching something", "watch", ""),
+        ("remove", ["rm"], "stop watching something", "stop watching",
+         " [--wipe] [--state STATE]"),
+    ):
+        edit = sub.add_parser(
+            name, aliases=aliases, help=help_text,
+            usage=f"%(prog)s [-h] [-c CONFIG] [--test]{extra} [SOURCE] ENTRY [ENTRY ...]",
+        )
+        edit.add_argument(
+            "words", nargs="+", metavar="ENTRY",
+            help=f"what to {verb}, ex: python/cpython or URL. Put the source first "
+            "(git, npm, steam, ...) when the entry doesn't include it",
+        )
+        edit.add_argument("-c", "--config", help="path to a config file")
+        edit.add_argument("--test", action="store_true", help="show changes without writing")
+        if name == "remove":
+            edit.add_argument(
+                "--wipe", action="store_true",
+                help="also delete full history",
+            )
+            edit.add_argument("--state", help="path to the state database")
+
     init = sub.add_parser("init", help="write a starter config file")
     init.add_argument("-c", "--config", help="where to write it")
     init.add_argument("-f", "--force", action="store_true", help="overwrite an existing file")
@@ -127,7 +156,115 @@ def cmd_sources(console: Console) -> int:
         console.print(f"  [cyan]{name:<10}[/] {getattr(source, 'summary', '')}")
         for alias in sorted(a for a, of in aliases.items() if of == name):
             console.print(f"  [dim]{alias:<10} same as `{name}`[/]")
-    console.print("\n[dim]Add entries under `sources:` in your config.[/]")
+    console.print(
+        "\n[dim]Add with `youpdated add SOURCE ENTRY`, or under `sources:` in your config.[/]"
+    )
+    return 0
+
+
+def _probe_urls(source: Source | None, targets: list[Target], state: State) -> set[str]:
+    if source is None:
+        return set()
+    with Client(PrivacyConfig(), state, test=True) as client:
+        for target in targets:
+            try:
+                list(source.fetch(target, client))
+            except Exception: # a source that needs an answer to continue stops early
+                pass
+        return set(client.requested_urls)
+
+
+def _edit_plan(command: str, words: list[str]) -> list[tuple[str, list[str]]]:
+    """``[SOURCE] ENTRY...`` as (source, entries): source first, or one per entry"""
+    if get_source(words[0]) is not None:
+        if len(words) == 1:
+            raise ConfigError(f"name what to change: youpdated {command} {words[0]} ENTRY")
+        return [(words[0], words[1:])]
+    plan: dict[str, list[str]] = {}
+    for word in words:
+        source, entry = guess_source(word, command)
+        plan.setdefault(source, []).append(entry)
+    return list(plan.items())
+
+
+def cmd_edit(args: argparse.Namespace, console: Console) -> int:
+    """`add`/`remove`"""
+    adding = args.command == "add"
+    wipe = getattr(args, "wipe", False)
+    plan = _edit_plan(args.command, args.words)
+    path = find_config(args.config)
+    if path is None:
+        raise ConfigError(
+            "no config file found. Run `youpdated init` to create one at "
+            f"{default_config_path()}"
+        )
+    state_path = Path(args.state).expanduser() if wipe and args.state else default_state_path()
+    config_locked = crypto.is_encrypted_file(path)
+    state_locked = wipe and state_path.is_file() and crypto.is_encrypted_file(state_path)
+    passphrase = crypto.prompt_passphrase() if config_locked or state_locked else None
+
+    text = edited = read_config_text(path, passphrase)
+    changes = []
+    for source, entries in plan:
+        change = (add_to_config if adding else remove_from_config)(edited, source, entries)
+        edited = change.text
+        changes.append(change)
+
+    for change in changes:
+        for entry in change.skipped:
+            if adding:
+                console.print(f"[dim]Already watching {escape(entry)}[/]")
+            else:
+                console.print(
+                    f"[yellow]Not watching {escape(entry)}[/] under {escape(change.section)}"
+                )
+    applied = [c for c in changes if c.applied]
+    wiped = [c for c in changes if c.dropped] if wipe else []
+    if not applied and not wiped:
+        return 0
+
+    if args.test:
+        diff = difflib.unified_diff(
+            text.splitlines(), edited.splitlines(), str(path), str(path), n=1, lineterm=""
+        )
+        for line in diff:
+            console.print(escape(line), highlight=False)
+        for change in wiped:
+            console.print(
+                f"would forget the history of {escape(change.section)}: "
+                f"{escape(', '.join(change.dropped_keys))}"
+            )
+        console.print("\n[dim]--test: nothing was written.[/]")
+        return 0
+
+    # history first
+    if wiped and state_path.is_file():
+        with State(state_path, passphrase=passphrase if state_locked else None) as state:
+            for change in wiped:
+                source = get_source(change.section)
+                urls = _probe_urls(source, change.dropped, state)
+                seen, validators = state.forget(
+                    change.section, change.dropped_keys, getattr(source, "caches", ()), urls
+                )
+                console.print(
+                    f"Forgot the history of {escape(', '.join(change.dropped_keys))} "
+                    f"[dim]({seen} seen item(s), {validators} cached address(es))[/]"
+                )
+    elif wiped:
+        console.print("[dim]No history to forget.[/]")
+
+    if applied:
+        write_config(path, edited, passphrase if config_locked else None)
+    verb, where = ("Added", "under") if adding else ("Removed", "from")
+    for change in applied:
+        console.print(
+            f"{verb} {escape(', '.join(change.applied))} {where} "
+            f"[cyan]{escape(change.section)}[/] in [bold]{escape(str(path))}[/]"
+        )
+    if adding and applied:
+        console.print(
+            "[dim]The next check records what exists, then what changes.[/]"
+        )
     return 0
 
 
@@ -141,7 +278,7 @@ def cmd_init(args: argparse.Namespace, console: Console) -> int:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(EXAMPLE_CONFIG, encoding="utf-8")
         console.print(f"Wrote starter config to [bold]{path}[/]")
-        console.print("[dim]Edit, then run `youpdated check`.[/]")
+        console.print("[dim]Edit it or use `youpdated add`, then run `youpdated check`.[/]")
         return 0
 
     # Encrypted from the first byte:
@@ -156,8 +293,8 @@ def cmd_init(args: argparse.Namespace, console: Console) -> int:
 
     console.print(f"Wrote encrypted starter config to [bold]{escape(str(path))}[/]")
     console.print(
-        "[dim]It is not editable in place. Run `youpdated decrypt` to edit it, then "
-        "`youpdated encrypt` again or edit it before running `init --encrypt`.[/]"
+        "[dim]Use `youpdated add` and `youpdated rm` to change what it watches. For "
+        "other edits, run `youpdated decrypt`, edit manually, then `youpdated encrypt` again.[/]"
     )
     console.print(
         f"[dim]Every command now asks for the passphrase. Set ${crypto.PASSPHRASE_ENV} "
@@ -531,6 +668,8 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if args.command == "sources":
             return cmd_sources(console)
+        if args.command in ("add", "remove", "rm"):
+            return cmd_edit(args, console)
         if args.command == "init":
             return cmd_init(args, console)
         if args.command == "uninstall":

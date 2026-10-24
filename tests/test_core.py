@@ -573,6 +573,36 @@ def test_a_target_added_onto_a_shared_unchanged_document_still_records_a_baselin
     assert [u.title for u in later.updates] == ["Beta v1.3"]
 
 
+def _links(state) -> set[tuple[str, str, str]]:
+    return {tuple(r) for r in state._conn.execute("SELECT source, target, url FROM http_cache_targets")}
+
+
+@respx.mock
+def test_each_target_is_linked_to_the_urls_it_asked_for(state, client):
+    respx.get(_BRAVE_API).mock(
+        side_effect=lambda request: (
+            httpx.Response(304) if request.headers.get("If-None-Match") == '"a"'
+            else httpx.Response(200, json=[_brave_release("Release v1.0")], headers={"ETag": '"a"'})
+        )
+    )
+    both = {("browser", "brave/stable", _BRAVE_API), ("browser", "brave/beta", _BRAVE_API)}
+    run(_brave("stable", "beta"), state, client)
+    assert _links(state) == both
+
+    state._conn.execute("DELETE FROM http_cache_targets")
+    run(_brave("stable", "beta"), state, client)
+    assert _links(state) == both
+
+
+@respx.mock
+def test_a_run_that_does_not_save_links_nothing(state, client):
+    respx.get(_BRAVE_API).mock(
+        return_value=httpx.Response(200, json=[], headers={"ETag": '"a"'})
+    )
+    run(_brave("stable"), state, client, save=False)
+    assert _links(state) == set()
+
+
 @respx.mock
 def test_unconditional_sends_no_validators_but_still_stores_them(state, client):
     state.remember_validators("https://e.com/feed", '"v1"', None)

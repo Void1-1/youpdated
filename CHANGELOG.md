@@ -8,6 +8,28 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- **`youpdated add` and `youpdated rm` commands** (#37). `youpdated add git python/cpython`
+  edits the config for you, and `rm` (`remove`) removes entries. The file
+  is edited as text, so comments, blank lines, and quoting should be kept; the result is
+  parsed again and nothing is written unless only the named entries changed.
+  Entries are checked by their source first, an entry already watched in another
+  form (a full URL for `owner/repo`) is skipped, and `rm` matches any form. Both
+  work on an encrypted config without writing plaintext to disk, keep a symlinked
+  config's link and a plain one's permissions, and `--test` to show the
+  change without writing it.
+- **The source type can be ommited for `add` and `rm`** if the entry can only mean
+  one: `youpdated add https://github.com/neovim/neovim` goes under `git`. Package
+  pages on npmjs.com, pypi.org, and formulae.brew.sh are written as the package
+  name. A value no source or more than one source claims is an error that says
+  to name one. Sources take part with an optional `claim()`; see
+  [ADDING_SOURCES.md](ADDING_SOURCES.md#recognizing-your-entries).
+- **`youpdated rm --wipe`** also deletes the history of what it removes: 
+  seen items, baseline, ignore-rules, names cache, cached HTTP validators of the addresses fetched, then rebuilds the database. An address another target still fetches keeps its validator
+- **Each run records which target asked for which address** (a new
+  `http_cache_targets` table), so `--wipe` can find a target's cached addresses.
+  Ones cached before this are found by asking the source which addresses it
+  fetches, without sending anything. Links go with the target's baseline when it
+  expires.
 - **`pypi` source** (#32). Watches a Python package's releases through
   PyPI's JSON Simple API, the index pip reads. Names are normalized, so
   `typing_extensions` and `Typing-Extensions` are considered the same. Releases

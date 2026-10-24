@@ -62,7 +62,19 @@ This creates a starter config file and **prints where it was placed**.
 
 ### 3. Add sources to watch
 
-Open that file and list what you want to watch under each source:
+Name the source, then what to watch, in any form from [Where to find identifiers](#where-to-find-identifiers):
+
+```sh
+youpdated add git neovim/neovim
+youpdated add npm react
+youpdated add youtube @NASA
+```
+
+A link or handle that can only work with one source doesn't need to be named: `youpdated add https://github.com/neovim/neovim`.
+
+The starter config comes with examples; `youpdated rm` to remove any you don't want.
+
+Or open the file and list them under each source yourself:
 
 ```yaml
 sources:
@@ -106,6 +118,8 @@ youpdated check --all        # everything, not just what's new
 youpdated check --since 7d   # only things from the last week
 youpdated check -s steam     # only one source
 youpdated check --test -v    # check your config without fetching anything
+youpdated add npm react      # start watching something
+youpdated remove npm react   # stop watching it
 youpdated uninstall          # remove Youpdated files
 ```
 

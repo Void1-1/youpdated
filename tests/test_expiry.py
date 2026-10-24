@@ -243,6 +243,22 @@ def test_removed_targets_are_pruned_but_failing_ones_kept(expiring_state, client
 
 
 @respx.mock
+def test_a_pruned_target_takes_its_url_links_with_it(expiring_state, client):
+    state = expiring_state
+    for name in ("express", "left-pad"):
+        respx.get(f"https://registry.npmjs.org/{name}").mock(
+            return_value=httpx.Response(200, json=npm_doc("1.0.0"), headers={"ETag": '"v1"'})
+        )
+    run(parse_config({"sources": {"npm": ["express", "left-pad"]}}), state, client)
+    for table in ("seen", "http_cache", "baseline"):
+        backdate(state, 2 * YEAR, table=table)
+
+    run(parse_config({"sources": {"npm": ["express"]}}), state, client)
+    links = {tuple(r) for r in state._conn.execute("SELECT source, target, url FROM http_cache_targets")}
+    assert links == {("npm", "express", "https://registry.npmjs.org/express")}
+
+
+@respx.mock
 def test_a_target_re_added_after_its_history_expired_is_baselined_again(
     expiring_state, client
 ):

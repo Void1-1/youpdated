@@ -13,9 +13,21 @@ from typing import Any, Callable
 import feedparser
 
 from ..models import Update
+from .base import url_parts
 
 BODY_LIMIT = 400
 _UNDATED = datetime(1970, 1, 1, tzinfo=timezone.utc)
+_FEED_SUFFIXES = (".xml", ".rss", ".atom", ".rdf")
+_FEED_NAMES = {"feed", "rss", "atom"}
+
+
+def is_feed_url(value: str) -> bool:
+    """if ``value`` is an http(s) URL whose path ends how feeds do"""
+    url = url_parts(value)
+    if url is None:
+        return False
+    path = url[1].rstrip("/").lower()
+    return path.endswith(_FEED_SUFFIXES) or path.rsplit("/", 1)[-1] in _FEED_NAMES
 
 
 class _TextExtractor(HTMLParser):

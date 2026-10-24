@@ -28,6 +28,13 @@ CREATE TABLE IF NOT EXISTS http_cache (
     fetched_at    TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS http_cache_targets (
+    url    TEXT NOT NULL,
+    source TEXT NOT NULL,
+    target TEXT NOT NULL,
+    PRIMARY KEY (url, source, target)
+);
+
 CREATE TABLE IF NOT EXISTS kv (
     namespace TEXT NOT NULL,
     key       TEXT NOT NULL,
@@ -239,6 +246,18 @@ class State:
             self._conn.commit()
             self._dirty = True
 
+    def link_urls(self, rows: Iterable[tuple[str, str, str]]) -> None:
+        rows = list(rows)
+        if not rows:
+            return
+        with self._lock:
+            self._conn.executemany(
+                "INSERT OR IGNORE INTO http_cache_targets (source, target, url) VALUES (?,?,?)",
+                rows,
+            )
+            self._conn.commit()
+            self._dirty = True
+
     def prune(
         self,
         keep_targets: Iterable[tuple[str, str]] = (),
@@ -289,12 +308,65 @@ class State:
                 "DELETE FROM kv WHERE namespace='ignore' AND key NOT IN "
                 "(SELECT key FROM kv WHERE namespace='baseline')"
             ).rowcount
+            # URL links, and a link to a URL without a validator
+            removed_links = self._conn.execute(
+                "DELETE FROM http_cache_targets WHERE source || ':' || target NOT IN "
+                "(SELECT key FROM kv WHERE namespace='baseline') "
+                "OR url NOT IN (SELECT url FROM http_cache)"
+            ).rowcount
             self._conn.commit()
-            if removed or removed_validators or stale_marks or removed_rules:
+            if removed or removed_validators or stale_marks or removed_rules or removed_links:
                 # reclaim empty so the file shrinks
                 self._conn.execute("VACUUM")
                 self._dirty = True
         return removed
+
+    def forget(
+        self,
+        source: str,
+        targets: Iterable[str],
+        caches: Iterable[str] = (),
+        urls: Iterable[str] = (),
+    ) -> tuple[int, int]:
+        """Delete everything recorded about ``targets``: seen items, baseline marks, ignore
+        rules, entries keyed by the target in the ``caches`` namespaces, and the validators
+        of every URL they asked for.
+        """
+        caches = list(caches)
+        seen = 0
+        candidates = set(urls)
+        with self._lock:
+            for target in list(targets):
+                seen += self._conn.execute(
+                    "DELETE FROM seen WHERE source=? AND target=?", (source, target)
+                ).rowcount
+                self._conn.executemany(
+                    "DELETE FROM kv WHERE namespace=? AND key=?",
+                    [(ns, f"{source}:{target}") for ns in ("baseline", "ignore")]
+                    + [(ns, target) for ns in caches],
+                )
+                candidates.update(
+                    row["url"]
+                    for row in self._conn.execute(
+                        "SELECT url FROM http_cache_targets WHERE source=? AND target=?",
+                        (source, target),
+                    )
+                )
+                self._conn.execute(
+                    "DELETE FROM http_cache_targets WHERE source=? AND target=?", (source, target)
+                )
+            validators = 0
+            for url in candidates:
+                validators += self._conn.execute(
+                    "DELETE FROM http_cache WHERE url=? AND url NOT IN "
+                    "(SELECT url FROM http_cache_targets)",
+                    (url,),
+                ).rowcount
+            self._conn.commit()
+            # deleted rows are readable in free pages until the file is rebuilt
+            self._conn.execute("VACUUM")
+            self._dirty = True
+        return seen, validators
 
     # small caches (resolved names, channel ids)
 

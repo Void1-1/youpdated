@@ -197,6 +197,8 @@ expiry: 180d      # 30d, 52w, 2y, ... (at least 1d)
 
 Pruning is safe: an item still listed by its source is never forgotten, however old, so nothing is reported a second time. Targets that failed this run, or were left out with `--source`, keep their history until they next fetch cleanly.
 
+To forget a target's history immediately, remove it with `youpdated rm --wipe`. See [Usage](usage.md#command-reference).
+
 ## Checking your config
 
 Check your config without sending a request:
