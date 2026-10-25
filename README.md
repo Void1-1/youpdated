@@ -72,6 +72,8 @@ youpdated add youtube @NASA
 
 A link or handle that can only work with one source doesn't need to be named: `youpdated add https://github.com/neovim/neovim`.
 
+To watch all dependencies of a project, import its `package.json`, `requirements.txt`, or `Brewfile`: `youpdated import package.json`.
+
 The starter config comes with examples; `youpdated rm` to remove any you don't want.
 
 Or open the file and list them under each source yourself:
@@ -120,6 +122,7 @@ youpdated check -s steam     # only one source
 youpdated check --test -v    # check your config without fetching anything
 youpdated add npm react      # start watching something
 youpdated remove npm react   # stop watching it
+youpdated import Brewfile    # watch everything a package.json, requirements.txt, or Brewfile lists
 youpdated uninstall          # remove Youpdated files
 ```
 

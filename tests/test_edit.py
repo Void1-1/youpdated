@@ -333,7 +333,7 @@ def test_a_rejected_entry_is_a_config_error_and_writes_nothing(config, capsys):
 
 
 def test_add_without_a_config_says_to_init(tmp_path, monkeypatch, capsys):
-    monkeypatch.setattr("youpdated.cli.find_config", lambda explicit=None: None)
+    monkeypatch.setattr("youpdated.config.find_config", lambda explicit=None: None)
     assert main(["add", "npm", "express"]) == 1
     assert "youpdated init" in capsys.readouterr().out
 

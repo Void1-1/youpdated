@@ -146,13 +146,19 @@ def find_config(explicit: str | Path | None = None) -> Path | None:
     return None
 
 
-def load_config(explicit: str | Path | None = None, passphrase: str | None = None) -> Config:
+def require_config(explicit: str | Path | None = None) -> Path:
+    """:func:`find_config`, or an error that says to run `init`"""
     path = find_config(explicit)
     if path is None:
         raise ConfigError(
             "no config file found. Run `youpdated init` to create one at "
             f"{default_config_path()}"
         )
+    return path
+
+
+def load_config(explicit: str | Path | None = None, passphrase: str | None = None) -> Config:
+    path = require_config(explicit)
     text = read_config_text(path, passphrase)
     try:
         raw = yaml.safe_load(text) or {}

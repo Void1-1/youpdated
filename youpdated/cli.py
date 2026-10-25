@@ -32,10 +32,12 @@ from .config import (
     find_config,
     load_config,
     read_config_text,
+    require_config,
     split_command,
 )
 from .edit import add_to_config, guess_source, remove_from_config, write_config
 from .http import Client, ProxyUnavailable, probe_proxy
+from .importers import READERS, Found, read_file
 from .models import Target
 from .registry import all_aliases, all_sources, get_source
 from .render import json_out, rss_out, terminal
@@ -114,6 +116,20 @@ def build_parser() -> argparse.ArgumentParser:
             )
             edit.add_argument("--state", help="path to the state database")
 
+    imports = sub.add_parser(
+        "import", help="watch dependencies from a package.json, requirements.txt, or Brewfile",
+    )
+    imports.add_argument(
+        "files", nargs="+", metavar="FILE",
+        help="package.json, requirements.txt, or Brewfile",
+    )
+    imports.add_argument(
+        "--format", choices=list(READERS),
+        help="read each FILE as this when not named",
+    )
+    imports.add_argument("-c", "--config", help="path to a config file")
+    imports.add_argument("--test", action="store_true", help="show changes without writing")
+
     init = sub.add_parser("init", help="write a starter config file")
     init.add_argument("-c", "--config", help="where to write it")
     init.add_argument("-f", "--force", action="store_true", help="overwrite an existing file")
@@ -187,17 +203,15 @@ def _edit_plan(command: str, words: list[str]) -> list[tuple[str, list[str]]]:
     return list(plan.items())
 
 
-def cmd_edit(args: argparse.Namespace, console: Console) -> int:
-    """`add`/`remove`"""
-    adding = args.command == "add"
+def cmd_edit(
+    args: argparse.Namespace, console: Console, plan: list[tuple[str, list[str]]] | None = None
+) -> int:
+    """`add`/`remove`, or `import` with the ``plan`` it read"""
+    adding = args.command in ("add", "import")
     wipe = getattr(args, "wipe", False)
-    plan = _edit_plan(args.command, args.words)
-    path = find_config(args.config)
-    if path is None:
-        raise ConfigError(
-            "no config file found. Run `youpdated init` to create one at "
-            f"{default_config_path()}"
-        )
+    if plan is None:
+        plan = _edit_plan(args.command, args.words)
+    path = require_config(args.config)
     state_path = Path(args.state).expanduser() if wipe and args.state else default_state_path()
     config_locked = crypto.is_encrypted_file(path)
     state_locked = wipe and state_path.is_file() and crypto.is_encrypted_file(state_path)
@@ -211,10 +225,14 @@ def cmd_edit(args: argparse.Namespace, console: Console) -> int:
         changes.append(change)
 
     for change in changes:
-        for entry in change.skipped:
-            if adding:
-                console.print(f"[dim]Already watching {escape(entry)}[/]")
-            else:
+        if adding and change.skipped:
+            # one line per source, an import can skip a lot
+            console.print(
+                f"[dim]Already watching {escape(', '.join(change.skipped))} "
+                f"under {escape(change.section)}[/]"
+            )
+        elif not adding:
+            for entry in change.skipped:
                 console.print(
                     f"[yellow]Not watching {escape(entry)}[/] under {escape(change.section)}"
                 )
@@ -266,6 +284,22 @@ def cmd_edit(args: argparse.Namespace, console: Console) -> int:
             "[dim]The next check records what exists, then what changes.[/]"
         )
     return 0
+
+
+def cmd_import(args: argparse.Namespace, console: Console) -> int:
+    found = Found()
+    # files first
+    for name in args.files:
+        read_file(Path(name).expanduser(), found, args.format)
+
+    for what, why in found.skipped:
+        console.print(f"[yellow]Skipped[/] {escape(what)} [dim]— {escape(why)}[/]")
+    for warning in found.warnings:
+        console.print(f"[yellow]Warning:[/] {escape(warning)}")
+    if not found.entries:
+        console.print("[dim]Nothing to watch in these files.[/]")
+        return 0
+    return cmd_edit(args, console, list(found.entries.items()))
 
 
 def cmd_init(args: argparse.Namespace, console: Console) -> int:
@@ -670,6 +704,8 @@ def main(argv: list[str] | None = None) -> int:
             return cmd_sources(console)
         if args.command in ("add", "remove", "rm"):
             return cmd_edit(args, console)
+        if args.command == "import":
+            return cmd_import(args, console)
         if args.command == "init":
             return cmd_init(args, console)
         if args.command == "uninstall":

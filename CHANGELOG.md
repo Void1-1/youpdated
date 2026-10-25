@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **`youpdated import`** (#37). Adds everything in a `package.json`, `requirements.txt`, or `Brewfile`, with `youpdated add`, `--test` shows the change without writing it. `package.json` dependencies of every kind go under `npm`, requirements go under `pypi` with `-r` includes followed, and `brew`/`cask` lines go under `homebrew`. A dependency from a path, URL, git repo, editable install, third-party tap, and Brewfile lines like `mas` are skipped with reasons shown. Files are recognized by name, or read as named with `--format`. Requirements from another index (`--index-url`, `--no-index`) are skipped, as PyPI's package of that name may be a different one, and `--extra-index-url` is shown as a warning. Credentials in a dependency's URL are never printed.
+
+### Changed
+
+- **`youpdated add` lists entries already watched on one line per source** (`Already watching express, react under npm`), instead of one line each.
+
 ## [0.4.0] — 2026-10-24
 
 ### Added
