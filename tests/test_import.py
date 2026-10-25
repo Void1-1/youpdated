@@ -454,5 +454,5 @@ def test_an_encrypted_config_stays_encrypted(config, project, monkeypatch):
 
     assert main(["import", "-c", str(config), str(project / "Brewfile")]) == 0
     assert crypto.is_encrypted_file(config)
-    assert b"jq" not in config.read_bytes()
+    assert b"homebrew" not in config.read_bytes()
     assert "jq" in load_config(config, passphrase=PASSPHRASE).sources["homebrew"]
