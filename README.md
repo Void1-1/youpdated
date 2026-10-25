@@ -4,7 +4,7 @@
 
 Youpdated keeps track of the games, apps, and packages you follow, and tells you what changed since you last checked in.
 
-It is built to be **privacy-preserving, anonymous, and customizable**: no accounts, no API keys required, nothing stored anywhere non-local.
+It is built to be **privacy-preserving, anonymous, and customizable**: no accounts, no API keys required, everything only stored locally.
 
 ```text
 ╭─ steam ──────────────────────────────────────────────────────────╮
