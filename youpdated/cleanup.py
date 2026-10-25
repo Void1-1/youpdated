@@ -1,9 +1,14 @@
-"""Finds and removes everything from Youpdated."""
+"""Finds and removes everything from Youpdated"""
 
 from __future__ import annotations
 
+import os
+import shlex
+import shutil
+import subprocess
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from importlib import metadata
 from pathlib import Path
 
 from .config import (
@@ -13,9 +18,11 @@ from .config import (
     default_config_path,
     default_state_path,
     project_config_paths,
+    tool_dir,
 )
 
 APP_DIR_NAME = "youpdated"
+DIST_NAME = "youpdated"
 
 
 @dataclass
@@ -108,10 +115,107 @@ def remove_traces(traces: list[Trace]) -> tuple[list[Trace], list[tuple[Trace, s
     return removed, failed
 
 
-def package_removal_command() -> str:
-    """Command to remove the package."""
-    
-    return f"{sys.executable} -m pip uninstall youpdated"
+@dataclass
+class Package:
+    """installed and running copy of Youpdated, and how to remove"""
+
+    version: str
+    installer: str # "pipx" | "uv tool" | "uv" | "pip"
+    command: list[str]
+    env: dict[str, str] = field(default_factory=dict)
+    after_exit: bool = False  # run the uninstaller once this process has exited
+
+    @property
+    def display(self) -> str:
+        join = subprocess.list2cmdline if os.name == "nt" else shlex.join
+        return join(self.command)
+
+
+def find_package() -> Package | None:
+    """the installed package this copy runs from, or None for source"""
+    try:
+        dist = metadata.distribution(DIST_NAME)
+    except metadata.PackageNotFoundError:
+        return None
+    installer = (dist.read_text("INSTALLER") or "").strip()
+    if not installer or Path(str(dist.locate_file(""))).resolve() != tool_dir():
+        return None
+
+    prefix = Path(sys.prefix)
+    if (prefix / "pipx_metadata.json").is_file():
+        # pipx keeps apps at $PIPX_HOME/venvs/<name> (named with any --suffix)
+        env = {"PIPX_HOME": str(prefix.parent.parent)} if prefix.parent.name == "venvs" else {}
+        package = Package(dist.version, "pipx", ["pipx", "uninstall", prefix.name], env)
+    elif (prefix / "uv-receipt.toml").is_file():
+        package = Package(
+            dist.version, "uv tool", ["uv", "tool", "uninstall", prefix.name],
+            {"UV_TOOL_DIR": str(prefix.parent)},
+        )
+    elif installer == "uv":
+        # environments uv made usually have no pip
+        package = Package(
+            dist.version, "uv", ["uv", "pip", "uninstall", "--python", sys.executable, DIST_NAME]
+        )
+    else:
+        package = Package(
+            dist.version, "pip", [sys.executable, "-m", "pip", "uninstall", "--yes", DIST_NAME]
+        )
+    package.after_exit = os.name == "nt"
+    return package
+
+
+# Waits for the process that started it to exit, which closes its stdin, then runs the
+# uninstaller in its arguments. Retries give the launcher exe a moment to exit too.
+_AFTER_EXIT = """\
+import subprocess, sys, time
+sys.stdin.read()
+for _ in range(10):
+    time.sleep(1)
+    if subprocess.call(sys.argv[1:], stdin=subprocess.DEVNULL) == 0:
+        break
+"""
+
+_waiting: list[subprocess.Popen[bytes]] = []
+
+
+def remove_package(package: Package) -> str | None:
+    """run the package's uninstaller. Returns why it failed, or None once this copy is gone,
+    or for after_exit, once the uninstaller is waiting for this process to exit"""
+    program = shutil.which(package.command[0])
+    if program is None:
+        return f"{package.command[0]} not found on PATH"
+    command = [program, *package.command[1:]]
+    env = {**os.environ, **package.env}
+    if package.after_exit:
+        return _remove_after_exit(command, env)
+    try:
+        result = subprocess.run(command, env=env, stdin=subprocess.DEVNULL, check=False)
+    except OSError as exc:
+        return str(exc)
+    if result.returncode != 0:
+        return f"{package.installer} exited with status {result.returncode}"
+    if Path(__file__).exists():
+        return f"{package.installer} finished, but the package is still in {tool_dir()}"
+    return None
+
+
+def _remove_after_exit(command: list[str], env: dict[str, str]) -> str | None:
+    # the base interpreter, as pipx and uv tool delete the venv this one runs from
+    python = getattr(sys, "_base_executable", None) or sys.executable
+    try:
+        helper = subprocess.Popen(
+            [python, "-I", "-c", _AFTER_EXIT, *command],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            env=env,
+            # own hidden console, so closing this window doesn't stop it
+            creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
+        )
+    except OSError as exc:
+        return str(exc)
+    _waiting.append(helper)
+    return None
 
 
 def config_filename() -> str:

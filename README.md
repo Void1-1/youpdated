@@ -120,7 +120,7 @@ youpdated check -s steam     # only one source
 youpdated check --test -v    # check your config without fetching anything
 youpdated add npm react      # start watching something
 youpdated remove npm react   # stop watching it
-youpdated uninstall          # remove Youpdated files
+youpdated uninstall          # remove Youpdated and its files
 ```
 
 ## Privacy
