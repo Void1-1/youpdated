@@ -6,7 +6,7 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Changed
 
-- **`youpdated uninstall` also removes the package.** Once the files are gone it runs the uninstaller used for the copy: `pipx uninstall` for pipx, `uv tool uninstall` for uv tools, `uv pip uninstall` for a uv-made environment, and `python -m pip uninstall` with the interpreter it runs on otherwise. The package is listed in `--test` and confirmation prompt. If the uninstaller fails, or exits but leaves the package, the command to run yourself is printed and exits 1. `--keep-package` deletes files only. `--keep-config` now removes the package too; add `--keep-package` to only wipe history. A copy run from a checkout (`python -m youpdated`, `PYTHONPATH`) is not a package, and nothing other than files are removed.
+- **`youpdated uninstall` also removes the package.** Once the files are gone it runs the uninstaller used for the copy: `pipx uninstall` for pipx, `uv tool uninstall` for uv tools, `uv pip uninstall` for a uv-made environment, and `python -m pip uninstall` with the interpreter it runs on otherwise. The package is listed in `--test` and confirmation prompt. If the uninstaller fails, or exits but leaves the package, the command to run yourself is printed and exits 1. On Windows, which won't delete the running `youpdated.exe`, the uninstaller runs in the background once the command exits. `--keep-package` deletes files only. `--keep-config` now removes the package too; add `--keep-package` to only wipe history. A copy run from a checkout (`python -m youpdated`, `PYTHONPATH`) is not a package, and nothing other than files are removed.
 
 ## [0.4.0] — 2026-10-24
 

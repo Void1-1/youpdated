@@ -51,6 +51,17 @@ jobs:
           youpdated check --test -v
           youpdated uninstall --yes
 
+      # On Windows the package is removed in the background, once uninstall exits
+      - name: Uninstall must remove the package
+        shell: bash
+        run: |
+          for _ in $(seq 30); do
+            python -m pip show youpdated > /dev/null 2>&1 || exit 0
+            sleep 1
+          done
+          echo "::error::youpdated is still installed after uninstall"
+          exit 1
+
   build:
     name: build + verify artifacts
     runs-on: ubuntu-latest

@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import os
 import sys
+import time
 from importlib import metadata
 from types import SimpleNamespace
 
@@ -197,6 +199,7 @@ def test_pip_install_is_removed_by_the_running_interpreter(installed, tmp_path):
     assert package.installer == "pip"
     assert package.command == [sys.executable, "-m", "pip", "uninstall", "--yes", "youpdated"]
     assert package.version == "9.9.9"
+    assert package.after_exit == (os.name == "nt")
 
 
 def test_uv_pip_install_is_removed_with_uv(installed, tmp_path):
@@ -263,6 +266,24 @@ def test_remove_package_checks_the_files_really_went(tmp_path, monkeypatch):
     assert error is not None and "still in" in error
 
 
+def test_remove_package_after_exit_waits_for_this_process(tmp_path):
+    """Windows keeps the running youpdated.exe, so its uninstaller can't start until this exits"""
+    module = tmp_path / "cleanup.py"
+    module.write_text("", encoding="utf-8")
+    package = _deleting(module)
+    package.after_exit = True
+
+    assert remove_package(package) is None
+    helper = cleanup._waiting.pop()
+    time.sleep(0.5)
+    assert module.exists()
+
+    assert helper.stdin is not None
+    helper.stdin.close() # as when this process exits
+    assert helper.wait(timeout=30) == 0
+    assert not module.exists()
+
+
 def test_remove_package_without_the_uninstaller_on_path(monkeypatch):
     monkeypatch.setenv("PATH", "")
     package = Package("9.9.9", "pipx", ["pipx-not-installed", "uninstall", "youpdated"])
@@ -287,6 +308,17 @@ def test_uninstall_removes_files_and_then_the_package(app_dir, removals, capsys)
     assert not app_dir.exists()
     assert [p.command for p in removals] == [["pipx", "uninstall", "youpdated"]]
     assert "removed youpdated 9.9.9" in capsys.readouterr().out
+
+
+def test_uninstall_on_windows_says_the_package_goes_once_it_exits(app_dir, monkeypatch, capsys):
+    package = Package("9.9.9", "pip", ["pip"], after_exit=True)
+    monkeypatch.setattr(cli, "find_package", lambda: package)
+    monkeypatch.setattr(cli, "remove_package", lambda p: None)
+
+    assert cli.main(["uninstall", "--yes"]) == 0
+    out = capsys.readouterr().out
+    assert "removing youpdated 9.9.9 once this command exits" in out
+    assert "removed youpdated" not in out
 
 
 def test_uninstall_removes_the_package_even_with_no_files_left(app_dir, removals):

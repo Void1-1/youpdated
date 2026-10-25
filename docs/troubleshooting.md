@@ -51,4 +51,6 @@ Two rules: a directory is removed only if it is named `youpdated` and is empty o
 
 The package is removed last, using it's installer: `pipx uninstall youpdated` for pipx, `uv tool uninstall youpdated` for uv, and `python -m pip uninstall youpdated` with the Python it runs on otherwise. If that fails, it says why, prints the command to run yourself, and exits 1.
 
+Windows won't delete a program while it runs, so the uninstaller starts in the background and finishes after `youpdated uninstall` exits. If `youpdated` still runs after that, run the command it printed.
+
 Run from a checkout (`python -m youpdated` or `PYTHONPATH`), there is no package to remove, so only the files are removed. Remove a development install from your virtualenv with `.venv/bin/pip uninstall youpdated`, or delete the virtualenv.

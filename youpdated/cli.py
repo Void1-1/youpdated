@@ -470,6 +470,12 @@ def cmd_uninstall(args: argparse.Namespace, console: Console) -> int:
             f"To remove it yourself:\n  [bold]{escape(package.display)}[/]"
         )
         return 1
+    if package.after_exit:
+        console.print(
+            f"[green]removing[/] youpdated {escape(package.version)} once this command exits\n"
+            f"[dim]If it's still installed after that: {escape(package.display)}[/]"
+        )
+        return 0
     console.print(f"[green]removed[/] youpdated {escape(package.version)}")
     return 0
 
