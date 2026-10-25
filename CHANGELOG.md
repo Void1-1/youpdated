@@ -4,8 +4,13 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Added
+
+- **`youpdated import`** (#37). Adds everything in a `package.json`, `requirements.txt`, or `Brewfile`, with `youpdated add`, `--test` shows the change without writing it. `package.json` dependencies of every kind go under `npm`, requirements go under `pypi` with `-r` includes followed, and `brew`/`cask` lines go under `homebrew`. A dependency from a path, URL, git repo, editable install, third-party tap, and Brewfile lines like `mas` are skipped with reasons shown. Files are recognized by name, or read as named with `--format`. Requirements from another index (`--index-url`, `--no-index`) are skipped, as PyPI's package of that name may be a different one, and `--extra-index-url` is shown as a warning. Credentials in a dependency's URL are never printed.
+
 ### Changed
 
+- **`youpdated add` lists entries already watched on one line per source** (`Already watching express, react under npm`), instead of one line each.
 - **`youpdated uninstall` also removes the package.** Once the files are gone it runs the uninstaller used for the copy: `pipx uninstall` for pipx, `uv tool uninstall` for uv tools, `uv pip uninstall` for a uv-made environment, and `python -m pip uninstall` with the interpreter it runs on otherwise. The package is listed in `--test` and confirmation prompt. If the uninstaller fails, or exits but leaves the package, the command to run yourself is printed and exits 1. On Windows, which won't delete the running `youpdated.exe`, the uninstaller runs in the background once the command exits. `--keep-package` deletes files only. `--keep-config` now removes the package too; add `--keep-package` to only wipe history. A copy run from a checkout (`python -m youpdated`, `PYTHONPATH`) is not a package, and nothing other than files are removed.
 
 ## [0.4.0] — 2026-10-24

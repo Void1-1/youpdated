@@ -34,31 +34,34 @@ Baseline recorded for 1 new target(s): npm:react. Their existing items were not 
 ## Command reference
 
 ```sh
-youpdated check                       # what's new since last run (the default command)
-youpdated check --all                 # everything currently published, ignoring history
-youpdated check --since 7d            # only items from the last week (30m, 12h, 7d, 2w, 1y)
-youpdated check -s git -s npm         # limit to some sources
-youpdated check --json                # machine-readable output
-youpdated check --rss ~/feeds/you.xml # aggregated Atom feed for a reader
-youpdated check --test -v             # test to show what it would request
-youpdated check --no-save             # report without recording anything as seen
-youpdated check --fail-on-error       # exit 2 if any source or notification failed
+youpdated check                        # what's new since last run (the default command)
+youpdated check --all                  # everything currently published, ignoring history
+youpdated check --since 7d             # only items from the last week (30m, 12h, 7d, 2w, 1y)
+youpdated check -s git -s npm          # limit to some sources
+youpdated check --json                 # machine-readable output
+youpdated check --rss ~/feeds/you.xml  # aggregated Atom feed for a reader
+youpdated check --test -v              # test to show what it would request
+youpdated check --no-save              # report without recording anything as seen
+youpdated check --fail-on-error        # exit 2 if any source or notification failed
 youpdated check --notify-cmd 'notify-send {title} {url}'  # run a command per new update
-youpdated check --no-notify           # skip notifications this run
-youpdated check --all --notify        # notify even with --all or --no-save
-youpdated check -v                    # show each request, its status, and item summaries
-youpdated check --state ./test.db     # use a throwaway history file
-youpdated sources                     # list available sources
-youpdated add git neovim/neovim       # start watching something (several at once is fine)
+youpdated check --no-notify            # skip notifications this run
+youpdated check --all --notify         # notify even with --all or --no-save
+youpdated check -v                     # show each request, its status, and item summaries
+youpdated check --state ./test.db      # use a throwaway history file
+youpdated sources                      # list available sources
+youpdated add git neovim/neovim        # start watching something (several at once is fine)
 youpdated add https://pypi.org/project/rich/ # the source can be left out when the link includes the information
-youpdated add --test steam 440        # show the change to the config without writing it
-youpdated remove git neovim/neovim    # stop watching it; any form works, like the full URL
-youpdated rm --wipe 440               # and delete its history
-youpdated init --force                # rewrite the starter config
-youpdated init --encrypt              # starter config written encrypted from the start
-youpdated encrypt                     # lock the config and history behind a passphrase
-youpdated decrypt                     # convert them back to plain files
-youpdated uninstall --test            # list all tool files and the package
+youpdated add --test steam 440         # show the change to the config without writing it
+youpdated remove git neovim/neovim     # stop watching it; any form works, like the full URL
+youpdated rm --wipe 440                # and delete its history
+youpdated import package.json Brewfile # watch everything listed in dependency files
+youpdated import --test requirements.txt # show what it would add without writing
+youpdated import --format requirements.txt <(pip freeze) # a pipe works too
+youpdated init --force                 # rewrite the starter config
+youpdated init --encrypt               # starter config written encrypted from the start
+youpdated encrypt                      # lock the config and history behind a passphrase
+youpdated decrypt                      # convert them back to plain files
+youpdated uninstall --test             # list all tool files and the package
 ```
 
 Running `youpdated` without arguments assumes `youpdated check`.
@@ -70,6 +73,14 @@ The source can be left out when an entry can only mean one: a GitHub, GitLab, or
 A removed target's history is forgotten after [`expiry`](configuration.md#how-long-history-is-kept). `rm --wipe` forgets it immediately: seen items, baseline, names cached for it, and cached addresses it fetched. An address another target still fetches keeps its cache.
 
 If the config is written in a way these can't edit safely, they refuse and say to add or remove by hand.
+
+`import` reads a `package.json`, `requirements.txt`, or `Brewfile` and adds what it lists. A file is recognized by its name (`requirements-dev.txt`, `requirements/base.txt`, and `~/.Brewfile` count); `--format` reads one named otherwise.
+
+- **package.json**: `dependencies`, `devDependencies`, `optionalDependencies`, and `peerDependencies`, under `npm`. An alias (`npm:lodash@^4`) watches the package it installs.
+- **requirements.txt**: each requirement, under `pypi`, following `-r` includes. Versions, extras, and markers are dropped. A file that installs from another index (`--index-url`, `--no-index`) is skipped, since PyPI's package of the same name may be a different one; `--extra-index-url` is shown as a warning.
+- **Brewfile**: `brew` lines as formulae and `cask` lines as casks, under `homebrew`.
+
+If a dependency is found that no source can watch, it is listed as skipped: a dependency installed from a path, URL, git repo, editable install, formula from a third-party tap, or `mas` and `vscode` lines.
 
 ## Machine-readable output
 
