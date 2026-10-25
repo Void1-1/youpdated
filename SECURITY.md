@@ -32,8 +32,9 @@ Youpdated is a local CLI that reads public endpoints. The interesting attack sur
   sent to any host other than the one they belong to, including by following a redirect. The same
   goes for headers set on a webhook. Webhook URLs carry their secret in the path and must never be
   logged or shown beyond their host.
-- **`youpdated uninstall`.** It deletes files. Any way to make it remove something outside its own
-  config and data directories is in scope.
+- **`youpdated uninstall`.** It deletes files and uninstalls the package. Any way to make it remove
+  something outside its own config and data directories, or uninstall anything but the running copy of
+  Youpdated, is in scope.
 - **Encryption at rest.** When the config or history is encrypted, the passphrase and the decrypted
   contents must exist only in memory. Anything that writes plaintext to disk, logs the passphrase,
   accepts a file whose authentication tag does not verify, lets the KDF parameters be weakened, or

@@ -21,7 +21,7 @@ from rich.progress import (
 from rich.table import Column
 
 from . import __version__, crypto, notify
-from .cleanup import find_traces, package_removal_command, remove_traces
+from .cleanup import find_package, find_traces, remove_package, remove_traces
 from .config import (
     EXAMPLE_CONFIG,
     Config,
@@ -34,6 +34,7 @@ from .config import (
     read_config_text,
     require_config,
     split_command,
+    tool_dir,
 )
 from .edit import add_to_config, guess_source, remove_from_config, write_config
 from .http import Client, ProxyUnavailable, probe_proxy
@@ -148,12 +149,15 @@ def build_parser() -> argparse.ArgumentParser:
 
     uninstall = sub.add_parser(
         "uninstall",
-        help="remove all Youpdated files",
+        help="remove all Youpdated files and the package",
     )
     uninstall.add_argument("-c", "--config", help="also remove this config file")
     uninstall.add_argument("--state", help="also remove this state database")
     uninstall.add_argument(
-        "--keep-config", action="store_true", help="delete history but keep config files"
+        "--keep-config", action="store_true", help="delete files and package but keep config files"
+    )
+    uninstall.add_argument(
+        "--keep-package", action="store_true", help="delete files but keep the package installed"
     )
     uninstall.add_argument(
         "--test", action="store_true", help="list removals without deleting"
@@ -434,16 +438,25 @@ def cmd_decrypt(args: argparse.Namespace, console: Console) -> int:
 
 def cmd_uninstall(args: argparse.Namespace, console: Console) -> int:
     traces = find_traces(args.config, args.state, keep_config=args.keep_config)
+    package = None if args.keep_package else find_package()
+    from_source = None
+    if package is None and not args.keep_package:
+        # no package to remove, explain
+        from_source = f"[dim]This copy runs from source ({escape(str(tool_dir()))}), not a package.[/]"
 
-    if not traces:
+    if not traces and package is None:
         console.print("[dim]No Youpdated files found.[/]")
-        console.print(f"\nTo remove the package itself:\n  [bold]{package_removal_command()}[/]")
+        if from_source:
+            console.print(from_source)
         return 0
 
     console.print("[bold]This will permanently delete:[/]\n")
     for trace in traces:
         console.print(f"  [yellow]{escape(str(trace.path))}[/]")
         console.print(f"    [dim]{trace.note}[/]")
+    if package is not None:
+        console.print(f"  [yellow]youpdated {escape(package.version)}[/]")
+        console.print(f"    [dim]the package, with: {escape(package.display)}[/]")
     console.print()
 
     if args.test:
@@ -465,28 +478,46 @@ def cmd_uninstall(args: argparse.Namespace, console: Console) -> int:
             console.print("[dim]Cancelled. Nothing deleted.[/]")
             return 1
 
-    removed, failed = remove_traces(traces)
+    if traces:
+        removed, failed = remove_traces(traces)
 
-    for trace in removed:
-        console.print(f"[green]removed[/] {escape(str(trace.path))}")
-    for trace, reason in failed:
-        console.print(f"[yellow]kept[/]    {escape(str(trace.path))} — {escape(reason)}")
+        for trace in removed:
+            console.print(f"[green]removed[/] {escape(str(trace.path))}")
+        for trace, reason in failed:
+            console.print(f"[yellow]kept[/]    {escape(str(trace.path))} — {escape(reason)}")
 
-    console.print(
-        f"\n[bold]{len(removed)}[/] item(s) removed"
-        + (f", [bold]{len(failed)}[/] left in place." if failed else ".")
-    )
-    console.print(
-        "\nRemoved all written files. To remove the package itself:\n"
-        f"  [bold]{package_removal_command()}[/]"
-    )
+        console.print(
+            f"\n[bold]{len(removed)}[/] item(s) removed"
+            + (f", [bold]{len(failed)}[/] left in place." if failed else ".")
+        )
+
+    if package is None:
+        if from_source:
+            console.print(from_source)
+        return 0
+
+    console.print(f"\nRemoving the package with [bold]{escape(package.display)}[/]")
+    error = remove_package(package)
+    if error:
+        console.print(
+            f"[red]The package was not removed:[/] {escape(error)}\n"
+            f"To remove it yourself:\n  [bold]{escape(package.display)}[/]"
+        )
+        return 1
+    if package.after_exit:
+        console.print(
+            f"[green]removing[/] youpdated {escape(package.version)} once this command exits\n"
+            f"[dim]If it's still installed after that: {escape(package.display)}[/]"
+        )
+        return 0
+    console.print(f"[green]removed[/] youpdated {escape(package.version)}")
     return 0
 
 
 class _LiveProgress:
     """Progress view of a run"""
 
-    #: Targets named in the description before the rest become "+N more"
+    # Targets named in the description before the rest become "+N more"
     _SHOWN = 2
 
     def __init__(self, console: Console) -> None:

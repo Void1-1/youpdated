@@ -123,7 +123,7 @@ youpdated check --test -v    # check your config without fetching anything
 youpdated add npm react      # start watching something
 youpdated remove npm react   # stop watching it
 youpdated import Brewfile    # watch everything a package.json, requirements.txt, or Brewfile lists
-youpdated uninstall          # remove Youpdated files
+youpdated uninstall          # remove Youpdated and its files
 ```
 
 ## Privacy
