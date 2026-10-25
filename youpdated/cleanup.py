@@ -1,9 +1,14 @@
-"""Finds and removes everything from Youpdated."""
+"""Finds and removes everything from Youpdated"""
 
 from __future__ import annotations
 
+import os
+import shlex
+import shutil
+import subprocess
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from importlib import metadata
 from pathlib import Path
 
 from .config import (
@@ -13,9 +18,11 @@ from .config import (
     default_config_path,
     default_state_path,
     project_config_paths,
+    tool_dir,
 )
 
 APP_DIR_NAME = "youpdated"
+DIST_NAME = "youpdated"
 
 
 @dataclass
@@ -108,10 +115,70 @@ def remove_traces(traces: list[Trace]) -> tuple[list[Trace], list[tuple[Trace, s
     return removed, failed
 
 
-def package_removal_command() -> str:
-    """Command to remove the package."""
-    
-    return f"{sys.executable} -m pip uninstall youpdated"
+@dataclass
+class Package:
+    """installed and running copy of Youpdated, and how to remove"""
+
+    version: str
+    installer: str # "pipx" | "uv tool" | "uv" | "pip"
+    command: list[str]
+    env: dict[str, str] = field(default_factory=dict)
+
+    @property
+    def display(self) -> str:
+        join = subprocess.list2cmdline if os.name == "nt" else shlex.join
+        return join(self.command)
+
+
+def find_package() -> Package | None:
+    """the installed package this copy runs from, or None for source"""
+    try:
+        dist = metadata.distribution(DIST_NAME)
+    except metadata.PackageNotFoundError:
+        return None
+    installer = (dist.read_text("INSTALLER") or "").strip()
+    if not installer or Path(str(dist.locate_file(""))).resolve() != tool_dir():
+        return None
+
+    prefix = Path(sys.prefix)
+    if (prefix / "pipx_metadata.json").is_file():
+        # pipx keeps apps at $PIPX_HOME/venvs/<name> (named with any --suffix)
+        env = {"PIPX_HOME": str(prefix.parent.parent)} if prefix.parent.name == "venvs" else {}
+        return Package(dist.version, "pipx", ["pipx", "uninstall", prefix.name], env)
+    if (prefix / "uv-receipt.toml").is_file():
+        return Package(
+            dist.version, "uv tool", ["uv", "tool", "uninstall", prefix.name],
+            {"UV_TOOL_DIR": str(prefix.parent)},
+        )
+    if installer == "uv":
+        # environments uv made usually have no pip
+        return Package(
+            dist.version, "uv", ["uv", "pip", "uninstall", "--python", sys.executable, DIST_NAME]
+        )
+    return Package(
+        dist.version, "pip", [sys.executable, "-m", "pip", "uninstall", "--yes", DIST_NAME]
+    )
+
+
+def remove_package(package: Package) -> str | None:
+    """run the package's uninstaller. Returns why it failed, or None once this copy is gone"""
+    program = shutil.which(package.command[0])
+    if program is None:
+        return f"{package.command[0]} not found on PATH"
+    try:
+        result = subprocess.run(
+            [program, *package.command[1:]],
+            env={**os.environ, **package.env},
+            stdin=subprocess.DEVNULL,
+            check=False,
+        )
+    except OSError as exc:
+        return str(exc)
+    if result.returncode != 0:
+        return f"{package.installer} exited with status {result.returncode}"
+    if Path(__file__).exists():
+        return f"{package.installer} finished, but the package is still in {tool_dir()}"
+    return None
 
 
 def config_filename() -> str:

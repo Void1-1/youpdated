@@ -58,7 +58,7 @@ youpdated init --force                # rewrite the starter config
 youpdated init --encrypt              # starter config written encrypted from the start
 youpdated encrypt                     # lock the config and history behind a passphrase
 youpdated decrypt                     # convert them back to plain files
-youpdated uninstall --test            # list every file the tool wrote
+youpdated uninstall --test            # list all tool files and the package
 ```
 
 Running `youpdated` without arguments assumes `youpdated check`.

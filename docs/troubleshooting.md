@@ -26,7 +26,7 @@ To start over, delete the history database (the path is [findable here](configur
 
 ## Uninstalling
 
-Youpdated writes two files, but it will find and remove them for you. **Always check first:**
+Youpdated writes two files, but it will find and remove them for you, and the package itself. **Always check first:**
 
 ```sh
 youpdated uninstall --test
@@ -38,19 +38,17 @@ That prints what it would delete. When you're ready:
 youpdated uninstall
 ```
 
-It lists the files again and waits for you to confirm. Add `--yes` to skip the prompt in a script.
+It lists everything again and waits for you to confirm. Add `--yes` to skip the prompt in a script.
 
 ```sh
-youpdated uninstall --keep-config     # wipe history, keep your config
+youpdated uninstall --keep-config     # remove everything but your config
+youpdated uninstall --keep-config --keep-package  # only wipe history
+youpdated uninstall --keep-package    # delete the files, leave Youpdated installed
 youpdated uninstall --state ./test.db # also remove a database from --state
 ```
 
 Two rules: a directory is removed only if it is named `youpdated` and is empty once the tool's own files are gone. Anything else is kept and reported.
 
-It prints the command to remove the package itself (which it can't do while running):
+The package is removed last, using it's installer: `pipx uninstall youpdated` for pipx, `uv tool uninstall youpdated` for uv, and `python -m pip uninstall youpdated` with the Python it runs on otherwise. If that fails, it says why, prints the command to run yourself, and exits 1.
 
-```sh
-/path/to/.venv/bin/python -m pip uninstall youpdated
-```
-
-If you installed with pipx, `pipx uninstall youpdated` removes it. If you installed into a dedicated virtualenv, deleting that directory removes the package.
+Run from a checkout (`python -m youpdated` or `PYTHONPATH`), there is no package to remove, so only the files are removed. Remove a development install from your virtualenv with `.venv/bin/pip uninstall youpdated`, or delete the virtualenv.
