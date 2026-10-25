@@ -415,7 +415,7 @@ def test_a_warning_is_shown_with_what_was_added(config, tmp_path, capsys):
     path = requirements(tmp_path, "--extra-index-url https://download.pytorch.org/whl/cu121\ntorch\n")
     assert main(["import", "-c", str(config), str(path)]) == 0
     out = capsys.readouterr().out
-    assert "Warning:" in out and "download.pytorch.org" in out
+    assert "Warning:" in out and "https://download.pytorch.org/whl/cu121" in out
     assert "Added torch under pypi" in out
 
 
