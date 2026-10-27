@@ -25,7 +25,7 @@ body:
     attributes:
       label: What you've tried
       description: |
-        Existing options that got close but not far enough — `--json` piped into
+        Existing options that got close but not far enough: `--json` piped into
         another tool, `--since`, a `feed` entry, a cron wrapper.
 
   - type: checkboxes

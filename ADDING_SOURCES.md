@@ -379,4 +379,4 @@ Users then configure it like any built-in source. A plugin that fails to import 
 - [ ] `tags` describe the update type, so `ignore:` rules can match them
 - [ ] Tests cover parsing, both config shapes, and uid stability
 - [ ] Optional: `claim()` for values only this source can mean, `caches` for namespaces keyed by target
-- [ ] Registered — `@register` plus an import, or an entry point
+- [ ] Registered: `@register` plus an import, or an entry point

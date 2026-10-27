@@ -7,11 +7,17 @@ All notable changes to this project are documented here. The format follows [Kee
 ### Added
 
 - **`youpdated import`** (#37). Adds everything in a `package.json`, `requirements.txt`, or `Brewfile`, with `youpdated add`, `--test` shows the change without writing it. `package.json` dependencies of every kind go under `npm`, requirements go under `pypi` with `-r` includes followed, and `brew`/`cask` lines go under `homebrew`. A dependency from a path, URL, git repo, editable install, third-party tap, and Brewfile lines like `mas` are skipped with reasons shown. Files are recognized by name, or read as named with `--format`. Requirements from another index (`--index-url`, `--no-index`) are skipped, as PyPI's package of that name may be a different one, and `--extra-index-url` is shown as a warning. Credentials in a dependency's URL are never printed.
+- **Sorting and priority in the desktop example app** (#12). Right-click an update to mark its target high, normal, or low priority; high ones are tagged and low ones dimmed. The list sorts by priority, newest, source, or name. High targets get their own notification as soon as they update, and low ones never notify. `--digest 18:00` holds the rest for one notification a day, and `--bundle-high` holds high priority too. Settings live in the example only, beside the history as `state.desk.json` and encrypted when the history is; the youpdated config is unchanged. (example app available from the GitHub)
 
 ### Changed
 
 - **`youpdated add` lists entries already watched on one line per source** (`Already watching express, react under npm`), instead of one line each.
 - **`youpdated uninstall` also removes the package.** Once the files are gone it runs the uninstaller used for the copy: `pipx uninstall` for pipx, `uv tool uninstall` for uv tools, `uv pip uninstall` for a uv-made environment, and `python -m pip uninstall` with the interpreter it runs on otherwise. The package is listed in `--test` and confirmation prompt. If the uninstaller fails, or exits but leaves the package, the command to run yourself is printed and exits 1. On Windows, which won't delete the running `youpdated.exe`, the uninstaller runs in the background once the command exits. `--keep-package` deletes files only. `--keep-config` now removes the package too; add `--keep-package` to only wipe history. A copy run from a checkout (`python -m youpdated`, `PYTHONPATH`) is not a package, and nothing other than files are removed.
+- **The desktop example shows one card per target.** Several updates from the same target share its card, newest first, one line each up to three and then a count; each line opens its own link.
+
+### Fixed
+
+- **Trackpad scrolling in the desktop example on macOS.** Tk 9 sends trackpads as `<TouchpadScroll>`, which the window ignored, and reports a mouse wheel notch as 120 rather than 1, which scrolled 720 pixels a notch. Tk 8.6 behaves as before.
 
 ## [0.4.0] — 2026-10-24
 
