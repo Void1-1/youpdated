@@ -187,6 +187,35 @@ def test_npm_versions(client):
 
 
 @respx.mock
+def test_npm_latest_is_listed_when_newer_prereleases_fill_the_rest(client):
+    times = {"created": "2026-01-01T00:00:00Z", "15.0.0": "2026-01-01T00:00:00Z"}
+    times |= {f"15.1.0-canary.{n}": f"2026-01-{n + 2:02}T00:00:00Z" for n in range(12)}
+    doc = {"dist-tags": {"latest": "15.0.0"}, "time": times, "versions": {}}
+    respx.get("https://registry.npmjs.org/next").mock(return_value=httpx.Response(200, json=doc))
+    source = get_source("npm")
+    (target,) = source.targets(["next"])
+    updates = list(source.fetch(target, client))
+
+    assert len(updates) == 11
+    assert updates[-1].version == "15.0.0"
+    assert "latest" in updates[-1].tags
+
+
+@respx.mock
+def test_npm_lists_the_newest_finals_behind_a_run_of_canaries(client):
+    times = {f"14.{n}.0": f"2026-01-{n + 1:02}T00:00:00Z" for n in range(12)}
+    times |= {f"15.0.0-canary.{n}": f"2026-02-{n + 1:02}T00:00:00Z" for n in range(12)}
+    doc = {"dist-tags": {"latest": "14.11.0"}, "time": times, "versions": {}}
+    respx.get("https://registry.npmjs.org/next").mock(return_value=httpx.Response(200, json=doc))
+    source = get_source("npm")
+    (target,) = source.targets(["next"])
+    versions = [u.version for u in source.fetch(target, client)]
+
+    assert versions[:10] == [f"15.0.0-canary.{n}" for n in range(11, 1, -1)]
+    assert versions[10:] == [f"14.{n}.0" for n in range(11, 1, -1)]
+
+
+@respx.mock
 def test_npm_scoped_package_is_url_encoded(client):
     route = respx.get("https://registry.npmjs.org/@types%2Fnode").mock(
         return_value=httpx.Response(200, content=fixture("npm_express.json"))

@@ -7,6 +7,8 @@ Everything Youpdated watches, and how, is in a YAML file. `youpdated init` write
 - [Full example](#full-example)
 - [Git forges](#git-forges)
 - [Ignoring update types](#ignoring-update-types)
+- [Filtering by version](#filtering-by-version)
+- [Tracking the latest release](#tracking-the-latest-release)
 - [How long history is kept](#how-long-history-is-kept)
 - [Checking your config](#checking-your-config)
 
@@ -56,7 +58,11 @@ ignore:                              # update types you never want reported
   '*': [prerelease]                  # '*' is every source
   git: [commit]
 
+versions:                            # which versions are reported
+  npm: {bump: major}                 # only new major versions, like 19.0.0
+
 expiry: 1y                           # forget items missing from every fetch this long
+track_latest: true                   # also ask forges and Steam for the latest release
 
 sources:
   git:                               # GitHub, GitLab, Codeberg, Forgejo/Gitea
@@ -92,6 +98,7 @@ sources:
     - package: django
       name: Django
       ignore: [prerelease]           # skip alphas, betas, rcs, and dev releases
+      versions: {bump: minor}        # 5.2.0 and 6.0.0, but not 5.2.1
 
   steam:
     - 440                            # appid; the store name is resolved for you
@@ -184,7 +191,66 @@ An update is dropped if it carries **any** tag listed. A GitHub release candidat
 
 An itch build is tagged `build`, not `release`. It is a fingerprint of the game page, not a published release. A page with a date move and no new files is tagged `page`. So `ignore: [build]` drops new builds while keeping devlog posts, and ignoring `release` everywhere leaves itch alone. (`watch: [devlog]` on an itch entry still turns builds off outright)
 
-Without a `GITHUB_TOKEN`, `prerelease` is inferred from the tag name (`v3.15.0rc2`, `1.2.0-beta.1`), because the anonymous `.atom` feeds don't have prerelease flags. With a token, GitHub's flag is used. GitLab has no prerelease flag, so it is always inferred; Forgejo's flag is always used.
+Without a `GITHUB_TOKEN`, `prerelease` is inferred from the tag name (`v3.15.0rc2`, `1.2.0-beta.1`, `v22.3.0-next.2`, `v4.2.0-M2`, `3.40.0.CR1`, `llvmorg-24-init`), because the anonymous `.atom` feeds don't have prerelease flags. With a token, GitHub's flag is used. GitLab has no prerelease flag, so it is always inferred; Forgejo's flag is always used. A project whose prereleases have plain version numbers, such as PCSX2's nightlies, only marks them with GitHub's flag, so they need a token to be told apart.
+
+## Filtering by version
+
+A `versions:` rule reports only some of a target's versions:
+
+```yaml
+sources:
+  npm:
+    - package: react
+      versions:
+        bump: major                     # 19.0.0, not 18.3.1
+  pypi:
+    - package: django
+      versions:
+        min: "5.0"                      # 5.0 and later, nothing from 4.2
+```
+
+- **`bump: major`** reports a version only when its first number is higher than every release before it: 4.0.0 after 3.9.2, but not 4.0.1. `minor` also reports 3.10.0, and `patch` also reports 3.9.3. A backport, such as 3.12.8 released after 3.13.0, is never a bump, and neither is a build number like Chrome's 131.0.6778.85 after 131.0.6778.69. `bump: any` reports every version, which is the default.
+- **`min`** reports only versions at or above it. `min: 4` keeps 4.0.0 and its release candidates, and drops 3.9.2. Put it in quotes when it has a dot, as YAML reads `3.10` as the number 3.1.
+
+Versions are compared by their numbers: `v3.15.0rc1` counts as 3.15, `1.25.0_2` as 1.25, and `curl-8_11_1` as 8.11.1, so any dotted or underscored numbering works, not only semver. A version with the same numbers as one before it, such as `2026.1.post1` or a Homebrew revision, isn't a second bump. Updates without a version, such as commits, devlog posts, and videos, are never filtered; a version without a number to read, like `stable` or a dated snapshot tag, always is.
+
+A prerelease is an update its source tags `prerelease` (see [the tags each source sets](#ignoring-update-types)). Only the first one toward a bump is reported, as a heads-up, and then the final: `bump: major` shows 4.0.0rc1 and 4.0.0, but not 4.0.0rc2 or the nightlies in between. Add `ignore: [prerelease]` to see only the final. A browser's beta or nightly channel isn't tagged, so its betas are that channel's releases.
+
+Like `ignore:`, rules can be set for every source or for one, and an entry's own rules override them one rule at a time:
+
+```yaml
+versions: {bump: major}               # shorthand: every source
+```
+
+```yaml
+versions:
+  '*': {bump: minor}                  # every source
+  npm: {bump: major}                  # just this source
+
+sources:
+  npm:
+    - express                         # bump: major
+    - package: react
+      versions: {min: "18"}           # bump: major, and 18 or later
+    - package: vue
+      versions: {bump: any}           # every version
+```
+
+Unlike an ignored update, a version a rule leaves out still counts as seen, so loosening the rule later doesn't report the versions it skipped. The summary line says how many were left out, and `--json` counts them as `filtered`.
+
+A target with `bump` keeps its highest versions in its history. A new version is compared against releases the source no longer lists, and a source that lists only the current version, like `homebrew`, has something to compare the next one against. `check --all` compares only against what the source lists, since the history is past every version listed. So it can show the oldest listed version of a line as a bump, like 3.15.1 once 3.15.0 has dropped off the list. A target's first check with `bump` is compared the same way.
+
+## Tracking the latest release
+
+Each check reads only the newest items a source lists, ex: 10 releases for a GitHub repo (20 with a token, and on GitLab and Forgejo), and what a Steam game's news feed lists. A project that publishes nightlies, canaries, or announcements faster than you check can push a release off that list before it's seen.
+
+`npm` and `pypi` also list the 10 newest final releases and the `latest` version, from the same request, so they always do this. So does Brave's stable channel when the GitHub API is rate-limited and the feed it falls back to is all nightlies. For `git` and `steam` it takes a request of its own per entry, so it's opt-in:
+
+```yaml
+track_latest: true
+```
+
+With it, a `git` entry watching releases also asks the forge for its latest release: where `/releases/latest` points on GitHub (the API, with a token), GitLab's latest permalink, or Forgejo's latest release. A `steam` entry asks for the newest post the developer marked as an update. It's added only when the list doesn't have it already, so nothing is reported twice. Without a GitHub token, that release has no date. `check --test -v` lists the extra requests.
 
 ## How long history is kept
 

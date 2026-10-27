@@ -290,6 +290,11 @@ def test_terminal_summary_stays_quiet_when_nothing_was_ignored(capsys):
         "v3.15.0rc2", "v3.15.0b4", "v3.15.0a1", "1.2.0-beta.1", "1.2.0-rc1",
         "0.12.0-alpha", "2.0.0-dev", "v1.0-preview", "4.0.0-nightly.20240101",
         "1.0.0-canary", "1.5.0-snapshot",
+        # Tags real projects use
+        "v22.3.0-next.2", "@sveltejs/kit@3.0.0-next.32", "v4.2.0-M2", "3.40.0.CR1",
+        "v35.0.0beta4", "release-5.3.0beta1", "v3.7.0-ea.3", "v2.54.0-rc.0+dedupelabels",
+        "llvmorg-24-init", "26.3-branchpoint", "swift-6.4.x-DEVELOPMENT-SNAPSHOT-2026-10-23-a",
+        "nightly", "go1.27rc3", "php-8.6.0RC4", "REL_19_BETA4", "INKSCAPE_1_4_4_RC",
     ],
 )
 def test_github_version_reads_as_a_prerelease(version):
@@ -302,6 +307,9 @@ def test_github_version_reads_as_a_prerelease(version):
         "v3.14.7", "0.12.13", "1.98.1", "v1.0.0", "2026.1.0", "v1.0.0-linux",
         "release-1.2.3", "v4.2.0+build.7", "1.0.0-final", "v2.0.0-stable",
         "20240101", "v1.2.3-x86_64", "openssl-3.0.0", None, "",
+        # A commit hash, OpenSSL's letter releases, a package named `next`
+        "20230320-124340-559cb7b0", "1.1.1a", "1.1.1b", "next@15.0.0", "stable",
+        "swift-6.0.3-RELEASE", "INKSCAPE_1_4_4",
     ],
 )
 def test_github_version_reads_as_stable(version):
@@ -324,6 +332,34 @@ def test_github_atom_tags_prereleases_without_a_token(client, monkeypatch):
     assert {u.version for u in pre} == {"v3.15.0rc1", "v3.15.0b4", "v3.15.0b3"}
     # Never at the cost of the release tag the API path also sets.
     assert all("release" in u.tags for u in pre)
+
+
+@respx.mock
+def test_github_atom_keeps_a_tag_without_a_number(client, monkeypatch):
+    """neovim's `nightly` is a prerelease without a token too, as the API flags it"""
+    monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+    entry = (
+        "<entry><id>tag:github.com,2008:Repository/16408992/{tag}</id><title>{tag}</title>"
+        "<updated>2026-10-26T00:00:00Z</updated>"
+        '<link href="https://github.com/neovim/neovim/releases/tag/{tag}"/></entry>'
+    )
+    respx.get("https://github.com/neovim/neovim/releases.atom").mock(
+        return_value=httpx.Response(
+            200,
+            text='<feed xmlns="http://www.w3.org/2005/Atom"><title>Release notes</title>'
+            + "".join(entry.format(tag=tag) for tag in ("nightly", "stable", "v0.12.6"))
+            + "</feed>",
+        )
+    )
+    source = get_source("git")
+    (target,) = source.targets(["neovim/neovim"])
+    tags = {u.version: u.tags for u in source.fetch(target, client)}
+
+    assert tags == {
+        "nightly": ("release", "prerelease"),
+        "stable": ("release",),
+        "v0.12.6": ("release",),
+    }
 
 
 @respx.mock

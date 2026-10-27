@@ -236,6 +236,25 @@ release and another ignore only the candidates.
 You do not need to handle `ignore` yourself. It is lifted off the config entry
 before `targets()` ever sees it, and applied to whatever you return.
 
+### Set `version` on anything versioned
+
+`version`: a user's `versions:` rules (only major bumps, only versions above
+`3.13`) compare it, so set it on every item that is a version, even when the
+title repeats it. Pass it as upstream writes it (`v3.15.0rc1`, `1.25.0_2`);
+only its numbers are compared. Leave it `None` on items that aren't versions,
+such as posts and commits, which the rules never filter. Like `ignore`,
+`versions` is lifted off the config entry before `targets()` sees it.
+Tag prereleases `prerelease`: `bump` counts only the first one toward a
+version, and an untagged version counts as a final release.
+
+### Listing the latest release
+
+If your source lists only the newest few items, a busy upstream can push a
+release off the list before it's seen. When the latest release is in the
+document you already fetch, list it always. When it takes a request of its
+own, ask only if `target.track_latest` is set, and add it only if it isn't
+listed already, under the uid it would have there.
+
 ### Filling in a label during fetch
 
 Sometimes the friendly name is only available from the response. Assign it to `target.label`; the renderers pick it up:
@@ -379,6 +398,7 @@ Users then configure it like any built-in source. A plugin that fails to import 
 - [ ] Returns `[]` rather than inventing an update
 - [ ] `published` is timezone-aware UTC (or `None`)
 - [ ] `tags` describe the update type, so `ignore:` rules can match them
+- [ ] `version` is set on items that are versions, so `versions:` rules can compare them
 - [ ] Tests cover parsing, both config shapes, and uid stability
 - [ ] Optional: `claim()` for values only this source can mean, `caches` for namespaces keyed by target
 - [ ] Registered: `@register` plus an import, or an entry point

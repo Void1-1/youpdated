@@ -7,6 +7,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
+from .versions import VersionRules
+
 _UNSAFE_RE = re.compile(r"[\x00-\x08\x0b-\x1f\x7f-\x9f\ud800-\udfff\ufffe\uffff]")
 _SURROGATE_RE = re.compile(r"[\ud800-\udfff]")
 
@@ -31,6 +33,10 @@ class Target:
     params: dict[str, Any] = field(default_factory=dict)
     # Update tags this target does not want reported
     ignore: frozenset[str] = frozenset()
+    # Which versions are reported
+    versions: VersionRules = VersionRules()
+    # `track_latest:`, also ask for the latest release (if it takes another request)
+    track_latest: bool = False
 
     @property
     def display(self) -> str:

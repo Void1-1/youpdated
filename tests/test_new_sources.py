@@ -22,6 +22,7 @@ EDGE_URL = "https://edgeupdates.microsoft.com/api/products"
 FIREFOX_URL = "https://product-details.mozilla.org/1.0/firefox_versions.json"
 BRAVE_ATOM_URL = "https://github.com/brave/brave-browser/releases.atom"
 BRAVE_API_URL = "https://api.github.com/repos/brave/brave-browser/releases?per_page=100"
+BRAVE_LATEST_URL = "https://github.com/brave/brave-browser/releases/latest"
 
 
 # itch: builds and devlogs
@@ -308,12 +309,8 @@ def test_brave_falls_back_to_atom_on_a_transport_error(client):
     assert updates and all(u.title.startswith("Beta") for u in updates)
 
 
-@respx.mock
-def test_brave_fails_when_the_atom_feed_has_nothing_for_its_channel(state, client):
-    """Recorded as a baseline, an empty list would report old stable releases as new later"""
-    from youpdated.config import parse_config
-    from youpdated.runner import run
-
+def _brave_nightlies_only():
+    """The API rate limited, and an atom feed of nothing but nightlies"""
     respx.get(BRAVE_API_URL).mock(return_value=httpx.Response(403, json={"message": "limit"}))
     entry = (
         "<entry><id>tag:github.com,2008:Repository/1/v1.96.{n}</id><title>Nightly v1.96.{n}</title>"
@@ -328,6 +325,51 @@ def test_brave_fails_when_the_atom_feed_has_nothing_for_its_channel(state, clien
             + "</feed>",
         )
     )
+
+
+@respx.mock
+def test_brave_stable_falls_back_to_the_latest_release_behind_nightlies(state, client):
+    _brave_nightlies_only()
+    respx.get(BRAVE_LATEST_URL).mock(
+        return_value=httpx.Response(
+            302, headers={"Location": "https://github.com/brave/brave-browser/releases/tag/v1.95.79"}
+        )
+    )
+    source = get_source("browser")
+    (target,) = source.targets(["brave"])
+    (update,) = list(source.fetch(target, client))
+
+    assert update.uid == "brave:v1.95.79" and update.version == "1.95.79"
+    assert update.title == "Release v1.95.79" and update.tags == ("release", "stable")
+
+
+@respx.mock
+def test_brave_beta_never_asks_for_the_latest_release(client):
+    _brave_nightlies_only()
+    latest = respx.get(BRAVE_LATEST_URL)
+    source = get_source("browser")
+    (target,) = source.targets([{"browser": "brave", "channel": "beta"}])
+
+    with pytest.raises(FetchError):
+        list(source.fetch(target, client))
+    assert not latest.called
+
+
+@pytest.mark.parametrize(
+    "answer",
+    [
+        httpx.Response(302, headers={"Location": "https://github.com/brave/brave-browser/releases"}),
+        httpx.Response(404),
+    ],
+)
+@respx.mock
+def test_brave_fails_when_the_atom_feed_has_nothing_for_its_channel(state, client, answer):
+    """Recorded as a baseline, an empty list would report old stable releases as new later"""
+    from youpdated.config import parse_config
+    from youpdated.runner import run
+
+    _brave_nightlies_only()
+    respx.get(BRAVE_LATEST_URL).mock(return_value=answer)
 
     result = run(parse_config({"sources": {"browser": ["brave"]}}), state, client)
 
@@ -636,7 +678,8 @@ def test_pypi_asks_for_the_json_index(client):
 def test_pypi_reports_newest_releases(client):
     updates = _pypi_updates(client)
 
-    assert len(updates) == 10
+    # The ten newest, 6 dev releases among them, and the 8 finals behind those
+    assert len(updates) == 14
     assert updates[0].version == "1.0.dev6"
     assert updates[0].uid == "version:1.0.dev6"
     assert updates[0].url == "https://pypi.org/project/httpx/1.0.dev6/"
@@ -679,6 +722,22 @@ def test_pypi_latest_falls_back_to_a_prerelease(client):
     }
     tags = {u.version: u.tags for u in _pypi_updates(client, doc)}
     assert tags["1.0b1"] == ("release", "prerelease", "latest")
+
+
+@respx.mock
+def test_pypi_latest_is_listed_when_newer_prereleases_fill_the_rest(client):
+    dev = [f"1.0.dev{n}" for n in range(12)]
+    doc = {
+        "name": "httpx",
+        "versions": ["0.28.1", *dev],
+        "files": [_pypi_file("httpx-0.28.1.tar.gz", "2026-01-01T00:00:00Z")]
+        + [_pypi_file(f"httpx-{v}.tar.gz", f"2026-02-{n + 1:02}T00:00:00Z") for n, v in enumerate(dev)],
+    }
+    updates = _pypi_updates(client, doc)
+
+    assert len(updates) == 11
+    assert updates[-1].version == "0.28.1"
+    assert "latest" in updates[-1].tags
 
 
 @pytest.mark.parametrize(
@@ -768,7 +827,7 @@ def test_pypi_reports_a_project_status(client, status):
     assert alert.url == "https://pypi.org/project/httpx/"
     assert alert.body == "no longer maintained"
     assert alert.tags == ("status", status)
-    assert len(updates) == 11
+    assert len(updates) == 15
 
 
 @pytest.mark.parametrize("project_status", [{"status": "active"}, {}, None])

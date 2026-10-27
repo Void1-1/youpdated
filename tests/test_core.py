@@ -1076,13 +1076,13 @@ def test_a_repo_listed_twice_with_different_rules_is_not_refetched_whole(
 
 
 def test_ignore_keys_that_cover_nothing_are_warned_about():
-    from youpdated.runner import ignore_warnings
+    from youpdated.runner import rule_warnings
 
     config = parse_config({
         "sources": {"git": ["python/cpython"], "npm": ["express"]},
         "ignore": {"*": ["x"], "npm": ["x"], "github": ["prerelease"], "pipy": ["x"]},
     })
-    moved, typo = ignore_warnings(config)
+    moved, typo = rule_warnings(config)
     assert "`ignore.github`" in moved and "need `ignore.git`" in moved
     assert "`ignore.pipy` covers nothing" in typo
 

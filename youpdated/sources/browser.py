@@ -276,6 +276,14 @@ class BrowserSource:
             tags=("release", channel),
         )
         updates = [u for u in updates if u.title.strip().lower().startswith(prefix)]
+        if not updates and BRAVE_CHANNELS[channel] == BRAVE_CHANNELS["stable"]:
+            try:
+                latest = self._brave_latest(client, target, channel)
+            except FetchError as exc:
+                client.note(f"brave: no latest release either ({exc})")
+                latest = None
+            if latest is not None:
+                return [latest]
         if not updates:
             raise FetchError(
                 f"{why}, and the atom feed's latest releases include no {channel} release"
@@ -295,6 +303,29 @@ class BrowserSource:
             )
             for u in updates
         ][:MAX_VERSIONS]
+
+    def _brave_latest(self, client: Client, target: Target, channel: str) -> Update | None:
+        """The newest stable release, by where /releases/latest redirects"""
+        fetched = client.get(
+            "https://github.com/brave/brave-browser/releases/latest",
+            follow_redirects=False,
+            soft_statuses=(301, 302, 303, 307, 308),
+        )
+        if fetched is None:
+            return None
+        location = fetched.headers.get("location", "")
+        tag = _tag_from_url(location)
+        if not tag:
+            return None
+        return Update(
+            source=self.name,
+            target=target.key,
+            uid=f"brave:{tag}",
+            title=f"{BRAVE_CHANNELS['stable']} {tag}",
+            url=location,
+            version=_version_from_title(tag),
+            tags=("release", channel),
+        )
 
     # Firefox
 
