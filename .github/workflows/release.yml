@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       dry_run:
-        description: "Build and verify only — do not upload to PyPI"
+        description: "Build and verify only. Do not upload to PyPI"
         type: boolean
         default: true
 
@@ -107,5 +107,5 @@ jobs:
   # Nothing of value was lost. Comparing a copy by eye was always the weak version of
   # the guarantee; the attestation above is the strong one, and PyPI serves it. The
   # release's own source archive is covered by immutability. Do not reinstate this by
-  # turning immutable releases off — that trades a real integrity property for a
+  # turning immutable releases off, that trades a real integrity property for a
   # convenience one.

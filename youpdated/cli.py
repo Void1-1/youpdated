@@ -301,7 +301,7 @@ def cmd_import(args: argparse.Namespace, console: Console) -> int:
         read_file(Path(name).expanduser(), found, args.format)
 
     for what, why in found.skipped:
-        console.print(f"[yellow]Skipped[/] {escape(what)} [dim]— {escape(why)}[/]")
+        console.print(f"[yellow]Skipped[/] {escape(what)} [dim]: {escape(why)}[/]")
     for warning in found.warnings:
         console.print(f"[yellow]Warning:[/] {escape(warning)}")
     if not found.entries:
@@ -381,7 +381,7 @@ def cmd_encrypt(args: argparse.Namespace, console: Console) -> int:
             load_config(config_path)
         except ConfigError as exc:
             console.print(
-                f"[yellow]Warning:[/] config does not currently parse — {escape(str(exc))}"
+                f"[yellow]Warning:[/] config does not currently parse: {escape(str(exc))}"
             )
 
     console.print("[bold]This will encrypt:[/]\n")
@@ -492,7 +492,7 @@ def cmd_uninstall(args: argparse.Namespace, console: Console) -> int:
         for trace in removed:
             console.print(f"[green]removed[/] {escape(str(trace.path))}")
         for trace, reason in failed:
-            console.print(f"[yellow]kept[/]    {escape(str(trace.path))} — {escape(reason)}")
+            console.print(f"[yellow]kept[/]    {escape(str(trace.path))}: {escape(reason)}")
 
         console.print(
             f"\n[bold]{len(removed)}[/] item(s) removed"
@@ -658,7 +658,7 @@ def cmd_check(args: argparse.Namespace, console: Console) -> int:
         except ProxyUnavailable as exc:
             if not args.test:
                 raise
-            status.print(f"[yellow]proxy: unreachable[/] — {escape(str(exc).splitlines()[0])}")
+            status.print(f"[yellow]proxy: unreachable[/]: {escape(str(exc).splitlines()[0])}")
         else:
             if args.verbose or args.test:
                 status.print(f"[dim]proxy:  {escape(config.privacy.proxy)} reachable[/]")
