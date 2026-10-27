@@ -23,7 +23,7 @@ from typing import Any, ClassVar, Iterable
 from ..http import Client, FetchError
 from ..models import Target, Update
 from ..registry import register
-from .base import ConfigEntryError, accepted, entry_fields, require
+from .base import ConfigEntryError, accepted, entry_fields, parse_iso, require
 from .feed import html_to_text, parse_feed
 
 MAX_VERSIONS = 10
@@ -171,7 +171,7 @@ class BrowserSource:
         starts: dict[str, datetime | None] = {}
         for release in fetched.json().get("releases", []):
             version = release.get("version")
-            started = _parse_iso((release.get("serving") or {}).get("startTime"))
+            started = parse_iso((release.get("serving") or {}).get("startTime"))
             if not version:
                 continue
             earliest = starts.get(version)
@@ -219,7 +219,7 @@ class BrowserSource:
             )
         except FetchError as exc:
             client.note(f"brave: GitHub API failed ({exc}), falling back to the atom feed")
-            return self._brave_from_atom(target, client, channel, prefix)
+            return self._brave_from_atom(target, client, channel, prefix, "GitHub API failed")
 
         if fetched is None:
             return []  # 304: nothing changed
@@ -229,7 +229,9 @@ class BrowserSource:
         client.note(
             f"brave: GitHub API returned {fetched.status}, falling back to the atom feed"
         )
-        return self._brave_from_atom(target, client, channel, prefix)
+        return self._brave_from_atom(
+            target, client, channel, prefix, f"GitHub API returned {fetched.status}"
+        )
 
     def _brave_from_api(
         self, target: Target, releases: list[dict], channel: str, prefix: str
@@ -250,7 +252,7 @@ class BrowserSource:
                     uid=f"brave:{tag}",
                     title=name,
                     url=release.get("html_url", ""),
-                    published=_parse_iso(release.get("published_at")),
+                    published=parse_iso(release.get("published_at")),
                     version=_version_from_title(tag) or _version_from_title(name),
                     body=html_to_text(release.get("body")),
                     tags=("release", channel),
@@ -261,7 +263,7 @@ class BrowserSource:
         return updates
 
     def _brave_from_atom(
-        self, target: Target, client: Client, channel: str, prefix: str
+        self, target: Target, client: Client, channel: str, prefix: str, why: str
     ) -> list[Update]:
         fetched = client.get("https://github.com/brave/brave-browser/releases.atom")
         if fetched is None:
@@ -273,6 +275,11 @@ class BrowserSource:
             limit=None,  # filtered below, don't truncate before
             tags=("release", channel),
         )
+        updates = [u for u in updates if u.title.strip().lower().startswith(prefix)]
+        if not updates:
+            raise FetchError(
+                f"{why}, and the atom feed's latest releases include no {channel} release"
+            )
         return [
             Update(
                 source=u.source,
@@ -287,7 +294,6 @@ class BrowserSource:
                 tags=u.tags,
             )
             for u in updates
-            if u.title.strip().lower().startswith(prefix)
         ][:MAX_VERSIONS]
 
     # Firefox
@@ -343,7 +349,7 @@ class BrowserSource:
             if release.get("Platform") != platform:
                 continue
             version = release.get("ProductVersion")
-            published = _parse_iso(release.get("PublishedTime"))
+            published = parse_iso(release.get("PublishedTime"))
             if version and version not in seen:
                 seen[version] = published
 
@@ -385,27 +391,10 @@ def _version_from_title(title: str) -> str | None:
     return match.group(1) if match else None
 
 
-def _parse_iso(value: str | None) -> datetime | None:
-    if not value:
-        return None
-    text = str(value).replace("Z", "+00:00")
-    # Some have more digits than fromisoformat accepts
-    if "." in text:
-        head, _, tail = text.partition(".")
-        digits = "".join(c for c in tail if c.isdigit())[:6]
-        rest = tail[len(digits):] if tail[len(digits):].startswith(("+", "-")) else ""
-        text = f"{head}.{digits or '0'}{rest}"
-    try:
-        parsed = datetime.fromisoformat(text)
-    except ValueError:
-        return None
-    return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
-
-
 def _parse_date(value: str | None) -> datetime | None:
     if not value:
         return None
     try:
         return datetime.strptime(str(value), "%Y-%m-%d").replace(tzinfo=timezone.utc)
     except ValueError:
-        return _parse_iso(value)
+        return parse_iso(value)

@@ -321,6 +321,26 @@ def test_uninstall_on_windows_says_the_package_goes_once_it_exits(app_dir, monke
     assert "removed youpdated" not in out
 
 
+def test_uninstall_fails_when_a_file_is_left_in_place(app_dir, removals, capsys):
+    _populate(app_dir)
+    (app_dir / "notes.txt").write_text("not ours", encoding="utf-8")
+
+    assert cli.main(["uninstall", "--yes"]) == 1
+    assert "1 left in place" in capsys.readouterr().out
+
+
+def test_uninstall_removes_the_state_lock_with_the_state(app_dir, removals):
+    from youpdated.state import State
+
+    app_dir.mkdir()
+    with State(app_dir / "state.sqlite3"):
+        pass
+    assert (app_dir / "state.sqlite3.lock").exists()
+
+    assert cli.main(["uninstall", "--yes"]) == 0
+    assert not app_dir.exists()
+
+
 def test_uninstall_removes_the_package_even_with_no_files_left(app_dir, removals):
     assert cli.main(["uninstall", "--yes"]) == 0
     assert len(removals) == 1

@@ -23,8 +23,8 @@ from __future__ import annotations
 import getpass
 import hashlib
 import os
-import stat
 import sys
+import tempfile
 from contextlib import suppress
 from pathlib import Path
 
@@ -176,22 +176,26 @@ def write_private(path: str | Path, blob: bytes) -> None:
     "Owner-readable only" holds on POSIX. Windows has no permission bits: the mode is
     ignored beyond the read-only flag and access follows the ACL inherited from the
     parent directory.
+
+    A symlink is kept, and the file it points to is replaced: replacing the link itself
+    would leave the old contents, plaintext for `encrypt`, at its target.
     """
-    path = Path(path)
+    path = Path(path).resolve()
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_name(path.name + ".tmp")
+    tmp: str | None = None
     try:
         try:
-            fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, stat.S_IRUSR | stat.S_IWUSR)
+            fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.", suffix=".tmp")
             with os.fdopen(fd, "wb") as handle:
                 handle.write(blob)
                 handle.flush()
                 os.fsync(handle.fileno())
+            os.replace(tmp, path)
         except BaseException:
-            with suppress(OSError):
-                os.unlink(tmp)
+            if tmp is not None:
+                with suppress(OSError):
+                    os.unlink(tmp)
             raise
-        os.replace(tmp, path)
     except OSError as exc:
         raise EncryptionError(f"cannot write {path}: {exc}") from exc
 

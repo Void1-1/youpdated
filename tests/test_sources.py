@@ -339,3 +339,218 @@ def test_youtube_reports_clearly_when_every_path_fails(client):
 
     with pytest.raises(Exception, match="every YouTube path failed"):
         list(source.fetch(target, client))
+
+
+CHANNEL = "UCLA_DiR1FfKNvjuUpBHmylQ"
+DATA_API = "https://www.googleapis.com/youtube/v3/playlistItems"
+
+
+def _blocked_feed_and(instances: list | None = None) -> None:
+    respx.get(url__startswith="https://www.youtube.com/feeds/videos.xml").mock(
+        return_value=httpx.Response(404, text="blocked")
+    )
+    respx.get("https://api.invidious.io/instances.json").mock(
+        return_value=httpx.Response(
+            200,
+            json=[
+                [uri, {"type": "https", "api": True, "uri": uri}] for uri in instances or []
+            ],
+        )
+    )
+
+
+def _video(vid: str = "abcdefghijk", **extra) -> dict:
+    return {"videoId": vid, "title": "A video", "published": 1_700_000_000, **extra}
+
+
+@respx.mock
+def test_youtube_api_key_goes_in_a_header_and_is_never_shown(client, monkeypatch):
+    from youpdated.http import FetchError
+
+    monkeypatch.setenv("YOUTUBE_API_KEY", "AIza-secret")
+    _blocked_feed_and()
+    api = respx.get(url__startswith=DATA_API).mock(
+        return_value=httpx.Response(403, json={"error": {"message": "quota"}})
+    )
+    (target,) = get_source("youtube").targets([CHANNEL])
+
+    with pytest.raises(FetchError) as failed:
+        list(get_source("youtube").fetch(target, client))
+
+    sent = api.calls.last.request
+    assert sent.headers["X-Goog-Api-Key"] == "AIza-secret"
+    assert "AIza-secret" not in str(sent.url)
+    assert "AIza-secret" not in str(failed.value)
+    assert not any("AIza-secret" in url for url in client.requested_urls)
+
+
+@respx.mock
+def test_youtube_uses_only_public_https_invidious_instances(client):
+    _blocked_feed_and(
+        [
+            "http://plain.example",
+            "https://127.0.0.1:9",
+            "https://[::1]",
+            "https://localhost",
+            "https://other-port.example:8443",
+            "https://user:pw@creds.example",
+            "https://good.example/",
+        ]
+    )
+    respx.get(f"https://good.example/api/v1/channels/{CHANNEL}/latest").mock(
+        return_value=httpx.Response(200, json=[_video()])
+    )
+    (target,) = get_source("youtube").targets([CHANNEL])
+
+    assert [u.uid for u in get_source("youtube").fetch(target, client)] == ["yt:video:abcdefghijk"]
+    instance_requests = [u for u in client.requested_urls if "/api/v1/" in u]
+    assert instance_requests == [f"https://good.example/api/v1/channels/{CHANNEL}/latest"]
+
+
+@respx.mock
+@pytest.mark.parametrize(
+    "reply",
+    [
+        {"videos": [None]},
+        [{"videoId": 5}],
+        [{"videoId": "../../evil", "title": "x"}],
+        {"videos": "nope"},
+    ],
+)
+def test_a_malformed_invidious_reply_moves_on_to_the_next_instance(client, monkeypatch, reply):
+    import youpdated.sources.youtube as youtube
+
+    monkeypatch.setattr(youtube.random, "sample", lambda seq, k: list(seq)[:k])
+    _blocked_feed_and(["https://odd.example", "https://good.example"])
+    respx.get(f"https://odd.example/api/v1/channels/{CHANNEL}/latest").mock(
+        return_value=httpx.Response(200, json=reply)
+    )
+    respx.get(f"https://good.example/api/v1/channels/{CHANNEL}/latest").mock(
+        return_value=httpx.Response(200, json=[_video(published=10**20)])
+    )
+    (target,) = get_source("youtube").targets([CHANNEL])
+
+    (update,) = get_source("youtube").fetch(target, client)
+    assert update.uid == "yt:video:abcdefghijk"
+    assert update.published is None  # out of range for a datetime
+
+
+@respx.mock
+def test_a_malformed_data_api_reply_does_not_stop_the_chain_raising_cleanly(client, monkeypatch):
+    monkeypatch.setenv("YOUTUBE_API_KEY", "k")
+    _blocked_feed_and()
+    respx.get(url__startswith=DATA_API).mock(return_value=httpx.Response(200, json=[1, 2]))
+    (target,) = get_source("youtube").targets([CHANNEL])
+
+    with pytest.raises(Exception, match="every YouTube path failed.*unexpected payload"):
+        list(get_source("youtube").fetch(target, client))
+
+
+@respx.mock
+def test_youtube_tries_every_kept_instance_over_time(client, state):
+    import youpdated.sources.youtube as youtube
+
+    bases = [f"https://inv{n}.example" for n in range(youtube.KEPT_INSTANCES)]
+    _blocked_feed_and(bases)
+    tried: set[str] = set()
+    for _ in range(40):
+        tried.update(youtube.YouTubeSource()._instances(client))
+    assert tried == set(bases)
+
+
+@respx.mock
+def test_youtube_refreshes_an_instance_list_a_day_old(client, state):
+    from datetime import datetime, timedelta, timezone
+
+    import youpdated.sources.youtube as youtube
+
+    listing = respx.get("https://api.invidious.io/instances.json").mock(
+        return_value=httpx.Response(
+            200, json=[["n", {"type": "https", "api": True, "uri": "https://new.example"}]]
+        )
+    )
+    state.cache_set(youtube.INSTANCE_CACHE, "list", "https://old.example")
+    state.cache_set(youtube.INSTANCE_CACHE, "fetched", datetime.now(timezone.utc).isoformat())
+    assert youtube.YouTubeSource()._instances(client) == ["https://old.example"]
+    assert not listing.called
+
+    day_old = datetime.now(timezone.utc) - timedelta(days=1, minutes=1)
+    state.cache_set(youtube.INSTANCE_CACHE, "fetched", day_old.isoformat())
+    assert youtube.YouTubeSource()._instances(client) == ["https://new.example"]
+    assert state.cache_get(youtube.INSTANCE_CACHE, "list") == "https://new.example"
+
+
+@respx.mock
+def test_a_web_page_at_a_feed_address_is_an_error_not_an_empty_feed(state, client):
+    respx.get("https://e.com/feed.xml").mock(
+        return_value=httpx.Response(200, text="<!doctype html><html><body>Moved</body></html>")
+    )
+    result = run(parse_config({"sources": {"feed": ["https://e.com/feed.xml"]}}), state, client)
+
+    (error,) = result.errors
+    assert "did not return an RSS or Atom feed" in error.message
+    assert not state.is_baselined("feed", "https://e.com/feed.xml")
+
+
+@respx.mock
+def test_an_empty_but_real_feed_is_still_fine(state, client):
+    respx.get("https://e.com/feed.xml").mock(
+        return_value=httpx.Response(200, text='<rss version="2.0"><channel><title>t</title></channel></rss>')
+    )
+    result = run(parse_config({"sources": {"feed": ["https://e.com/feed.xml"]}}), state, client)
+    assert result.ok and state.is_baselined("feed", "https://e.com/feed.xml")
+
+
+@pytest.mark.parametrize(
+    "value,expected",
+    [
+        ("2024-01-01T00:00:00.123+05:30", "2023-12-31T18:30:00.123000+00:00"),
+        ("2026-08-13T21:38:40.667708123Z", "2026-08-13T21:38:40.667708+00:00"),
+        ("2026-10-06T11:37:36.000+02:00", "2026-10-06T09:37:36+00:00"),
+        ("2024-01-01T00:00:00", "2024-01-01T00:00:00+00:00"),
+    ],
+)
+def test_parse_iso_keeps_the_zone_after_a_fraction(value, expected):
+    from datetime import timezone
+
+    from youpdated.sources.base import parse_iso
+
+    parsed = parse_iso(value)
+    assert parsed is not None
+    assert parsed.astimezone(timezone.utc).isoformat() == expected
+
+
+def test_a_plugin_that_fails_to_start_is_skipped_and_later_ones_still_load(monkeypatch):
+    import importlib.metadata
+    from types import SimpleNamespace
+
+    from youpdated import registry
+
+    class Broken:
+        name = "broken"
+
+        def __init__(self):
+            raise RuntimeError("needs a setting it doesn't have")
+
+    class Fine:
+        name = "fine-plugin"
+        summary = "loads"
+
+    entries = [
+        SimpleNamespace(name="broken", load=lambda: Broken),
+        SimpleNamespace(name="fine", load=lambda: Fine),
+    ]
+    monkeypatch.setattr(importlib.metadata, "entry_points", lambda group: entries)
+    monkeypatch.setattr(registry, "_ENTRY_POINTS_LOADED", False)
+    monkeypatch.setattr(registry, "_SOURCES", dict(registry._SOURCES))
+
+    sources = registry.all_sources()
+
+    assert "fine-plugin" in sources and "broken" not in sources
+
+
+@pytest.mark.parametrize("value", [None, "", "soon", 12])
+def test_parse_iso_gives_none_for_what_it_cannot_read(value):
+    from youpdated.sources.base import parse_iso
+
+    assert parse_iso(value) is None

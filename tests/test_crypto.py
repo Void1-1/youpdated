@@ -166,6 +166,33 @@ def test_write_private_is_owner_only(tmp_path):
     assert stat.S_IMODE(path.stat().st_mode) == 0o600
 
 
+@posix_only
+def test_write_private_is_owner_only_despite_a_leftover_temp_file(tmp_path):
+    path = tmp_path / "state.sqlite3"
+    leftover = tmp_path / "state.sqlite3.tmp"
+    leftover.write_bytes(b"old")
+    leftover.chmod(0o644)
+    crypto.write_private(path, b"data")
+    assert stat.S_IMODE(path.stat().st_mode) == 0o600
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["state.sqlite3", "state.sqlite3.tmp"]
+
+
+@posix_only
+def test_encrypt_writes_through_a_symlinked_config(tmp_path, monkeypatch):
+    real = tmp_path / "dotfiles" / "youpdated.yaml"
+    real.parent.mkdir()
+    real.write_text(EXAMPLE_CONFIG, encoding="utf-8")
+    link = tmp_path / "config.yaml"
+    link.symlink_to(real)
+    monkeypatch.setenv(crypto.PASSPHRASE_ENV, PASSPHRASE)
+
+    assert main(["encrypt", "-c", str(link), "--state", str(tmp_path / "s")]) == 0
+
+    assert link.is_symlink() and link.resolve() == real
+    assert crypto.is_encrypted_file(real)
+    assert b"sources" not in real.read_bytes()
+
+
 # config
 
 

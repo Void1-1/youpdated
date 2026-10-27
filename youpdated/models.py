@@ -2,9 +2,20 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
+
+_UNSAFE_RE = re.compile(r"[\x00-\x08\x0b-\x1f\x7f-\x9f\ud800-\udfff\ufffe\uffff]")
+_SURROGATE_RE = re.compile(r"[\ud800-\udfff]")
+
+
+def clean_text(text: Any) -> str:
+    """remote text that's safe to print, write as XML, and encode as UTF-8"""
+    if text is None:
+        return ""
+    return _UNSAFE_RE.sub("", text if isinstance(text, str) else str(text))
 
 
 @dataclass
@@ -18,16 +29,17 @@ class Target:
     key: str
     label: str | None = None
     params: dict[str, Any] = field(default_factory=dict)
-    #: Update tags this target does not want reported
+    # Update tags this target does not want reported
     ignore: frozenset[str] = frozenset()
 
     @property
     def display(self) -> str:
-        return self.label or self.key
+        # sources fill the label from remote data
+        return clean_text(self.label or self.key)
 
     def ignores(self, tags: tuple[str, ...]) -> bool:
         """
-        Whether an update carrying ``tags`` should be dropped for this target
+        If an update carrying ``tags`` should be dropped for this target
         only one matching tag needed
         """
         if not self.ignore:
@@ -46,8 +58,22 @@ class Update:
     version: str | None = None
     body: str | None = None
     tags: tuple[str, ...] = ()
-    #: Older uids this item may already be recorded under; any of them counts as seen
+    # Older uids this item may already be recorded under; any of them counts as seen
     aliases: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        clean = {
+            "title": clean_text(self.title),
+            "url": clean_text(self.url),
+            "version": None if self.version is None else clean_text(self.version),
+            "body": None if self.body is None else clean_text(self.body),
+            "tags": tuple(clean_text(tag) for tag in self.tags),
+            # only what SQLite can't store: a uid or alias with a control character may be recorded
+            "uid": _SURROGATE_RE.sub("\ufffd", str(self.uid)),
+            "aliases": tuple(_SURROGATE_RE.sub("\ufffd", str(alias)) for alias in self.aliases),
+        }
+        for name, value in clean.items():
+            object.__setattr__(self, name, value)
 
     @property
     def dedupe_key(self) -> tuple[str, str, str]:
@@ -74,3 +100,7 @@ class RunError:
     source: str
     target: str
     message: str
+
+    def __post_init__(self) -> None:
+        self.target = clean_text(self.target)
+        self.message = clean_text(self.message)

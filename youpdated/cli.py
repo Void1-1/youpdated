@@ -21,7 +21,7 @@ from rich.progress import (
 from rich.table import Column
 
 from . import __version__, crypto, notify
-from .cleanup import find_package, find_traces, remove_package, remove_traces
+from .cleanup import Trace, find_package, find_traces, remove_package, remove_traces
 from .config import (
     EXAMPLE_CONFIG,
     Config,
@@ -42,9 +42,9 @@ from .importers import READERS, Found, read_file
 from .models import Target
 from .registry import all_aliases, all_sources, get_source
 from .render import json_out, rss_out, terminal
-from .runner import parse_since, run
+from .runner import parse_since, record, run
 from .sources.base import Source
-from .state import State
+from .state import State, StateError, state_lock
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -266,7 +266,11 @@ def cmd_edit(
                 source = get_source(change.section)
                 urls = _probe_urls(source, change.dropped, state)
                 seen, validators = state.forget(
-                    change.section, change.dropped_keys, getattr(source, "caches", ()), urls
+                    change.section,
+                    change.dropped_keys,
+                    getattr(source, "caches", ()),
+                    urls,
+                    shared=getattr(source, "shared_caches", ()),
                 )
                 console.print(
                     f"Forgot the history of {escape(', '.join(change.dropped_keys))} "
@@ -396,9 +400,11 @@ def cmd_encrypt(args: argparse.Namespace, console: Console) -> int:
     for path in locked:
         crypto.decrypt(path.read_bytes(), passphrase)
 
-    for path in todo:
-        crypto.write_private(path, crypto.encrypt(path.read_bytes(), passphrase))
-        console.print(f"[green]encrypted[/] {escape(str(path))}")
+    # A running check would write its own copy over converted state
+    with state_lock(state_path):
+        for path in todo:
+            crypto.write_private(path, crypto.encrypt(path.read_bytes(), passphrase))
+            console.print(f"[green]encrypted[/] {escape(str(path))}")
 
     console.print(
         "\n[dim]Every command now asks for the passphrase. "
@@ -428,11 +434,12 @@ def cmd_decrypt(args: argparse.Namespace, console: Console) -> int:
     console.print()
 
     passphrase = crypto.prompt_passphrase()
-    # Decrypt everything before writing
-    plain = [(path, crypto.decrypt(path.read_bytes(), passphrase)) for path in todo]
-    for path, payload in plain:
-        crypto.write_private(path, payload)
-        console.print(f"[green]decrypted[/] {escape(str(path))}")
+    with state_lock(state_path):
+        # Decrypt everything before writing
+        plain = [(path, crypto.decrypt(path.read_bytes(), passphrase)) for path in todo]
+        for path, payload in plain:
+            crypto.write_private(path, payload)
+            console.print(f"[green]decrypted[/] {escape(str(path))}")
     return 0
 
 
@@ -478,6 +485,7 @@ def cmd_uninstall(args: argparse.Namespace, console: Console) -> int:
             console.print("[dim]Cancelled. Nothing deleted.[/]")
             return 1
 
+    failed: list[tuple[Trace, str]] = []
     if traces:
         removed, failed = remove_traces(traces)
 
@@ -490,11 +498,12 @@ def cmd_uninstall(args: argparse.Namespace, console: Console) -> int:
             f"\n[bold]{len(removed)}[/] item(s) removed"
             + (f", [bold]{len(failed)}[/] left in place." if failed else ".")
         )
+    done = 1 if failed else 0
 
     if package is None:
         if from_source:
             console.print(from_source)
-        return 0
+        return done
 
     console.print(f"\nRemoving the package with [bold]{escape(package.display)}[/]")
     error = remove_package(package)
@@ -509,9 +518,9 @@ def cmd_uninstall(args: argparse.Namespace, console: Console) -> int:
             f"[green]removing[/] youpdated {escape(package.version)} once this command exits\n"
             f"[dim]If it's still installed after that: {escape(package.display)}[/]"
         )
-        return 0
+        return done
     console.print(f"[green]removed[/] youpdated {escape(package.version)}")
-    return 0
+    return done
 
 
 class _LiveProgress:
@@ -652,7 +661,7 @@ def cmd_check(args: argparse.Namespace, console: Console) -> int:
             status.print(f"[yellow]proxy: unreachable[/] — {escape(str(exc).splitlines()[0])}")
         else:
             if args.verbose or args.test:
-                status.print(f"[dim]proxy:  {config.privacy.proxy} reachable[/]")
+                status.print(f"[dim]proxy:  {escape(config.privacy.proxy)} reachable[/]")
 
     with State(state_path, passphrase=passphrase, expiry=config.expiry) as state:
         with Client(
@@ -664,9 +673,9 @@ def cmd_check(args: argparse.Namespace, console: Console) -> int:
             logger=lambda msg: status.print(escape(msg), style="dim", highlight=False),
         ) as client:
             if args.verbose or args.test:
-                status.print(f"[dim]config: {config.path}[/]")
-                status.print(f"[dim]state:  {state_path}[/]")
-                status.print(f"[dim]client: {client.describe()}[/]")
+                status.print(f"[dim]config: {escape(str(config.path))}[/]")
+                status.print(f"[dim]state:  {escape(str(state_path))}[/]")
+                status.print(f"[dim]client: {escape(client.describe())}[/]")
 
             # only for terminal
             show_bar = status.is_terminal and not (args.verbose or args.test)
@@ -681,7 +690,8 @@ def cmd_check(args: argparse.Namespace, console: Console) -> int:
                     only_sources=args.sources,
                     show_all=args.all,
                     since=since,
-                    save=not (args.no_save or args.test),
+                    # Recorded below, once the report is out
+                    save=False,
                     progress=reporter,
                 )
 
@@ -693,24 +703,41 @@ def cmd_check(args: argparse.Namespace, console: Console) -> int:
                     f"\n[dim]{len(client.requested_urls)} request(s) planned; "
                     "none sent.[/]"
                 )
-                return 0
+                # nothing fetched: these are config problems
+                if args.json:
+                    print(json_out.render(result))
+                else:
+                    terminal.render_warnings(result.warnings, console)
+                    terminal.render_errors(result.errors, console)
+                return 2 if args.fail_on_error and result.errors else 0
+
+            # report then record
+            if not args.json:
+                terminal.render(result, console=console, verbose=args.verbose)
+            if args.rss:
+                rss_path = Path(args.rss).expanduser()
+                try:
+                    rss_path.parent.mkdir(parents=True, exist_ok=True)
+                    rss_path.write_text(rss_out.render(result), encoding="utf-8")
+                except OSError as exc:
+                    raise ConfigError(f"--rss: cannot write {rss_path}: {exc}") from exc
+                status.print(
+                    f"[dim]Wrote {len(result.updates)} entries to {escape(str(rss_path))}[/]"
+                )
+            if not args.no_save:
+                record(state, result)
 
             if send_notifications:
                 # save first: a run killed while a slow webhook answers must not notify twice
                 state.flush()
                 labels = {(t.source, t.key): t.display for t in result.targets}
-                result.errors.extend(notify.send(result.updates, labels, notify_config, client))
+                failures = notify.send(result.updates, labels, notify_config, client)
+                result.errors.extend(failures)
+                if not args.json:
+                    terminal.render_errors(failures, console)
 
     if args.json:
         print(json_out.render(result))
-    else:
-        terminal.render(result, console=console, verbose=args.verbose)
-
-    if args.rss:
-        rss_path = Path(args.rss).expanduser()
-        rss_path.parent.mkdir(parents=True, exist_ok=True)
-        rss_path.write_text(rss_out.render(result), encoding="utf-8")
-        status.print(f"[dim]Wrote {len(result.updates)} entries to {rss_path}[/]")
 
     if args.fail_on_error and result.errors:
         return 2
@@ -752,6 +779,9 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     except crypto.EncryptionError as exc:
         console.print(f"[red]Encryption error:[/] {escape(str(exc))}")
+        return 1
+    except StateError as exc:
+        console.print(f"[red]History error:[/] {escape(str(exc))}")
         return 1
     except ProxyUnavailable as exc:
         console.print(f"[red]Proxy error:[/] {escape(str(exc))}")

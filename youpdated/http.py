@@ -13,6 +13,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
+from http.cookiejar import CookieJar, DefaultCookiePolicy
 from typing import Any, Generator, Iterable, Sequence
 from urllib.parse import urlsplit
 
@@ -21,15 +22,23 @@ import httpx
 from .config import PrivacyConfig
 from .state import State
 
+# failures before the request leaves
+UNSENT_ERRORS: tuple[type[Exception], ...] = (
+    httpx.ConnectError,
+    httpx.ConnectTimeout,
+    httpx.PoolTimeout,
+    httpx.ProxyError,
+)
 NETWORK_ERRORS: tuple[type[Exception], ...]
 try:  # ships with httpx[socks]; guard anyway so an HTTP-proxy-only install still imports
     from socksio.exceptions import SOCKSError
 
     NETWORK_ERRORS = (httpx.HTTPError, SOCKSError)
+    UNSENT_ERRORS += (SOCKSError,)
 except ImportError:  # pragma: no cover
     NETWORK_ERRORS = (httpx.HTTPError,)
 
-#: ``(url, etag, last_modified)`` from a 200, see :meth:`Client.deferred_validators`
+# ``(url, etag, last_modified)`` from a 200, see :meth:`Client.deferred_validators`
 Validator = tuple[str, str | None, str | None]
 
 # Small pool of current desktop UAs. Rotating inside a plausible set
@@ -45,12 +54,15 @@ USER_AGENTS: tuple[str, ...] = (
 )
 
 RETRY_STATUSES = frozenset({429, 500, 502, 503, 504})
-#: Statuses whose ``Retry-After`` header is honored (RFC 6585 §4, RFC 9110 §10.2.3).
+# Statuses whose ``Retry-After`` header is honored (RFC 6585 §4, RFC 9110 §10.2.3).
 RETRY_AFTER_STATUSES = frozenset({429, 503})
+# A POST is retried only when the server says it did nothing; a 500, 502, or 504 may come
+# after the webhook was delivered
+POST_RETRY_STATUSES = RETRY_AFTER_STATUSES
 
-#: httpx's own default
+# httpx's default
 MAX_REDIRECTS = 20
-#: Headers a caller may pass that carry nothing secret, so a redirect to another host keeps them
+# Headers a caller may pass that carry nothing secret, so a redirect to another host keeps them
 _PORTABLE_HEADERS = frozenset({"user-agent", "accept", "accept-language"})
 
 
@@ -98,7 +110,7 @@ class ProxyUnavailable(Exception):
     """The configured proxy could not be reached. Raised before any source runs."""
 
 
-#: Where a proxy listens when the URL omits the port.
+# Where a proxy listens when the URL omits the port.
 _DEFAULT_PROXY_PORTS = {"socks5": 1080, "socks4": 1080, "http": 8080, "https": 8080}
 
 
@@ -166,10 +178,10 @@ class Client:
         self.verbose = verbose
         # Conditional GETs save requests, but a 304 doesn't return items
         self.use_conditional = use_conditional
-        #: Seconds multiplied by the attempt number between retries. Tests set
-        #: this to 0 so a retry path costs no time.
+        # Seconds multiplied by the attempt number between retries. Tests set
+        # this to 0 so a retry path costs no time.
         self.retry_backoff = 1.5
-        #: Longest ``Retry-After`` the client will wait
+        # Longest ``Retry-After`` the client will wait
         self.retry_after_max = 60.0
         self._log = logger
         self.requested_urls: list[str] = []
@@ -184,10 +196,10 @@ class Client:
         # document nor lose it to a validator this same run stored.
         self._run_bodies: dict[tuple[str, tuple[tuple[str, str], ...]], Fetched] = {}
         self._bodies_lock = threading.Lock()
-        #: Only reuse bodies inside :meth:`run_scope`. A client used directly,
-        #: outside a run, keeps the plain one-GET-per-call contract.
+        # Only reuse bodies inside :meth:`run_scope`. A client used directly,
+        # outside a run, keeps the plain one-GET-per-call contract.
         self._run_active = False
-        #: Per worker thread: send no validators, see :meth:`unconditional`
+        # Per worker thread: send no validators, see :meth:`unconditional`
         self._local = threading.local()
 
         self._client = httpx.Client(
@@ -197,6 +209,7 @@ class Client:
             follow_redirects=False,
             transport=transport,
             headers={"Accept-Language": "en-US,en;q=0.9"},
+            cookies=CookieJar(policy=DefaultCookiePolicy(allowed_domains=[])),
         )
 
     # lifecycle
@@ -353,8 +366,6 @@ class Client:
         for attempt in range(retries + 1):
             self._pace(host)
             try:
-                # Cookies dropped every request
-                self._client.cookies.clear()
                 response = self._send("GET", url, request_headers, private=headers or ())
             except NETWORK_ERRORS as exc:
                 last_error = exc
@@ -367,11 +378,6 @@ class Client:
             self.note(f"GET {url} -> {response.status_code}")
 
             if response.status_code == 304:
-                # Normally "unchanged since your last run", so there is nothing to
-                # report. But if this run already holds the body, the validator we
-                # sent was our own from moments ago: hand back what we have. Only
-                # reachable when two threads race past the check above; the common
-                # case is served from the cache without a request at all.
                 return self._cached_body(cache_key)
 
             if response.status_code == 200:
@@ -443,13 +449,13 @@ class Client:
         for attempt in range(retries + 1):
             self._pace(host)
             try:
-                self._client.cookies.clear()
                 response = self._send(
                     "POST", url, request_headers, private=headers or (), json=json
                 )
             except NETWORK_ERRORS as exc:
                 self.note(f"POST {shown} -> {type(exc).__name__}")
-                if attempt < retries:
+                # A read timeout or dropped connection can come after a delivered notification
+                if attempt < retries and isinstance(exc, UNSENT_ERRORS):
                     time.sleep(self.retry_backoff * (attempt + 1))
                     continue
                 raise FetchError(f"{shown}: {type(exc).__name__}") from exc
@@ -462,7 +468,7 @@ class Client:
                     content=response.content,
                     headers=dict(response.headers),
                 )
-            if response.status_code in RETRY_STATUSES and attempt < retries:
+            if response.status_code in POST_RETRY_STATUSES and attempt < retries:
                 self._wait_to_retry(response, attempt, host, "POST", shown)
                 continue
             raise FetchError(f"{shown}: HTTP {response.status_code}")
@@ -485,7 +491,7 @@ class Client:
         response = self._client.send(request)
         for _ in range(MAX_REDIRECTS):
             hop = response.next_request
-            if hop is None:
+            if hop is None or hop.method != method:
                 return response
             if not _same_origin(origin, hop.url):
                 for name in private:

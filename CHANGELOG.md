@@ -12,6 +12,37 @@ All notable changes to this project are documented here. The format follows [Kee
 
 - **`youpdated add` lists entries already watched on one line per source** (`Already watching express, react under npm`), instead of one line each.
 - **`youpdated uninstall` also removes the package.** Once the files are gone it runs the uninstaller used for the copy: `pipx uninstall` for pipx, `uv tool uninstall` for uv tools, `uv pip uninstall` for a uv-made environment, and `python -m pip uninstall` with the interpreter it runs on otherwise. The package is listed in `--test` and confirmation prompt. If the uninstaller fails, or exits but leaves the package, the command to run yourself is printed and exits 1. On Windows, which won't delete the running `youpdated.exe`, the uninstaller runs in the background once the command exits. `--keep-package` deletes files only. `--keep-config` now removes the package too; add `--keep-package` to only wipe history. A copy run from a checkout (`python -m youpdated`, `PYTHONPATH`) is not a package, and nothing other than files are removed.
+- **One run at a time per history file.** A run holds a lock (`state.sqlite3.lock`, beside the database) and another waits up to a minute, then exits 1 saying the file is in use. An encrypted history is read whole and written back whole, so a `youpdated rm --wipe` during a scheduled check was undone, two overlapping checks could lose seen marks, and a file could be left undecryptable. `encrypt` and `decrypt` take the lock too. `uninstall` removes the lock file as well.
+- **`--since` leaves what it hides unrecorded.** A new item older than the window was recorded as seen, so only `--all` could ever show it. It is now reported by the next check without `--since`.
+- **`check --test` shows the config's problems** in the `problems` panel and exits 2 for them with `--fail-on-error`, and `--test --json` prints a report. It used to exit 0 and print nothing about them. A source that stops early for want of an answer is not counted as a problem.
+- **`git` refuses `owner/repo/extra`** for GitHub and Forgejo instead of reading it as `owner/repo`: `add hashicorp/tap/terraform` landed under `git` as `hashicorp/tap`, and `rm python/cpython/typo` removed `python/cpython`. A pasted address (`https://github.com/o/r/releases/tag/v1`, `codeberg.org/o/r/releases`) is still trimmed to the repo.
+- **A webhook is only sent again when it can't have arrived**: after a failed connection, `429`, `503`. Timeout or `500`, `502`, `504` could come after delivery, and aren't retried.
+- **Notify commands no longer inherit** `YOUPDATED_PASSPHRASE`, `GITHUB_TOKEN`, `GITLAB_TOKEN`, `YOUTUBE_API_KEY`.
+- **A warning for an `ignore:` key with no coverage**, such as `ignore: {github: …}` left behind after moving entries to `git:`. It shows after the report, and in a new `warnings` list in `--json`.
+- **`expiry:` and `--since` max out at 100y.** `never` still works.
+- **The release workflow's publish job now pins actions to exact commits**, since it holds `id-token: write` and a tag can be moved.
+
+### Fixed
+
+- **Security: the YouTube Data API key could be printed.** It was part of the request URL, which errors, `--json`, `-v`, and `--test` show. It is now sent in the `X-Goog-Api-Key` header, which is dropped on a redirect to another host.
+- **Security: escape codes in a title, body, or link reached the terminal.** A feed could clear the screen or plant links with `&#27;`. Control characters and lone surrogates are now removed from everything a site sends, which also keeps `--rss` valid XML when a title holds one, and stops a lone surrogate from crashing `--rss` and `--json`.
+- **Security: the desktop example could run code from a title on Windows.** PowerShell ends a quoted string at curly quotes too. The text now reaches PowerShell through the environment.
+- **Updates could be lost when the report failed.** Items were recorded as seen before the report, `--rss`, and pruning ran, so a failure in any of them, such as a label with `[/…]` in the problems panel, a numeric Invidious title, or an unwritable `--rss` path, used them up unseen. The report and feed are now first. An unwritable `--rss` path is an error.
+- **An invalid entry no longer drops later entries of its source.** It is reported alone.
+- **A web page at a feed's address was an empty feed**, with no error, and on a first fetch its empty baseline reported the whole feed as new once the feed returned. It is now an error, for feeds and sources that reads one.
+- **Brave recorded an empty baseline when the GitHub API was rate-limited**, since the atom feed's 10 newest releases are nearly all nightlies, and then reported old stable releases as new. The target now fails until either path has a release for its channel.
+- **YouTube's fallbacks**: a malformed Invidious reply (`{"videos": [null]}`, an out-of-range date) skipped the other instances and the Data API; it now moves on. Invidious addresses from the public list are used only if they are HTTPS on a public hostname; a test had fetched `http://127.0.0.1:9`. The list is refreshed on use (once a day) instead of never; each fetch tries a random four kept instances, not just the first four, and `rm --wipe` clears.
+- **Cookies could pass between requests** run at the same time, and to the next hop of a redirect. Now none are kept.
+- **A webhook redirected with `301`, `302`, `303`.** It was resent as a request without a body, and counted as delivered. It is now a failure; `307` and `308` are still followed.
+- **A repo listed under both `github:` and `git:` with different ignore rules** was fetched fully on every run.
+- **`youpdated encrypt` on a symlinked config** replaced the link and left the plaintext at its target. It now writes through the link, same as `add`/`rm`. A write also doesn't leave a fixed-name `.tmp`, which could make the result readable by others.
+- **A GitLab group with a dot in its name** (`my.group/sub/project` with `host: gitlab.com`) was read as a hostname.
+- **A plugin whose constructor raises** crashed every command, and kept later plugins from loading. It is now skipped.
+- **Cleaner errors instead of tracebacks** for a config that isn't UTF-8, a `--state` file that isn't a database, and the desktop example given a `-c` config that doesn't exist.
+- **`uninstall` exited 0 when it left files in place.** It now exits 1.
+- **An ntfy webhook lost its query**, so `?auth=` didn't work; `headers:` was the only way.
+- **`split_command` accepted** a YAML boolean (`yes`, `off`) or an empty string in a list command.
+- **Timestamps with a fraction and a zone offset**, such as `.123+05:30`, lost the offset in the `browser` source. One parser now serves every source.
 
 ## [0.4.0] — 2026-10-24
 

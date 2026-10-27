@@ -44,6 +44,15 @@ def one(entry):
         ("https://gitea.example.org/o/r", "gitea.example.org/o/r", "forgejo"),
         ({"repo": "o/r", "host": "git.example.org", "forge": "gitea"}, "git.example.org/o/r",
          "forgejo"),
+        # A dotted group is a path once `host:` names the host
+        ({"repo": "my.group/sub/project", "host": "gitlab.com"},
+         "gitlab.com/my.group/sub/project", "gitlab"),
+        ({"repo": "gitlab.com/my.group/sub/project", "host": "gitlab.com"},
+         "gitlab.com/my.group/sub/project", "gitlab"),
+        # A pasted address loses the page within the repo
+        ("https://github.com/python/cpython/releases/tag/v3.14.0", "github.com/python/cpython",
+         "github"),
+        ("codeberg.org/forgejo/forgejo/releases", "codeberg.org/forgejo/forgejo", "forgejo"),
     ],
 )
 def test_entries_normalize(entry, key, forge):
@@ -63,10 +72,29 @@ def test_entries_normalize(entry, key, forge):
         {"repo": "a/b", "token_env": "glpat-abc123-not-a-name"},
         "https://gitlab.com/onlygroup",
         "ftp://gitlab.com/a/b",
+        # Not an address, so nothing to cut: these would have become hashicorp/tap and
+        # python/cpython, and `rm` would remove the wrong repo
+        "hashicorp/tap/terraform",
+        "python/cpython/typo",
+        {"repo": "a/b/c", "host": "codeberg.org"},
     ],
 )
 def test_bad_entries_are_rejected(entry):
     with pytest.raises(ConfigEntryError):
+        get_source("git").targets([entry])
+
+
+@pytest.mark.parametrize(
+    "entry",
+    [
+        # A dotted group is a path under `host:`, but a well-known host is not a group name
+        {"repo": "gitlab.com/x/y", "host": "gitlab.example.com"},
+        {"repo": "github.com/o/r", "host": "git.example.org", "forge": "forgejo"},
+        {"repo": "https://gitlab.com/x/y", "host": "gitlab.example.com"},
+    ],
+)
+def test_a_host_that_disagrees_with_host_is_reported(entry):
+    with pytest.raises(ConfigEntryError, match="but `host:` says"):
         get_source("git").targets([entry])
 
 
@@ -352,7 +380,7 @@ def test_github_history_moves_to_git(tmp_path):
         )
         assert state.is_baselined("git", "github.com/python/cpython")
         assert not state.ignore_rules_changed(
-            "git", "github.com/python/cpython", frozenset({"prerelease"})
+            "git", "github.com/python/cpython", [frozenset({"prerelease"})]
         )
         assert state.cache_get("cache", "github:unrelated") == "kept"
         assert state.seen_count() == 3

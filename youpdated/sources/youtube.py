@@ -13,25 +13,32 @@ Set ``privacy.proxy`` and step 1 generally works
 
 from __future__ import annotations
 
+import ipaddress
 import os
+import random
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, ClassVar, Iterable
+from urllib.parse import urlsplit
 
 from ..http import Client, FetchError
 from ..models import Target, Update
 from ..registry import register
-from .base import ConfigEntryError, accepted, entry_fields, require, url_parts
+from .base import ConfigEntryError, accepted, entry_fields, parse_iso, require, url_parts
 from .feed import feed_title, parse_document, parse_entries
 
 CHANNEL_ID_RE = re.compile(r"^UC[A-Za-z0-9_-]{22}$")
 PLAYLIST_ID_RE = re.compile(r"^(?:PL|UU|LL|FL|OL)[A-Za-z0-9_-]{10,}$")
 EXTERNAL_ID_RE = re.compile(r'"externalId"\s*:\s*"(UC[A-Za-z0-9_-]{22})"')
+VIDEO_ID_RE = re.compile(r"^[A-Za-z0-9_-]{11}$")
 
 CHANNEL_CACHE = "youtube_channel_ids"
 INSTANCE_CACHE = "youtube_invidious"
 MAX_ITEMS = 15
+# Instances asked per fetch, picked at random
 MAX_INSTANCES = 4
+KEPT_INSTANCES = 8
+INSTANCE_LIST_AGE = timedelta(days=1)
 
 
 @register
@@ -39,6 +46,8 @@ class YouTubeSource:
     name: ClassVar[str] = "youtube"
     summary: ClassVar[str] = "New videos on a channel or playlist"
     caches: ClassVar[tuple[str, ...]] = (CHANNEL_CACHE,)
+    # Not keyed by a target
+    shared_caches: ClassVar[tuple[str, ...]] = (INSTANCE_CACHE,)
 
     def claim(self, value: str) -> str | None:
         """@handle, channel id, or channel's URL"""
@@ -108,6 +117,9 @@ class YouTubeSource:
             except FetchError as exc:
                 failures.append(str(exc))
                 continue
+            except Exception as exc:
+                failures.append(f"{type(exc).__name__}: {exc}")
+                continue
             if updates is not None:
                 return updates
 
@@ -158,43 +170,66 @@ class YouTubeSource:
             if not isinstance(videos, list):
                 errors.append(f"{base}: unexpected payload shape")
                 continue
+            try:
+                updates = self._from_invidious(target, videos)
+            except Exception as exc:  # the next instance might answer properly
+                errors.append(f"{base}: {type(exc).__name__}: {exc}")
+                continue
+            if videos and not updates:
+                errors.append(f"{base}: no readable videos in the reply")
+                continue
             client.note(f"youtube: by Invidious instance {base}")
-            return self._from_invidious(target, videos)
+            return updates
         raise FetchError("no Invidious instance answered (" + "; ".join(errors[:3]) + ")")
 
     def _instances(self, client: Client) -> list[str]:
-        cached = client.state.cache_get(INSTANCE_CACHE, "list") if client.state else None
-        if cached:
-            return cached.split(",")[:MAX_INSTANCES]
+        """A random few of the kept instances, so each of them gets a turn"""
+        bases = self._instance_list(client)
+        return random.sample(bases, min(MAX_INSTANCES, len(bases)))
+
+    def _instance_list(self, client: Client) -> list[str]:
+        state = client.state
+        cached = state.cache_get(INSTANCE_CACHE, "list") if state else None
+        kept = [b for b in map(_instance_base, (cached or "").split(",")) if b]
+        fetched_at = state.cache_get(INSTANCE_CACHE, "fetched") if state else None
+        fresh_since = (datetime.now(timezone.utc) - INSTANCE_LIST_AGE).isoformat()
+        if kept and fetched_at and fetched_at > fresh_since:
+            return kept
+
+        # Out of date or missing; an old list still beats none if the directory is down
         try:
             fetched = client.get("https://api.invidious.io/instances.json", retries=1)
         except FetchError:
-            return []
+            return kept
         if fetched is None:
-            return []
+            return kept
         try:
             listing = fetched.json()
         except ValueError:
-            return []
+            return kept
 
         bases = []
-        for item in listing:
-            if not (isinstance(item, list) and len(item) == 2):
+        for item in listing if isinstance(listing, list) else ():
+            if not (isinstance(item, list) and len(item) == 2 and isinstance(item[1], dict)):
                 continue
-            meta = item[1] or {}
-            if meta.get("type") == "https" and meta.get("api") and meta.get("uri"):
-                bases.append(str(meta["uri"]).rstrip("/"))
-        if bases and client.state:
-            client.state.cache_set(INSTANCE_CACHE, "list", ",".join(bases[:8]))
-        return bases[:MAX_INSTANCES]
+            meta = item[1]
+            base = _instance_base(meta.get("uri"))
+            if meta.get("type") == "https" and meta.get("api") and base:
+                bases.append(base)
+        bases = bases[:KEPT_INSTANCES]
+        if bases and state:
+            state.cache_set(INSTANCE_CACHE, "list", ",".join(bases))
+            state.cache_set(INSTANCE_CACHE, "fetched", datetime.now(timezone.utc).isoformat())
+        return bases or kept
 
-    def _from_invidious(self, target: Target, videos: list[dict]) -> list[Update]:
+    def _from_invidious(self, target: Target, videos: list[Any]) -> list[Update]:
         updates = []
         for video in videos[:MAX_ITEMS]:
-            vid = video.get("videoId")
-            if not vid:
+            if not isinstance(video, dict):
                 continue
-            published = video.get("published")
+            vid = video.get("videoId")
+            if not isinstance(vid, str) or not VIDEO_ID_RE.match(vid):
+                continue
             updates.append(
                 Update(
                     source=self.name,
@@ -202,16 +237,12 @@ class YouTubeSource:
                     uid=f"yt:video:{vid}",
                     title=video.get("title") or "(untitled)",
                     url=f"https://www.youtube.com/watch?v={vid}",
-                    published=(
-                        datetime.fromtimestamp(published, tz=timezone.utc)
-                        if isinstance(published, (int, float))
-                        else None
-                    ),
+                    published=_from_timestamp(video.get("published")),
                     body=(video.get("description") or None),
                     tags=("video",),
                 )
             )
-            if not target.label and video.get("author"):
+            if not target.label and isinstance(video.get("author"), str):
                 target.label = video["author"]
         return updates
 
@@ -228,20 +259,29 @@ class YouTubeSource:
         playlist_id = api_id if feed_id == "playlist_id" else "UU" + api_id[2:]
         url = (
             "https://www.googleapis.com/youtube/v3/playlistItems"
-            f"?part=snippet&maxResults={MAX_ITEMS}&playlistId={playlist_id}&key={key}"
+            f"?part=snippet&maxResults={MAX_ITEMS}&playlistId={playlist_id}"
         )
-        fetched = client.get(url)
+        # In a header, the key stays out of the URL that -v, --test, and errors print, and
+        # a redirect off Google's host drops it
+        fetched = client.get(url, headers={"X-Goog-Api-Key": key})
         if fetched is None:
             return []
         client.note("youtube: by Data API")
 
+        payload = fetched.json()
+        items = payload.get("items", []) if isinstance(payload, dict) else None
+        if not isinstance(items, list):
+            raise FetchError("Data API: unexpected payload shape")
         updates = []
-        for item in fetched.json().get("items", []):
-            snippet = item.get("snippet") or {}
-            vid = (snippet.get("resourceId") or {}).get("videoId")
-            if not vid:
+        for item in items:
+            snippet = item.get("snippet") if isinstance(item, dict) else None
+            if not isinstance(snippet, dict):
                 continue
-            if not target.label and snippet.get("channelTitle"):
+            resource = snippet.get("resourceId")
+            vid = resource.get("videoId") if isinstance(resource, dict) else None
+            if not isinstance(vid, str) or not VIDEO_ID_RE.match(vid):
+                continue
+            if not target.label and isinstance(snippet.get("channelTitle"), str):
                 target.label = snippet["channelTitle"]
             updates.append(
                 Update(
@@ -250,8 +290,8 @@ class YouTubeSource:
                     uid=f"yt:video:{vid}",
                     title=snippet.get("title") or "(untitled)",
                     url=f"https://www.youtube.com/watch?v={vid}",
-                    published=_parse_iso(snippet.get("publishedAt")),
-                    body=(snippet.get("description") or "")[:400] or None,
+                    published=parse_iso(snippet.get("publishedAt")),
+                    body=str(snippet.get("description") or "")[:400] or None,
                     tags=("video",),
                 )
             )
@@ -344,11 +384,32 @@ def _video_id(url: str) -> str | None:
     return match.group(1) if match else None
 
 
-def _parse_iso(value: str | None) -> datetime | None:
-    if not value:
+def _from_timestamp(value: Any) -> datetime | None:
+    """Invidious's ``published`` (Unix seconds), or None"""
+    if not isinstance(value, (int, float)) or isinstance(value, bool):
         return None
     try:
-        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        return datetime.fromtimestamp(value, tz=timezone.utc)
+    except (OverflowError, OSError, ValueError):
+        return None
+
+
+def _instance_base(uri: Any) -> str | None:
+    """``https://host`` of a listed Invidious instance, or None unless its public"""
+    if not isinstance(uri, str):
+        return None
+    try:
+        parts = urlsplit(uri.strip())
+        port = parts.port
     except ValueError:
         return None
-    return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+    host = parts.hostname
+    if parts.scheme != "https" or not host or parts.username or parts.password:
+        return None
+    if port not in (None, 443) or "." not in host or host.endswith((".local", ".localhost")):
+        return None
+    try:
+        ipaddress.ip_address(host)
+    except ValueError:
+        return f"https://{host}"
+    return None

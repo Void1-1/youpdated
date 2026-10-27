@@ -28,5 +28,6 @@ def render(result: RunResult) -> str:
             {"source": e.source, "target": e.target, "message": e.message}
             for e in result.errors
         ],
+        "warnings": list(result.warnings),
     }
     return json.dumps(payload, indent=2, ensure_ascii=False)

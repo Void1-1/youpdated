@@ -40,7 +40,7 @@ youpdated check --since 7d             # only items from the last week (30m, 12h
 youpdated check -s git -s npm          # limit to some sources
 youpdated check --json                 # machine-readable output
 youpdated check --rss ~/feeds/you.xml  # aggregated Atom feed for a reader
-youpdated check --test -v              # test to show what it would request
+youpdated check --test -v              # show what it would request, and any config problems
 youpdated check --no-save              # report without recording anything as seen
 youpdated check --fail-on-error        # exit 2 if any source or notification failed
 youpdated check --notify-cmd 'notify-send {title} {url}'  # run a command per new update
@@ -66,6 +66,8 @@ youpdated uninstall --test             # list all tool files and the package
 
 Running `youpdated` without arguments assumes `youpdated check`.
 
+A check records what it found only once its report is out, so if the report or the `--rss` file can't be written, the same updates are reported again next time. `--since` narrows the report: a new item older than the window is left unrecorded, and a check without `--since` still reports. `--test` sends nothing, and lists the config's problems, such as an entry no source can read, in the `problems` panel, which counts for `--fail-on-error`. One run at a time uses a history file; another waits up to a minute for it, then exits `1`.
+
 `add` and `rm` (or `remove`) edit the config in place and keep comments and layout. `rm` removes entries watching what you name, including options and comments.
 
 The source can be left out when an entry can only mean one: a GitHub, GitLab, or Codeberg repo, `owner/repo`, a feed URL, a Steam app id or store page, an itch.io page, a YouTube `@handle` or channel, a browser name, `cask:name`, a scoped `@scope/name` npm package, or a package page on npmjs.com, pypi.org, or formulae.brew.sh. Package pages are written as the package name. A bare name like `express` could be npm, PyPI, or Homebrew, so name the source for those. Entries without a source can mix sources: `youpdated add https://github.com/neovim/neovim @types/react`.
@@ -90,7 +92,7 @@ If a dependency is found that no source can watch, it is listed as skipped: a de
 youpdated check --json | jq '.updates[] | select(.target | startswith("github.com/")) | .title'
 ```
 
-Exit codes: `0` success, `1` config, encryption, or proxy error, `2` with `--fail-on-error` when a source or notification failed, `130` on interrupt.
+Exit codes: `0` success, `1` config, encryption, history file, or proxy error, `2` with `--fail-on-error` when a source or notification failed, `130` on interrupt. `uninstall` exits `1` when it leaves a file in place. The JSON has a `warnings` list for config that does nothing, such as an `ignore:` key no source is listed under.
 
 ## Running it on schedule
 

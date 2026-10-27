@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+from datetime import datetime, timezone
 from typing import Any, ClassVar, Iterable, Protocol, runtime_checkable
 from urllib.parse import urlsplit
 
@@ -67,3 +69,19 @@ def require(fields: dict[str, Any], key: str, source: str) -> Any:
     if value is None or (isinstance(value, str) and not value.strip()):
         raise ConfigEntryError(f"sources.{source}: entry is missing required `{key}`")
     return value
+
+
+_FRACTION_RE = re.compile(r"\.(\d+)")
+
+
+def parse_iso(value: Any) -> datetime | None:
+    """An ISO 8601 timestamp from an API, in UTC if no zone; None if unreadable"""
+    if not value:
+        return None
+    text = str(value).replace("Z", "+00:00")
+    text = _FRACTION_RE.sub(lambda m: "." + m.group(1)[:6], text, count=1)
+    try:
+        parsed = datetime.fromisoformat(text)
+    except ValueError:
+        return None
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)

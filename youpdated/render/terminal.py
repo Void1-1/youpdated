@@ -9,7 +9,7 @@ from rich.console import Console, Group
 from rich.panel import Panel
 from rich.text import Text
 
-from ..models import Target, Update
+from ..models import RunError, Target, Update
 from ..runner import RunResult
 
 SOURCE_STYLE = {
@@ -84,7 +84,8 @@ def render(result: RunResult, console: Console | None = None, verbose: bool = Fa
                 border_style="cyan",
             )
         )
-        _render_errors(result, console)
+        render_warnings(result.warnings, console)
+        render_errors(result.errors, console)
         return
 
     if not result.updates:
@@ -95,7 +96,8 @@ def render(result: RunResult, console: Console | None = None, verbose: bool = Fa
             )
         )
         _baselined_note(result, console)
-        _render_errors(result, console)
+        render_warnings(result.warnings, console)
+        render_errors(result.errors, console)
         return
 
     labels = _labels(result.targets)
@@ -139,7 +141,8 @@ def render(result: RunResult, console: Console | None = None, verbose: bool = Fa
         console.print(
             Panel(
                 Group(*blocks),
-                title=f"[{style}]{source}[/]",
+                # A plugin names its own source
+                title=Text(source, style=style),
                 title_align="left",
                 border_style=style,
             )
@@ -152,16 +155,26 @@ def render(result: RunResult, console: Console | None = None, verbose: bool = Fa
         )
     )
     _baselined_note(result, console)
-    _render_errors(result, console)
+    render_warnings(result.warnings, console)
+    render_errors(result.errors, console)
 
 
-def _render_errors(result: RunResult, console: Console) -> None:
-    if not result.errors:
+def render_warnings(warnings: list[str], console: Console) -> None:
+    for warning in warnings:
+        line = Text("Warning: ", style="yellow")
+        line.append(warning, style="default")
+        console.print(line)
+
+
+def render_errors(errors: list[RunError], console: Console) -> None:
+    """The problems panel. Built from Text, never markup: a label or message is remote text"""
+    if not errors:
         return
-    lines = [
-        Text.from_markup(f"[yellow]{e.source}[/] {e.target}: {e.message}")
-        for e in result.errors
-    ]
+    lines = []
+    for error in errors:
+        line = Text(error.source, style="yellow")
+        line.append(f" {error.target}: {error.message}")
+        lines.append(line)
     console.print(
         Panel(Group(*lines), title="[yellow]problems[/]", title_align="left", border_style="yellow")
     )

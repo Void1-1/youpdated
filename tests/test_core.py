@@ -11,7 +11,7 @@ import httpx
 import pytest
 import respx
 
-from youpdated.config import ConfigError, find_config, parse_config
+from youpdated.config import ConfigError, PrivacyConfig, find_config, parse_config
 from youpdated.http import Client, FetchError, retry_after_seconds
 from youpdated.models import Update
 from youpdated.render import json_out, rss_out
@@ -807,3 +807,354 @@ def test_rss_entry_ids_are_stable_across_renders():
         return [e.findtext("a:id", namespaces=ns) for e in tree.findall("a:entry", ns)]
 
     assert ids() == ids()
+
+
+# remote text
+
+
+def test_remote_text_loses_control_characters_and_lone_surrogates():
+    update = make_update(
+        title="\x1b]8;;https://evil.example\x07click\x1b]8;;\x07 me\x0b\x9b2J",
+        body="line one\nline\ttwo\r\x00",
+        url="https://e.com/\x1b[2J",
+        version="v1\ud800",
+    )
+    assert update.title == "]8;;https://evil.exampleclick]8;; me2J"
+    assert update.body == "line one\nline\ttwo"
+    assert update.url == "https://e.com/[2J"
+    assert update.version == "v1"
+
+
+def test_a_non_string_title_becomes_text():
+    assert make_update(title=12345).title == "12345"
+
+
+def test_a_lone_surrogate_in_a_uid_can_still_be_recorded(state):
+    update = make_update("version:\ud800")
+    state.mark_seen([update])
+    assert not state.is_new(update)
+    # alias is looked up too, which would raise before it was cleaned
+    assert state.is_new(make_update("other", aliases=("tag:\ud800",)))
+    assert not state.is_new(make_update("other", aliases=("version:\ud800",)))
+
+
+def test_xml_noncharacters_go_and_a_surrogate_uid_keeps_a_marker():
+    assert make_update(title=f"a{chr(0xFFFE)}b{chr(0xFFFF)}c").title == "abc"
+    assert make_update(f"id{chr(0xD800)}").uid == f"id{chr(0xFFFD)}"
+
+
+def test_labels_and_error_messages_are_cleaned_too():
+    from youpdated.models import RunError, Target
+
+    assert Target(source="feed", key="k", label="Blog\x1b[31m").display == "Blog[31m"
+    error = RunError(source="feed", target="t\x1b", message="boom\x9b")
+    assert (error.target, error.message) == ("t", "boom")
+
+
+def test_rss_stays_valid_xml_with_control_characters_and_surrogates():
+    from xml.etree import ElementTree as ET
+
+    result = _result_with([make_update("1\ud800", title="a\x0bb\x08c\ud800")])
+    tree = ET.fromstring(rss_out.render(result).encode("utf-8"))
+    ns = {"a": "http://www.w3.org/2005/Atom"}
+    assert tree.findtext("a:entry/a:title", default="", namespaces=ns).endswith("abc")
+
+
+def test_json_output_encodes_as_utf8_with_a_lone_surrogate():
+    json_out.render(_result_with([make_update(title="x\ud800")])).encode("utf-8")
+
+
+def test_markup_in_labels_and_errors_is_printed_literally():
+    from rich.console import Console
+
+    from youpdated.models import RunError, Target
+    from youpdated.render import terminal
+    from youpdated.runner import RunResult
+
+    result = RunResult(
+        updates=[make_update("1", title="[bold]x[/]")],
+        targets=[Target(source="git", key="a/b", label="[/oops]")],
+        errors=[RunError(source="feed", target="[/b]", message="bad [/i] reply")],
+    )
+    console = Console(width=200, record=True)
+    terminal.render(result, console=console)
+    text = console.export_text()
+    assert "[/oops]" in text and "[bold]x[/]" in text and "[/b]: bad [/i] reply" in text
+
+
+# limits and odd input
+
+
+@pytest.mark.parametrize("raw", ["3000y", "999999999999d", "101y"])
+def test_durations_past_a_century_are_refused(raw):
+    with pytest.raises(ValueError, match="longer than 100y"):
+        parse_since(raw)
+    with pytest.raises(ConfigError, match=r"\(100y max\)"):
+        parse_config({"sources": {"npm": ["e"]}, "expiry": raw})
+
+
+def test_a_century_is_still_a_duration():
+    assert parse_since("100y") == timedelta(days=36500)
+    State(None, expiry=parse_since("100y")).prune()
+
+
+def test_a_config_that_is_not_utf8_is_a_config_error(tmp_path):
+    from youpdated.config import load_config
+
+    path = tmp_path / "youpdated.yaml"
+    path.write_bytes("sources:\n  feed: [https://e.com/caf\xe9.xml]\n".encode("latin-1"))
+    with pytest.raises(ConfigError, match="not UTF-8"):
+        load_config(path)
+
+
+@pytest.mark.parametrize("command", [[True], ["notify-send", ""], ["notify-send", False]])
+def test_list_commands_refuse_booleans_and_empty_strings(command):
+    from youpdated.config import split_command
+
+    with pytest.raises(ConfigError):
+        split_command(command)
+
+
+# cookies and webhooks
+
+
+@respx.mock
+def test_cookies_are_never_kept_between_requests(client):
+    route = respx.get("https://e.com/a").mock(
+        return_value=httpx.Response(200, headers={"Set-Cookie": "id=1; Path=/"})
+    )
+    client.get("https://e.com/a")
+    client.get("https://e.com/a")
+    assert "cookie" not in route.calls.last.request.headers
+
+
+@respx.mock
+def test_a_cookie_set_on_a_redirect_is_not_sent_to_the_next_hop(client):
+    respx.get("https://e.com/a").mock(
+        return_value=httpx.Response(
+            302, headers={"Location": "https://e.com/b", "Set-Cookie": "id=1; Path=/"}
+        )
+    )
+    landed = respx.get("https://e.com/b").mock(return_value=httpx.Response(200))
+    client.get("https://e.com/a")
+    assert "cookie" not in landed.calls.last.request.headers
+
+
+@respx.mock
+@pytest.mark.parametrize(
+    "first",
+    [httpx.ReadTimeout("slow"), httpx.RemoteProtocolError("gone"), httpx.Response(500),
+     httpx.Response(502), httpx.Response(504)],
+)
+def test_a_webhook_that_may_have_been_delivered_is_not_sent_again(client, first):
+    route = respx.post("https://hooks.e.com/x").mock(side_effect=[first, httpx.Response(200)])
+    with pytest.raises(FetchError):
+        client.post("https://hooks.e.com/x", json={})
+    assert route.call_count == 1
+
+
+@respx.mock
+@pytest.mark.parametrize(
+    "first", [httpx.ConnectError("refused"), httpx.Response(429), httpx.Response(503)]
+)
+def test_a_webhook_the_server_never_took_is_retried(client, first):
+    route = respx.post("https://hooks.e.com/x").mock(side_effect=[first, httpx.Response(204)])
+    assert client.post("https://hooks.e.com/x", json={}).status == 204
+    assert route.call_count == 2
+
+
+@respx.mock
+@pytest.mark.parametrize("status", [301, 302, 303])
+def test_a_redirect_that_would_drop_a_webhooks_body_is_a_failure(client, status):
+    respx.post("https://hooks.e.com/x").mock(
+        return_value=httpx.Response(status, headers={"Location": "https://hooks.e.com/y"})
+    )
+    page = respx.get("https://hooks.e.com/y").mock(return_value=httpx.Response(200))
+    with pytest.raises(FetchError, match=f"HTTP {status}"):
+        client.post("https://hooks.e.com/x", json={"a": 1})
+    assert not page.called
+
+
+# state file
+
+
+def test_a_second_state_on_the_same_file_waits_for_the_first(tmp_path):
+    from youpdated.state import StateError
+
+    path = tmp_path / "state.sqlite3"
+    with State(path):
+        with pytest.raises(StateError, match="in use by another youpdated run"):
+            State(path, lock_timeout=0.2)
+    with State(path, lock_timeout=0.2):
+        pass
+
+
+def test_a_state_file_that_is_not_a_database_is_a_clean_error(tmp_path, capsys):
+    from youpdated.cli import main
+    from youpdated.state import StateError
+
+    path = tmp_path / "state.sqlite3"
+    path.write_text("not a database, just some text that is long enough " * 20)
+    with pytest.raises(StateError, match="not a youpdated history database"):
+        State(path)
+    # The failed open let go of its lock
+    with pytest.raises(StateError, match="not a youpdated history database"):
+        State(path, lock_timeout=0.2)
+
+    config = tmp_path / "youpdated.yaml"
+    config.write_text("sources:\n  npm: [express]\n")
+    assert main(["check", "--test", "-c", str(config), "--state", str(path)]) == 1
+    assert "History error" in capsys.readouterr().out
+
+
+def test_forget_clears_shared_namespaces_whole(state):
+    state.cache_set("youtube_invidious", "list", "https://inv.example")
+    state.cache_set("youtube_channel_ids", "@kept", "UC")
+    state.forget("youtube", ["@gone"], ("youtube_channel_ids",), shared=("youtube_invidious",))
+    assert state.cache_get("youtube_invidious", "list") is None
+    assert state.cache_get("youtube_channel_ids", "@kept") == "UC"
+
+
+# runner
+
+
+@respx.mock
+def test_one_bad_entry_does_not_drop_the_rest_of_its_source(state, client):
+    config = parse_config({"sources": {"npm": [{"package": ".nope"}, "express"]}})
+    _npm("express", "5.0.0")
+
+    result = run(config, state, client, show_all=True)
+
+    assert [t.key for t in result.targets] == ["express"]
+    assert [e.source for e in result.errors] == ["npm"]
+
+
+@respx.mock
+def test_new_items_left_out_by_since_stay_new(state, client):
+    config = parse_config({"sources": {"npm": ["express"]}})
+    now = datetime.now(timezone.utc)
+    doc: dict[str, Any] = {
+        "name": "express", "dist-tags": {}, "versions": {},
+        "time": {"4.0.0": (now - timedelta(days=90)).isoformat()},
+    }
+    route = respx.get("https://registry.npmjs.org/express")
+    route.mock(return_value=httpx.Response(200, json=doc))
+    run(config, state, client)  # baseline
+
+    doc["time"] |= {
+        "5.0.0": (now - timedelta(days=30)).isoformat(),
+        "5.1.0": (now - timedelta(hours=1)).isoformat(),
+    }
+    route.mock(return_value=httpx.Response(200, json=doc))
+    within = run(config, state, client, since=timedelta(days=7))
+    assert [u.version for u in within.updates] == ["5.1.0"]
+    assert [u.version for u in run(config, state, client).updates] == ["5.0.0"]
+
+
+@respx.mock
+def test_a_repo_listed_twice_with_different_rules_is_not_refetched_whole(
+    state, client, monkeypatch
+):
+    monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+    config = parse_config({"sources": {
+        "git": ["python/cpython"],
+        "github": [{"repo": "python/cpython", "ignore": ["prerelease"]}],
+    }})
+    route = respx.get("https://github.com/python/cpython/releases.atom").mock(
+        return_value=httpx.Response(
+            200, content=fixture("github_releases.atom"), headers={"ETag": '"v1"'}
+        )
+    )
+    run(config, state, client)
+    route.mock(return_value=httpx.Response(304))
+    before = len(route.calls)
+
+    run(config, state, client)
+
+    second = list(route.calls)[before:]
+    assert second and all(call.request.headers.get("If-None-Match") == '"v1"' for call in second)
+
+
+def test_ignore_keys_that_cover_nothing_are_warned_about():
+    from youpdated.runner import ignore_warnings
+
+    config = parse_config({
+        "sources": {"git": ["python/cpython"], "npm": ["express"]},
+        "ignore": {"*": ["x"], "npm": ["x"], "github": ["prerelease"], "pipy": ["x"]},
+    })
+    moved, typo = ignore_warnings(config)
+    assert "`ignore.github`" in moved and "need `ignore.git`" in moved
+    assert "`ignore.pipy` covers nothing" in typo
+
+
+def test_a_test_run_reports_config_problems_but_not_unanswered_fetches(state):
+    config = parse_config({"sources": {"youtube": ["@NASA"], "git": ["not a repo"]}})
+    with Client(PrivacyConfig(jitter=(0.0, 0.0)), state, test=True) as dry:
+        result = run(config, state, dry, save=False)
+    # @NASA can't be resolved without a reply; only the bad entry is the config's problem
+    assert [e.source for e in result.errors] == ["git"]
+
+
+# check: report, then record
+
+
+def _check_setup(tmp_path) -> list[str]:
+    config = tmp_path / "youpdated.yaml"
+    config.write_text("privacy:\n  jitter: [0, 0]\nsources:\n  npm: [express]\n")
+    return ["check", "-c", str(config), "--state", str(tmp_path / "state.sqlite3")]
+
+
+@respx.mock
+def test_a_report_that_fails_to_render_leaves_its_updates_new(tmp_path, monkeypatch, capsys):
+    from youpdated.cli import main
+    from youpdated.render import terminal
+
+    args = _check_setup(tmp_path)
+    _npm("express", "5.0.0")
+    assert main(args) == 0
+    _npm("express", "5.0.0", "5.1.0")
+
+    def broken(*a, **kw):
+        raise RuntimeError("renderer broke")
+
+    monkeypatch.setattr(terminal, "render", broken)
+    with pytest.raises(RuntimeError):
+        main(args)
+    monkeypatch.undo()
+
+    capsys.readouterr()
+    assert main([*args, "--json"]) == 0
+    assert [u["version"] for u in json.loads(capsys.readouterr().out)["updates"]] == ["5.1.0"]
+
+
+@respx.mock
+def test_an_rss_file_that_cannot_be_written_leaves_its_updates_new(tmp_path, capsys):
+    from youpdated.cli import main
+
+    args = _check_setup(tmp_path)
+    _npm("express", "5.0.0")
+    assert main(args) == 0
+    _npm("express", "5.0.0", "5.1.0")
+    (tmp_path / "file").write_text("")
+
+    assert main([*args, "--rss", str(tmp_path / "file" / "feed.xml")]) == 1
+    assert "cannot write" in capsys.readouterr().out
+
+    assert main([*args, "--json"]) == 0
+    assert [u["version"] for u in json.loads(capsys.readouterr().out)["updates"]] == ["5.1.0"]
+
+
+def test_check_test_shows_config_problems_and_fails_on_them(tmp_path, capsys):
+    from youpdated.cli import main
+
+    config = tmp_path / "youpdated.yaml"
+    config.write_text("sources:\n  git: [not a repo, python/cpython]\n  nope: [x]\n")
+    args = ["check", "--test", "-c", str(config), "--state", str(tmp_path / "s.sqlite3")]
+
+    assert main(args) == 0
+    assert "problems" in capsys.readouterr().out
+    assert main([*args, "--fail-on-error"]) == 2
+    capsys.readouterr()
+    assert main([*args, "--json"]) == 0
+    report = json.loads(capsys.readouterr().out)
+    assert {e["source"] for e in report["errors"]} == {"git", "nope"}
