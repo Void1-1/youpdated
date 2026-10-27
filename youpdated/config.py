@@ -203,7 +203,7 @@ def parse_config(raw: Any, path: Path | None = None) -> Config:
             sources[str(name)] = entries
 
     if not sources:
-        raise ConfigError(f"{where}`sources` has no entries — nothing to check")
+        raise ConfigError(f"{where}`sources` has no entries. Nothing to check")
 
     return Config(
         privacy=privacy,

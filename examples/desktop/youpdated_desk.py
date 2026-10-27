@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import queue
 import subprocess
 import sys
@@ -13,7 +14,7 @@ import threading
 import tkinter as tk
 import webbrowser
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, time, timedelta, timezone
 from pathlib import Path
 from tkinter import font as tkfont
 from tkinter import simpledialog
@@ -41,8 +42,13 @@ TEXT = "#e8e8ee"
 MUTED = "#82828e"
 ACCENT = "#7aa2f7"
 BAD = "#e0736d"
+HIGH = "#e0af68"
+DIM = "#5a5a64"
 THUMB = "#33333d"
 THUMB_HOVER = "#45454f"
+
+PRIORITIES = ("high", "normal", "low")
+SORTS = {"priority": "Priority", "newest": "Newest", "source": "Source", "name": "Name"}
 
 SOURCE_COLOR = {
     "git": "#a9b1d6",
@@ -183,6 +189,111 @@ def _first_error(result: RunResult) -> str | None:
     return f"{first.source}/{first.target}: {first.message}{extra}"
 
 
+# priority and sorting
+
+
+def prefs_path(state_path: Path) -> Path:
+    """Beside the history it describes: state.sqlite3 -> state.desk.json"""
+    return state_path.with_suffix(".desk.json")
+
+
+class Prefs:
+    """Desk-only settings: each target's priority and the list's sort.
+
+    Kept out of the youpdated config on purpose (#12), and encrypted whenever the history is
+    """
+
+    def __init__(self, path: Path | None = None, passphrase: str | None = None):
+        self.path = path
+        self.passphrase = passphrase
+        self.sort = "priority"
+        # only targets moved off normal are kept
+        self.levels: dict[tuple[str, str], str] = {}
+
+    @classmethod
+    def load(cls, path: Path, passphrase: str | None = None) -> Prefs:
+        prefs = cls(path, passphrase)
+        try:
+            blob = path.read_bytes()
+            if crypto.is_encrypted(blob):
+                if not passphrase:
+                    return prefs
+                blob = crypto.decrypt(blob, passphrase)
+            raw = json.loads(blob)
+            if raw.get("sort") in SORTS:
+                prefs.sort = raw["sort"]
+            for source, targets in raw.get("priority", {}).items():
+                for target, level in targets.items():
+                    if level in PRIORITIES:
+                        prefs.set_priority(source, target, level)
+        except (OSError, ValueError, AttributeError, TypeError, crypto.EncryptionError):
+            pass  # missing or unreadable: start from defaults rather than refuse to open
+        return prefs
+
+    def priority(self, source: str, target: str) -> str:
+        return self.levels.get((source, target), "normal")
+
+    def set_priority(self, source: str, target: str, level: str) -> None:
+        if level == "normal":
+            self.levels.pop((source, target), None)
+        else:
+            self.levels[(source, target)] = level
+
+    def save(self) -> None:
+        if self.path is None:
+            return
+        nested: dict[str, dict[str, str]] = {}
+        for (source, target), level in sorted(self.levels.items()):
+            nested.setdefault(source, {})[target] = level
+        blob = json.dumps({"sort": self.sort, "priority": nested}, indent=2).encode()
+        if self.passphrase:
+            blob = crypto.encrypt(blob, self.passphrase)
+        crypto.write_private(self.path, blob)
+
+
+_UNDATED = datetime.min.replace(tzinfo=timezone.utc)
+_RANK = {level: rank for rank, level in enumerate(PRIORITIES)}
+
+
+def sort_updates(
+    updates: list[Update], how: str, prefs: Prefs, labels: dict[tuple[str, str], str]
+) -> list[Update]:
+    """`updates` in display order. Sorts are stable, so newest first breaks every tie"""
+    ordered = sorted(updates, key=lambda u: u.published or _UNDATED, reverse=True)
+    if how == "priority":
+        ordered.sort(key=lambda u: _RANK[prefs.priority(u.source, u.target)])
+    elif how == "source":
+        ordered.sort(key=lambda u: u.source)
+    elif how == "name":
+        ordered.sort(key=lambda u: labels.get((u.source, u.target), u.target).casefold())
+    return ordered
+
+
+def group_updates(ordered: list[Update]) -> list[list[Update]]:
+    """One group per target, placed where its first update falls, keeping the order within"""
+    groups: dict[tuple[str, str], list[Update]] = {}
+    for update in ordered:
+        groups.setdefault((update.source, update.target), []).append(update)
+    return list(groups.values())
+
+
+# digest
+
+
+def parse_clock(value: str) -> time:
+    """`18:00`, local time"""
+    try:
+        return datetime.strptime(value, "%H:%M").time()
+    except ValueError:
+        raise ValueError(f"expected a time like 18:00, got {value!r}") from None
+
+
+def next_digest(at: time, now: datetime) -> datetime:
+    """The first `at` after `now`"""
+    due = datetime.combine(now.date(), at)
+    return due if due > now else due + timedelta(days=1)
+
+
 # ui
 
 
@@ -231,12 +342,26 @@ class Scrollbar(tk.Canvas):
 
 
 class App:
-    def __init__(self, root: tk.Tk, checker: Checker, events: queue.Queue):
+    def __init__(
+        self,
+        root: tk.Tk,
+        checker: Checker,
+        events: queue.Queue,
+        prefs: Prefs | None = None,
+        *,
+        bundle_high: bool = False,
+        digest: time | None = None,
+    ):
         self.root = root
         self.checker = checker
         self.queue = events
         self.updates: list[Update] = []
         self.labels: dict[tuple[str, str], str] = {}
+        self.prefs = prefs or Prefs()
+        self.bundle_high = bundle_high
+        self.digest_due = next_digest(digest, datetime.now()) if digest is not None else None
+        # updates held for the digest
+        self.pending: list[Update] = []
 
         root.title(APP)
         root.geometry("620x680")
@@ -272,6 +397,24 @@ class App:
         self.button.bind("<Button-1>", lambda _e: self.checker.check_now())
         _hover(self.button, CARD, CARD_HOVER)
 
+        self.sort_var = tk.StringVar(self.root, self.prefs.sort)
+        self.sort_menu = _menu(self.root)
+        for key, name in SORTS.items():
+            self.sort_menu.add_radiobutton(
+                label=name, value=key, variable=self.sort_var, command=self._sorted
+            )
+        self.sort_button = tk.Label(
+            bar, text=_sort_text(self.prefs.sort), bg=CARD, fg=TEXT, font=self.f_small,
+            padx=12, pady=5, cursor="hand2",
+        )
+        self.sort_button.pack(side="right", padx=(0, 8))
+        self.sort_button.bind("<Button-1>", lambda _e: _popup(
+            self.sort_menu,
+            self.sort_button.winfo_rootx(),
+            self.sort_button.winfo_rooty() + self.sort_button.winfo_height(),
+        ))
+        _hover(self.sort_button, CARD, CARD_HOVER)
+
         tk.Frame(self.root, bg=LINE, height=1).pack(fill="x")
 
     # scrolling list
@@ -288,18 +431,25 @@ class App:
 
         self.body = tk.Frame(self.canvas, bg=BG)
         self.window = self.canvas.create_window((0, 0), window=self.body, anchor="nw")
-        self.wrapped: list[tk.Label] = []
+        # labels that wrap, with how much of the canvas width they leave to other things
+        self.wrapped: list[tuple[tk.Label, int]] = []
+        self.priority_var = tk.StringVar(self.root)
+        self.priority_menu = _menu(self.root)
 
         self.canvas.configure(yscrollincrement=1)
         self.body.bind("<Configure>", lambda _e: self._measure())
         self.canvas.bind("<Configure>", self._resized)
         for seq in ("<MouseWheel>", "<Button-4>", "<Button-5>"):
             self.canvas.bind_all(seq, self._scroll)
+        try:
+            self.canvas.bind_all("<TouchpadScroll>", self._touchpad)
+        except tk.TclError:
+            pass  # Tk 8.6 has no such event, and sends trackpads as <MouseWheel>
 
     def _resized(self, event: tk.Event) -> None:
         self.canvas.itemconfigure(self.window, width=event.width)
-        for label in self.wrapped:
-            label.configure(wraplength=max(160, event.width - 74))
+        for label, inset in self.wrapped:
+            label.configure(wraplength=max(160, event.width - inset))
         self._measure()
 
     def _measure(self) -> None:
@@ -313,11 +463,21 @@ class App:
             pixels = -48
         elif event.num == 5:
             pixels = 48
-        elif sys.platform == "darwin":
+        elif sys.platform == "darwin" and tk.TkVersion < 9:
             pixels = -event.delta * 6  # already in small units, unlike Windows
+        elif sys.platform == "darwin":
+            pixels = round(-event.delta * 0.4)  # Tk 9 sends 120 a notch, like Windows; keeps smaller steps
         else:
             pixels = -event.delta // 120 * 48
         self.canvas.yview_scroll(pixels, "units")
+
+    def _touchpad(self, event: tk.Event) -> None:
+        """Trackpads on Tk 9, in pixels: the x delta is the high 16 bits of `delta`, y the low 16"""
+        if self.body.winfo_reqheight() <= self.canvas.winfo_height():
+            return
+        low = event.delta & 0xFFFF
+        dy = low - 0x10000 if low & 0x8000 else low
+        self.canvas.yview_scroll(-dy, "units")
 
     # status
 
@@ -342,13 +502,14 @@ class App:
                     self._apply(payload)
         except queue.Empty:
             pass
+        self._digest_check()
         self.root.after(150, self._drain)
 
     def _apply(self, outcome: Outcome) -> None:
         self.labels = outcome.labels or self.labels
         if outcome.updates:
             self.updates = (outcome.updates + self.updates)[:200]
-            notify(_headline(outcome.updates), _summary(outcome.updates, self.labels))
+            self._announce(outcome.updates)
         self._render()
 
         now = datetime.now().strftime("%H:%M")
@@ -357,6 +518,76 @@ class App:
         else:
             self.status.configure(text=f"{len(self.updates)} new · {now}")
         self.problem.configure(text=outcome.error or "")
+
+    # notifying
+
+    def _announce(self, updates: list[Update]) -> None:
+        """High targets notify on their own as found; the rest go out bundled, now or at the digest"""
+        rest: list[Update] = []
+        high: dict[tuple[str, str], list[Update]] = {}
+        for update in updates:
+            key = (update.source, update.target)
+            if self.prefs.priority(*key) == "high" and not self.bundle_high:
+                high.setdefault(key, []).append(update)
+            else:
+                rest.append(update)
+
+        for key, group in high.items():
+            notify(self.labels.get(key, key[1]), _summary(group, self.labels, named=False))
+        if self.digest_due is None:
+            self._send(rest)
+        else:
+            self.pending.extend(rest)
+
+    def _send(self, updates: list[Update]) -> None:
+        """One notification, high first and low left out"""
+        loud = [
+            u for u in sort_updates(updates, "priority", self.prefs, self.labels)
+            if self.prefs.priority(u.source, u.target) != "low"
+        ]
+        if loud:
+            notify(_headline(loud), _summary(loud, self.labels))
+
+    def _digest_check(self) -> None:
+        if self.digest_due is None or datetime.now() < self.digest_due:
+            return
+        self.digest_due = next_digest(self.digest_due.time(), datetime.now())
+        pending, self.pending = self.pending, []
+        self._send(pending)
+
+    # priority and sorting
+
+    def _sorted(self) -> None:
+        self.prefs.sort = self.sort_var.get()
+        self.sort_button.configure(text=_sort_text(self.prefs.sort))
+        self._save_prefs()
+        self._render()
+
+    def set_priority(self, source: str, target: str, level: str) -> None:
+        self.prefs.set_priority(source, target, level)
+        self._save_prefs()
+        self._render()
+
+    def _priority_menu_for(self, update: Update) -> tk.Menu:
+        """The shared right-click menu, filled for `update`'s target"""
+        menu = self.priority_menu
+        menu.delete(0, "end")
+        label = self.labels.get((update.source, update.target), update.target)
+        menu.add_command(label=label, state="disabled")
+        menu.add_separator()
+        self.priority_var.set(self.prefs.priority(update.source, update.target))
+        for level in PRIORITIES:
+            menu.add_radiobutton(
+                label=level.title(), value=level, variable=self.priority_var,
+                command=lambda level=level: self.set_priority(update.source, update.target, level),
+            )
+        return menu
+
+    def _save_prefs(self) -> None:
+        try:
+            self.prefs.save()
+        except (OSError, crypto.EncryptionError) as exc:
+            self.problem.configure(text=f"Settings not saved: {exc}")
 
     # drawing
 
@@ -371,11 +602,16 @@ class App:
             ).pack(fill="x")
             return
 
-        for update in self.updates:
-            self._card(update)
+        ordered = sort_updates(self.updates, self.prefs.sort, self.prefs, self.labels)
+        for group in group_updates(ordered):
+            self._card(group)
 
-    def _card(self, update: Update) -> None:
+    def _card(self, group: list[Update]) -> None:
+        """One target: its newest update heads the card, each update below is a line of its own"""
+        update = group[0]
         color = SOURCE_COLOR.get(update.source, ACCENT)
+        level = self.prefs.priority(update.source, update.target)
+        low = level == "low"
 
         card = tk.Frame(self.body, bg=CARD, cursor="hand2")
         card.pack(fill="x", padx=18, pady=(0, 6))
@@ -391,26 +627,54 @@ class App:
 
         label = self.labels.get((update.source, update.target), update.target)
         tk.Label(
-            top, text=label, bg=CARD, fg=TEXT, font=self.f_strong, anchor="w"
+            top, text=label, bg=CARD, fg=MUTED if low else TEXT, font=self.f_strong, anchor="w"
         ).pack(side="left")
+        if level == "high":
+            tk.Label(
+                top, text="high", bg=CARD, fg=HIGH, font=self.f_small, anchor="w"
+            ).pack(side="left", padx=(8, 0))
         tk.Label(
             top,
             text=f"{update.source} · {relative_age(update.published)}",
-            bg=CARD, fg=MUTED, font=self.f_small, anchor="e",
+            bg=CARD, fg=DIM if low else MUTED, font=self.f_small, anchor="e",
         ).pack(side="right")
 
-        body = tk.Label(
-            inner, text=update.version or update.title, bg=CARD, fg=MUTED,
-            font=self.f_body, anchor="w", justify="left",
-            wraplength=max(160, self.canvas.winfo_width() - 74),
-        )
-        body.pack(fill="x", pady=(3, 0))
-        self.wrapped.append(body)
+        # (widget, the link a click on it opens)
+        links = [(w, update.url) for w in [card, inner, top, *top.winfo_children()]]
+        for index, line in enumerate(group[:3]):
+            row = tk.Frame(inner, bg=CARD)
+            row.pack(fill="x", pady=(3, 0))
+            text = tk.Label(
+                row, text=line.version or line.title, bg=CARD, fg=DIM if low else MUTED,
+                font=self.f_body, anchor="w", justify="left",
+            )
+            inset = 74
+            if index:  # the first line's age is already in the header
+                age = tk.Label(
+                    row, text=relative_age(line.published), bg=CARD, fg=DIM if low else MUTED,
+                    font=self.f_small, anchor="e",
+                )
+                age.pack(side="right")
+                links.append((age, line.url))
+                inset += 72
+            text.configure(wraplength=max(160, self.canvas.winfo_width() - inset))
+            text.pack(side="left", fill="x", expand=True)
+            self.wrapped.append((text, inset))
+            links += [(row, line.url), (text, line.url)]
+        if len(group) > 3:
+            more = tk.Label(
+                inner, text=f"and {len(group) - 3} more", bg=CARD, fg=DIM, font=self.f_small, anchor="w"
+            )
+            more.pack(fill="x", pady=(3, 0))
+            links.append((more, update.url))
 
-        widgets = [card, inner, top, body] + list(top.winfo_children())
-        for widget in widgets:
-            widget.bind("<Button-1>", lambda _e, url=update.url: webbrowser.open(url))
-        _hover(card, CARD, CARD_HOVER, widgets)
+        for widget, url in links:
+            widget.bind("<Button-1>", lambda _e, url=url: webbrowser.open(url))
+            for seq in _menu_clicks():
+                widget.bind(
+                    seq, lambda e, u=update: _popup(self._priority_menu_for(u), e.x_root, e.y_root)
+                )
+        _hover(card, CARD, CARD_HOVER, [w for w, _ in links])
 
     def quit(self) -> None:
         self.checker.stop()
@@ -430,15 +694,45 @@ def _hover(widget: tk.Widget, normal: str, active: str, group: list | None = Non
     widget.bind("<Leave>", paint(normal), add="+")
 
 
+def _menu(parent: tk.Misc) -> tk.Menu:
+    # macOS draws its own menus and ignores the colours
+    return tk.Menu(
+        parent, tearoff=0, bg=CARD, fg=TEXT, activebackground=CARD_HOVER,
+        activeforeground=TEXT, selectcolor=TEXT, bd=0,
+    )
+
+
+def _popup(menu: tk.Menu, x: int, y: int) -> None:
+    try:
+        menu.tk_popup(x, y)
+    finally:
+        menu.grab_release()
+
+
+def _menu_clicks() -> tuple[str, ...]:
+    """Right click. macOS Tk has called it button 2 or 3 depending on version, and Control-click counts"""
+    if sys.platform == "darwin":
+        return ("<Button-2>", "<Button-3>", "<Control-Button-1>")
+    return ("<Button-3>",)
+
+
+def _sort_text(key: str) -> str:
+    return f"Sort: {SORTS[key]} ▾"
+
+
 def _headline(updates: list[Update]) -> str:
     return "1 update" if len(updates) == 1 else f"{len(updates)} updates"
 
 
-def _summary(updates: list[Update], labels: dict[tuple[str, str], str]) -> str:
+def _summary(updates: list[Update], labels: dict[tuple[str, str], str], named: bool = True) -> str:
+    """Up to three lines then a count. `named=False` leaves off the label, for one target's own notification"""
     lines = []
     for update in updates[:3]:
-        label = labels.get((update.source, update.target), update.target)
-        lines.append(f"{label} — {update.version or update.title}")
+        text = update.version or update.title
+        if named:
+            label = labels.get((update.source, update.target), update.target)
+            text = f"{label}: {text}"
+        lines.append(text)
     if len(updates) > 3:
         lines.append(f"and {len(updates) - 3} more")
     return "\n".join(lines)
@@ -460,10 +754,19 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("-c", "--config", help="config file to use")
     parser.add_argument("--state", help="history database to use")
     parser.add_argument("--every", default="1h", help="check interval (30m, 1h, 6h); default 1h")
+    parser.add_argument(
+        "--digest", metavar="HH:MM",
+        help="hold notifications for one a day at this time; high priority still notifies as found",
+    )
+    parser.add_argument(
+        "--bundle-high", action="store_true",
+        help="bundle high priority updates with the rest instead of notifying for each target",
+    )
     args = parser.parse_args(argv)
 
     try:
         interval = parse_since(args.every).total_seconds()
+        digest = parse_clock(args.digest) if args.digest else None
     except ValueError as exc:
         parser.error(str(exc))
 
@@ -482,7 +785,8 @@ def main(argv: list[str] | None = None) -> int:
             root.destroy()
             return 1
 
-    App(root, checker, events)
+    prefs = Prefs.load(prefs_path(checker.state_path), checker.passphrase)
+    App(root, checker, events, prefs, bundle_high=args.bundle_high, digest=digest)
     checker.start()
     root.mainloop()
     return 0

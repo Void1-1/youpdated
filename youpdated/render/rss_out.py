@@ -34,7 +34,7 @@ def render(result: RunResult, title: str = "Youpdated") -> str:
         ET.SubElement(entry, f"{{{ATOM}}}id").text = f"urn:youpdated:{digest}"
 
         label = f"[{update.source}] {update.target}"
-        ET.SubElement(entry, f"{{{ATOM}}}title").text = f"{label} — {update.title}"
+        ET.SubElement(entry, f"{{{ATOM}}}title").text = f"{label}: {update.title}"
         ET.SubElement(entry, f"{{{ATOM}}}updated").text = _stamp(update.published)
         if update.published:
             ET.SubElement(entry, f"{{{ATOM}}}published").text = _stamp(update.published)
@@ -49,7 +49,7 @@ def render(result: RunResult, title: str = "Youpdated") -> str:
 
         summary = update.body or update.title
         if update.version:
-            summary = f"{update.version} — {summary}"
+            summary = f"{update.version}: {summary}"
         ET.SubElement(entry, f"{{{ATOM}}}summary", {"type": "text"}).text = summary
 
     ET.indent(feed, space="  ")
