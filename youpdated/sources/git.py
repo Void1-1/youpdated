@@ -9,7 +9,6 @@ from __future__ import annotations
 import os
 import re
 from dataclasses import replace
-from datetime import datetime, timezone
 from typing import Any, ClassVar, Iterable
 from urllib.parse import quote, unquote, urlsplit
 
@@ -18,12 +17,12 @@ import httpx
 from ..http import Client
 from ..models import Target, Update
 from ..registry import register
-from .base import ConfigEntryError, accepted, entry_fields, require
+from .base import ConfigEntryError, accepted, entry_fields, parse_iso, require
 from .feed import html_to_text, is_feed_url, parse_feed
 
 VALID_WATCH = ("releases", "tags", "commits")
 FORGES = ("github", "gitlab", "forgejo")
-#: Same API under another name
+# Same API under another name
 FORGE_ALIASES = {"gitea": "forgejo", "codeberg": "forgejo"}
 KNOWN_HOSTS = {
     "github.com": "github",
@@ -31,7 +30,7 @@ KNOWN_HOSTS = {
     "codeberg.org": "forgejo",
     "gitea.com": "forgejo",
 }
-#: A token is only ever sent to the host it was issued for. Others need `token_env:`
+# A token is only ever sent to the host it was issued for. Others need `token_env:`
 DEFAULT_TOKEN_ENV = {"github.com": "GITHUB_TOKEN", "gitlab.com": "GITLAB_TOKEN"}
 
 PER_PAGE = 20
@@ -39,14 +38,14 @@ PER_PAGE = 20
 _HOST_RE = re.compile(r"^[a-z0-9]([a-z0-9.-]*[a-z0-9])?(:\d+)?$")
 _SEGMENT_RE = re.compile(r"^[A-Za-z0-9._-]+$")
 _ENV_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
-#: Prerelease markers
+# Prerelease markers
 _PRERELEASE_RE = re.compile(
     r"(?:^|[-._+])(?:alpha|beta|rc|pre(?:view)?|dev|nightly|canary|snapshot|eap|insiders?)"
     r"[\d._-]*$"
     r"|\d(?:a|b|rc)\d+$",
     re.IGNORECASE,
 )
-#: Hostname hints for self-hosted instances: gitlab.gnome.org, gitea.example.org, github.corp.com
+# Hostname hints for self-hosted instances: gitlab.gnome.org, gitea.example.org, github.corp.com
 _HOST_HINTS = (
     ("gitlab", "gitlab"),
     ("forgejo", "forgejo"),
@@ -60,16 +59,6 @@ def _is_prerelease(version: str | None) -> bool:
     return bool(version and _PRERELEASE_RE.search(version.strip()))
 
 
-def _parse_iso(value: str | None) -> datetime | None:
-    if not value:
-        return None
-    try:
-        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
-    except ValueError:
-        return None
-    return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
-
-
 def _guess_forge(host: str) -> str | None:
     name = host.split(":")[0]
     if name in KNOWN_HOSTS:
@@ -80,9 +69,12 @@ def _guess_forge(host: str) -> str | None:
     return None
 
 
-def _split_location(text: str, host: str | None, source: str) -> tuple[str, str, str]:
-    """``(scheme, host, path)`` from a URL, ``host/owner/repo``, or ``owner/repo``"""
+def _split_location(
+    text: str, host: str | None, source: str
+) -> tuple[str, str, str, bool]:
+    """``(scheme, host, path, addressed)`` from a URL, ``host/owner/repo``, or ``owner/repo``"""
     scheme = "https"
+    wanted = host.strip().lower().removeprefix("www.") if host else None
     if "://" in text:
         parts = urlsplit(text)
         if parts.scheme not in ("http", "https"):
@@ -90,14 +82,20 @@ def _split_location(text: str, host: str | None, source: str) -> tuple[str, str,
         scheme, url_host, path = parts.scheme, parts.netloc.lower(), parts.path
     else:
         first, _, rest = text.partition("/")
-        # . in first segment marks a host: `codeberg.org/forgejo/forgejo`
-        if "." in first and rest.count("/") >= 1:
+        named = first.lower().removeprefix("www.")
+        # . in first segment marks a host: `codeberg.org/forgejo/forgejo`. With `host:` set
+        # it has to be that host, so a dotted GitLab group (`my.group/sub/project`) is a path.
+        # A well-known host is still one, so a mismatch with `host:` is reported below
+        if (
+            "." in first
+            and rest.count("/") >= 1
+            and (wanted in (None, named) or named in KNOWN_HOSTS)
+        ):
             url_host, path = first.lower(), rest
         else:
             url_host, path = None, text
 
     url_host = url_host.removeprefix("www.") if url_host else None
-    wanted = host.strip().lower().removeprefix("www.") if host else None
     if url_host and wanted and url_host != wanted:
         raise ConfigEntryError(
             f"sources.{source}: `{text}` is on {url_host}, but `host:` says {wanted}"
@@ -105,18 +103,21 @@ def _split_location(text: str, host: str | None, source: str) -> tuple[str, str,
     resolved = url_host or wanted or "github.com"
     if not _HOST_RE.match(resolved):
         raise ConfigEntryError(f"sources.{source}: `{resolved}` is not a hostname")
-    return scheme, resolved, path
+    return scheme, resolved, path, url_host is not None
 
 
-def _clean_path(path: str, forge: str, value: Any, source: str) -> str:
+def _clean_path(path: str, forge: str, value: Any, source: str, addressed: bool) -> str:
     path = path.strip("/")
     if forge == "gitlab":
         # /group/project/-/releases: everything from /-/ on is a page within the project
         path = path.split("/-/")[0].strip("/")
     segments = [s for s in path.split("/") if s]
-    if forge != "gitlab":
-        # /owner/repo/releases/tag/v1: only the first two name the repo
+    if forge != "gitlab" and addressed:
+        # /owner/repo/releases/tag/v1: only the first two name the repo. A bare
+        # `hashicorp/tap/terraform` is not an address, and cutting it would name another repo
         segments = segments[:2]
+    if forge != "gitlab" and len(segments) > 2:
+        raise ConfigEntryError(f"sources.{source}: `{value}` does not name an owner/repo")
     if segments:
         segments[-1] = segments[-1].removesuffix(".git")
     if len(segments) < 2 or not all(_SEGMENT_RE.match(s) for s in segments):
@@ -129,7 +130,7 @@ def _clean_path(path: str, forge: str, value: Any, source: str) -> str:
 class GitSource:
     name: ClassVar[str] = "git"
     summary: ClassVar[str] = "Releases, tags, and commits on GitHub, GitLab, or Forgejo/Gitea"
-    #: Config keys that list entries for this source (`github` was its own source <= 0.3.1)
+    # Config keys that list entries for this source (`github` was its own source <= 0.3.1)
     aliases: ClassVar[tuple[str, ...]] = ("github",)
 
     def claim(self, value: str) -> str | None:
@@ -143,7 +144,7 @@ class GitSource:
         for entry in entries:
             fields = entry_fields(entry, "repo", self.name)
             value = require(fields, "repo", self.name)
-            scheme, host, raw_path = _split_location(
+            scheme, host, raw_path, addressed = _split_location(
                 str(value).strip(), fields.get("host"), self.name
             )
 
@@ -164,7 +165,7 @@ class GitSource:
                         f"add `forge:` ({' | '.join(FORGES)})"
                     )
 
-            path = _clean_path(raw_path, forge, value, self.name)
+            path = _clean_path(raw_path, forge, value, self.name, addressed)
             key = f"{host}/{path}"
 
             watch = fields.get("watch") or ["releases"]
@@ -313,7 +314,7 @@ def _github_releases_via_api(
                 title=(release.get("name") or release.get("tag_name") or "").strip()
                 or "(untitled)",
                 url=release.get("html_url", ""),
-                published=_parse_iso(published),
+                published=parse_iso(published),
                 version=release.get("tag_name"),
                 body=html_to_text(release.get("body")),
                 tags=("release",) + (("prerelease",) if release.get("prerelease") else ()),
@@ -366,7 +367,7 @@ def _gitlab(source: str, target: Target, client: Client, token: str | None) -> l
                         uid=f"release:{tag}",
                         title=(release.get("name") or tag).strip() or tag,
                         url=links.get("self") or f"{web}/-/releases/{quote(tag, safe='')}",
-                        published=_parse_iso(
+                        published=parse_iso(
                             release.get("released_at") or release.get("created_at")
                         ),
                         version=tag,
@@ -390,7 +391,7 @@ def _gitlab(source: str, target: Target, client: Client, token: str | None) -> l
                         title=name,
                         url=f"{web}/-/tags/{quote(name, safe='')}",
                         # created_at is the tag's own date
-                        published=_parse_iso(
+                        published=parse_iso(
                             tag.get("created_at") or commit.get("committed_date")
                         ),
                         version=name,
@@ -417,7 +418,7 @@ def _gitlab(source: str, target: Target, client: Client, token: str | None) -> l
                         title=commit.get("title") or _first_line(commit.get("message"))
                         or sha[:12],
                         url=commit.get("web_url") or f"{web}/-/commit/{sha}",
-                        published=_parse_iso(commit.get("committed_date")),
+                        published=parse_iso(commit.get("committed_date")),
                         body=html_to_text(commit.get("message")),
                         tags=("commit",),
                     )
@@ -451,7 +452,7 @@ def _forgejo(source: str, target: Target, client: Client, token: str | None) -> 
                         uid=f"release:{tag}",
                         title=(release.get("name") or tag).strip() or tag,
                         url=release.get("html_url") or f"{web}/releases/tag/{quote(tag, safe='')}",
-                        published=_parse_iso(
+                        published=parse_iso(
                             release.get("published_at") or release.get("created_at")
                         ),
                         version=tag,
@@ -476,7 +477,7 @@ def _forgejo(source: str, target: Target, client: Client, token: str | None) -> 
                         title=name,
                         url=f"{web}/src/tag/{quote(name, safe='')}",
                         # `created` is absent before Gitea 1.15
-                        published=_parse_iso(commit.get("created")),
+                        published=parse_iso(commit.get("created")),
                         version=name,
                         body=html_to_text(tag.get("message")),
                         tags=_versioned("tag", name),
@@ -500,7 +501,7 @@ def _forgejo(source: str, target: Target, client: Client, token: str | None) -> 
                         uid=f"commit:{sha}",
                         title=_first_line(detail.get("message")) or sha[:12],
                         url=item.get("html_url") or f"{web}/commit/{sha}",
-                        published=_parse_iso(committer.get("date") or item.get("created")),
+                        published=parse_iso(committer.get("date") or item.get("created")),
                         body=html_to_text(detail.get("message")),
                         tags=("commit",),
                     )

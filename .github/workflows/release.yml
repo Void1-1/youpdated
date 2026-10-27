@@ -87,7 +87,7 @@ jobs:
       # publisher configured for this repo and workflow.
       id-token: write
     steps:
-      - uses: actions/download-artifact@v8
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: dist
           path: dist/
@@ -96,7 +96,7 @@ jobs:
       # statement binding each file's digest to this repository and workflow.
       # Verify one with:
       #   curl https://pypi.org/integrity/youpdated/<version>/<filename>/provenance
-      - uses: pypa/gh-action-pypi-publish@release/v1
+      - uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
 
   # There was an `attach` job here that copied the built artifacts onto the GitHub
   # Release, "so the two can be compared later". It is gone, because it cannot work:

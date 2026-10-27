@@ -9,7 +9,7 @@ from urllib.parse import quote, unquote
 from ..http import Client
 from ..models import Target, Update
 from ..registry import register
-from .base import ConfigEntryError, accepted, entry_fields, require, url_parts
+from .base import ConfigEntryError, accepted, entry_fields, parse_iso, require, url_parts
 
 # keys alongside real versions in the registry `time` map
 _NON_VERSION_KEYS = {"created", "modified"}
@@ -68,7 +68,7 @@ class NpmSource:
             versions = [v for v in (doc.get("time") or {}) if v not in _NON_VERSION_KEYS]
 
         times = doc.get("time") or {}
-        dated = [(v, _parse_iso(times.get(v))) for v in versions if v]
+        dated = [(v, parse_iso(times.get(v))) for v in versions if v]
         dated.sort(key=lambda pair: pair[1] or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
 
         updates = []
@@ -92,13 +92,3 @@ class NpmSource:
                 )
             )
         return updates
-
-
-def _parse_iso(value: str | None) -> datetime | None:
-    if not value:
-        return None
-    try:
-        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
-    except ValueError:
-        return None
-    return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)

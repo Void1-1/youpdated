@@ -12,6 +12,7 @@ from typing import Any, Callable
 
 import feedparser
 
+from ..http import FetchError
 from ..models import Update
 from .base import url_parts
 
@@ -91,9 +92,12 @@ def parse_document(content: bytes) -> Any:
     """Parse feed bytes once.
 
     Anything that needs both a feed's metadata and entries parses once and passes the result to
-    :func:`parse_entries`
+    :func:`parse_entries`. Raises :class:`FetchError` for a body that is not a feed at all
     """
-    return feedparser.parse(content)
+    parsed = feedparser.parse(content)
+    if not parsed.get("version") and not parsed.entries:
+        raise FetchError("the address did not return an RSS or Atom feed (a web page instead?)")
+    return parsed
 
 
 def feed_title(parsed: Any) -> str | None:

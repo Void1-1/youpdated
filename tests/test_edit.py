@@ -445,7 +445,7 @@ def _history(path, passphrase=None):
         for target in ("github.com/python/cpython", "gitlab.com/gitlab-org/cli"):
             state.mark_seen([Update(source="git", target=target, uid=u, title=u, url="") for u in "ab"])
             state.mark_baselined([("git", target)])
-            state.mark_ignore_rules([("git", target, frozenset({"commit"}))])
+            state.mark_ignore_rules([("git", target, [frozenset({"commit"})])])
         state.mark_seen([Update(source="steam", target="440", uid="n1", title="n1", url="")])
         state.mark_baselined([("steam", "440")])
         state.cache_set("steam_app_names", "440", "Team Fortress 2")

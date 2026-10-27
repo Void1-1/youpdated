@@ -9,13 +9,13 @@ import re
 from datetime import datetime, timezone
 from typing import Any, ClassVar, Iterable
 
-from packaging.utils import canonicalize_version
+from packaging.utils import canonicalize_name, canonicalize_version
 from packaging.version import InvalidVersion, Version
 
 from ..http import Client, FetchError
 from ..models import Target, Update
 from ..registry import register
-from .base import ConfigEntryError, accepted, entry_fields, require, url_parts
+from .base import ConfigEntryError, accepted, entry_fields, parse_iso, require, url_parts
 
 MAX_VERSIONS = 10
 SIMPLE_JSON = "application/vnd.pypi.simple.v1+json"
@@ -26,11 +26,6 @@ _EXTENSIONS = (
     ".tar.gz", ".tar.bz2", ".tar.xz", ".tar.z", ".tgz", ".tbz",
     ".zip", ".whl", ".egg", ".exe", ".msi", ".rpm", ".dmg", ".tar",
 )
-
-
-def normalize(name: str) -> str:
-    """PEP 503 normalization"""
-    return re.sub(r"[-_.]+", "-", name).lower()
 
 
 @register
@@ -53,7 +48,12 @@ class PyPISource:
             if not NAME_RE.match(package):
                 raise ConfigEntryError(f"sources.{self.name}: `{package}` is not a package name")
             targets.append(
-                Target(source=self.name, key=normalize(package), label=fields.get("name"), params={})
+                Target(
+                    source=self.name,
+                    key=canonicalize_name(package),
+                    label=fields.get("name"),
+                    params={},
+                )
             )
         return targets
 
@@ -126,7 +126,7 @@ def _live_versions(doc: dict[str, Any], project: str) -> list[tuple[str, datetim
         version = _version_of(str(file.get("filename") or ""), project, exact, by_canonical)
         if version is None or file.get("yanked"):
             continue
-        uploaded = _parse_iso(file.get("upload-time"))
+        uploaded = parse_iso(file.get("upload-time"))
         earliest = first_upload.get(version)
         if version not in first_upload or (uploaded and (earliest is None or uploaded < earliest)):
             first_upload[version] = uploaded
@@ -141,7 +141,11 @@ def _version_of(
     extension = next((e for e in _EXTENSIONS if stem.lower().endswith(e)), "")
     stem = stem[: len(stem) - len(extension)]
     rest = next(
-        (stem[i + 1 :] for i, c in enumerate(stem) if c == "-" and normalize(stem[:i]) == project),
+        (
+            stem[i + 1 :]
+            for i, c in enumerate(stem)
+            if c == "-" and canonicalize_name(stem[:i]) == project
+        ),
         None,
     )
     if not rest:
@@ -186,13 +190,3 @@ def _canonical(version: str) -> str:
         return canonicalize_version(version)
     except InvalidVersion:
         return version
-
-
-def _parse_iso(value: str | None) -> datetime | None:
-    if not value:
-        return None
-    try:
-        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
-    except ValueError:
-        return None
-    return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)

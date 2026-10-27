@@ -2,14 +2,40 @@
 
 from __future__ import annotations
 
+import os
 import sqlite3
+import sys
 import threading
+import time
+from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Iterable
+from typing import Generator, Iterable
 
 from . import crypto
 from .models import Update
+
+if sys.platform == "win32":
+    import msvcrt
+
+    def _try_lock(fd: int) -> None:
+        msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
+
+    def _unlock(fd: int) -> None:
+        msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
+
+else:
+    import fcntl
+
+    def _try_lock(fd: int) -> None:
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+
+    def _unlock(fd: int) -> None:
+        fcntl.flock(fd, fcntl.LOCK_UN)
+
+
+# How long to wait for another run to release state
+LOCK_TIMEOUT = 60.0
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS seen (
@@ -52,12 +78,69 @@ def _ago(age: timedelta) -> str:
     return (datetime.now(timezone.utc) - age).isoformat()
 
 
-def _rules_value(ignore: frozenset[str]) -> str:
-    return ",".join(sorted(ignore))
+def _rules_value(rules: Iterable[frozenset[str]]) -> str:
+    return "|".join(sorted({",".join(sorted(ignore)) for ignore in rules}))
+
+
+class StateError(Exception):
+    """raised with message for the user"""
+
+
+def lock_path(path: Path) -> Path:
+    """The file :class:`State` locks to have ``path`` to itself"""
+    return path.with_name(path.name + ".lock")
+
+
+class _FileLock:
+    """exclusive lock on a file, between processes"""
+
+    def __init__(self, path: Path, timeout: float):
+        self.path = path
+        self.timeout = timeout
+        self._fd: int | None = None
+
+    def acquire(self) -> None:
+        fd = os.open(self.path, os.O_RDWR | os.O_CREAT, 0o600)
+        deadline = time.monotonic() + self.timeout
+        while True:
+            try:
+                _try_lock(fd)
+            except OSError:
+                if time.monotonic() >= deadline:
+                    os.close(fd)
+                    raise StateError(
+                        f"{self.path.with_suffix('')} is in use by another youpdated run; "
+                        "try again once it finishes"
+                    ) from None
+                time.sleep(0.1)
+                continue
+            self._fd = fd
+            return
+
+    def release(self) -> None:
+        if self._fd is None:
+            return
+        try:
+            _unlock(self._fd)
+        finally:
+            os.close(self._fd)
+            self._fd = None
+
+
+@contextmanager
+def state_lock(path: Path, timeout: float = LOCK_TIMEOUT) -> Generator[None, None, None]:
+    """Hold the lock :class:`State` takes, to change the file at ``path`` without opening"""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    lock = _FileLock(lock_path(path), timeout)
+    lock.acquire()
+    try:
+        yield
+    finally:
+        lock.release()
 
 
 class State:
-    """Thread-safe wrapper over SQLite file."""
+    """Thread-safe wrapper over SQLite file"""
 
     def __init__(
         self,
@@ -65,17 +148,29 @@ class State:
         passphrase: str | None = None,
         *,
         expiry: timedelta | None = None,
+        lock_timeout: float = LOCK_TIMEOUT,
     ):
         self.path = Path(path) if path is not None else None
         self.passphrase = passphrase
-        #: Seen items absent from every fetch this long are pruned. ``None`` keeps
+        # Seen items absent from every fetch this long are pruned. ``None`` keeps
         self.expiry = expiry
         self.encrypted = passphrase is not None and self.path is not None
         self._closed = False
         self._dirty = False
+        self._file_lock: _FileLock | None = None
         if self.path is not None:
             self.path.parent.mkdir(parents=True, exist_ok=True)
+            lock = _FileLock(lock_path(self.path), lock_timeout)
+            lock.acquire()
+            self._file_lock = lock
+        try:
+            self._open()
+        except BaseException:
+            if self._file_lock is not None:
+                self._file_lock.release()
+            raise
 
+    def _open(self) -> None:
         restore = self._read_encrypted() if self.encrypted else None
         target = ":memory:" if (self.path is None or self.encrypted) else str(self.path)
         self._lock = threading.Lock()
@@ -86,12 +181,17 @@ class State:
                 try:
                     self._conn.deserialize(restore)
                 except sqlite3.Error as exc:
+                    self._conn.close()
                     raise crypto.EncryptionError(
                         f"{self.path}: decrypted, but the contents are not a database: {exc}"
                     ) from exc
-            self._conn.executescript(_SCHEMA)
-            self._migrate()
-            self._conn.commit()
+            try:
+                self._conn.executescript(_SCHEMA)
+                self._migrate()
+                self._conn.commit()
+            except sqlite3.DatabaseError as exc:
+                self._conn.close()
+                raise StateError(f"{self.path}: not a youpdated history database ({exc})") from exc
 
     # only applicable to minor version differences, WILL NOT HANDLE MAJOR ONES HERE, will also only exist for a limited amount of versions after change
     def _migrate(self) -> None:
@@ -164,10 +264,14 @@ class State:
     def close(self) -> None:
         if self._closed:
             return
-        self.flush()
-        self._closed = True
-        with self._lock:
-            self._conn.close()
+        try:
+            self.flush()
+        finally:
+            self._closed = True
+            with self._lock:
+                self._conn.close()
+            if self._file_lock is not None:
+                self._file_lock.release()
 
     def __enter__(self) -> "State":
         return self
@@ -327,15 +431,19 @@ class State:
         targets: Iterable[str],
         caches: Iterable[str] = (),
         urls: Iterable[str] = (),
+        shared: Iterable[str] = (),
     ) -> tuple[int, int]:
         """Delete everything recorded about ``targets``: seen items, baseline marks, ignore
-        rules, entries keyed by the target in the ``caches`` namespaces, and the validators
-        of every URL they asked for.
+        rules, entries keyed by the target in the ``caches`` namespaces, ``shared`` namespaces,
+        and validators of every URL they asked for.
         """
         caches = list(caches)
         seen = 0
         candidates = set(urls)
         with self._lock:
+            self._conn.executemany(
+                "DELETE FROM kv WHERE namespace=?", [(ns,) for ns in shared]
+            )
             for target in list(targets):
                 seen += self._conn.execute(
                     "DELETE FROM seen WHERE source=? AND target=?", (source, target)
@@ -417,14 +525,18 @@ class State:
 
     # per target ignore rules
 
-    def ignore_rules_changed(self, source: str, target: str, ignore: frozenset[str]) -> bool:
-        """If ``ignore`` is different from the rules the target's last saved fetch ran under"""
-        return self.cache_get("ignore", f"{source}:{target}") != _rules_value(ignore)
+    def ignore_rules_changed(
+        self, source: str, target: str, rules: Iterable[frozenset[str]]
+    ) -> bool:
+        """If ``rules`` differ from the ones the target's last saved fetch ran under"""
+        return self.cache_get("ignore", f"{source}:{target}") != _rules_value(rules)
 
-    def mark_ignore_rules(self, targets: Iterable[tuple[str, str, frozenset[str]]]) -> None:
+    def mark_ignore_rules(
+        self, targets: Iterable[tuple[str, str, Iterable[frozenset[str]]]]
+    ) -> None:
         rows = [
-            ("ignore", f"{source}:{target}", _rules_value(ignore))
-            for source, target, ignore in targets
+            ("ignore", f"{source}:{target}", _rules_value(rules))
+            for source, target, rules in targets
         ]
         if not rows:
             return

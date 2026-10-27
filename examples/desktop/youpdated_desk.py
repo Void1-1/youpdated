@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import queue
 import subprocess
 import sys
@@ -72,13 +73,8 @@ def notify(title: str, body: str) -> None:
             _spawn(["osascript", "-e", script])
         elif sys.platform == "win32":
             _spawn(
-                [
-                    "powershell",
-                    "-NoProfile",
-                    "-NonInteractive",
-                    "-Command",
-                    _TOAST_SCRIPT.replace("{TITLE}", _quote_powershell(title)).replace("{BODY}", _quote_powershell(body)),
-                ]
+                ["powershell", "-NoProfile", "-NonInteractive", "-Command", _TOAST_SCRIPT],
+                env={**os.environ, "YOUPDATED_TOAST_TITLE": title, "YOUPDATED_TOAST_BODY": body},
             )
         else:
             _spawn(["notify-send", "-a", APP, title, body])
@@ -91,26 +87,22 @@ def _quote_applescript(text: str) -> str:
     return f'"{escaped}"'
 
 
-def _quote_powershell(text: str) -> str:
-    return text.replace("'", "''")
-
-
 # ew, its so ugly looking
 _TOAST_SCRIPT = """
 [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] > $null
 $t = [Windows.UI.Notifications.ToastNotificationManager]::GetTemplateContent(
     [Windows.UI.Notifications.ToastTemplateType]::ToastText02)
 $n = $t.GetElementsByTagName('text')
-$n.Item(0).AppendChild($t.CreateTextNode('{TITLE}')) > $null
-$n.Item(1).AppendChild($t.CreateTextNode('{BODY}')) > $null
+$n.Item(0).AppendChild($t.CreateTextNode($env:YOUPDATED_TOAST_TITLE)) > $null
+$n.Item(1).AppendChild($t.CreateTextNode($env:YOUPDATED_TOAST_BODY)) > $null
 $id = '{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\\WindowsPowerShell\\v1.0\\powershell.exe'
 [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier($id).Show(
     [Windows.UI.Notifications.ToastNotification]::new($t))
 """
 
 
-def _spawn(cmd: list[str]) -> None:
-    kwargs: dict = {"stdout": subprocess.DEVNULL, "stderr": subprocess.DEVNULL}
+def _spawn(cmd: list[str], env: dict[str, str] | None = None) -> None:
+    kwargs: dict = {"stdout": subprocess.DEVNULL, "stderr": subprocess.DEVNULL, "env": env}
     if sys.platform == "win32":
         kwargs["creationflags"] = 0x08000000  # CREATE_NO_WINDOW
     subprocess.Popen(cmd, **kwargs)
@@ -769,12 +761,15 @@ def main(argv: list[str] | None = None) -> int:
         digest = parse_clock(args.digest) if args.digest else None
     except ValueError as exc:
         parser.error(str(exc))
+    try:
+        config_path = find_config(args.config)
+    except ConfigError as exc:  # a -c not naming a file
+        parser.error(str(exc))
 
     root = tk.Tk()
     events: queue.Queue = queue.Queue()
     checker = Checker(args.config, args.state, interval, events)
 
-    config_path = find_config(args.config)
     locked = [
         p for p in (config_path, checker.state_path)
         if p is not None and p.exists() and crypto.is_encrypted_file(p)

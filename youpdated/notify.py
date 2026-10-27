@@ -12,19 +12,22 @@ from typing import Any
 from urllib.parse import urlsplit, urlunsplit
 
 from .config import NotifyConfig, Webhook
+from .crypto import PASSPHRASE_ENV
 from .http import Client, FetchError, redact_url
 from .models import RunError, Update
 
-#: Discord allows 10 embeds/message and 6000 characters
+# Discord allows 10 embeds/message and 6000 characters
 DISCORD_EMBEDS = 10
 SLACK_LINES = 20
-#: ntfy rejects messages over 4096 bytes
+# ntfy rejects messages over 4096 bytes
 NTFY_MESSAGE_BYTES = 3800
-#: Kept short for a notification, and env
+# Kept short for a notification, and env
 BODY_LIMIT = 300
 ENV_BODY_LIMIT = 4000
 
 _PLACEHOLDER_RE = re.compile(r"\{(source|target|label|title|url|version|published|tags|body)\}")
+# Secrets youpdated reads from environment
+SECRET_ENV = (PASSPHRASE_ENV, "GITHUB_TOKEN", "GITLAB_TOKEN", "YOUTUBE_API_KEY")
 
 
 def send(
@@ -85,7 +88,8 @@ def _post_url(hook: Webhook) -> str:
         return hook.url
     parts = urlsplit(hook.url)
     server = parts.path.rstrip("/").rpartition("/")[0]
-    return urlunsplit((parts.scheme, parts.netloc, server + "/", "", ""))
+    # query can carry access token: ntfy takes `?auth=`
+    return urlunsplit((parts.scheme, parts.netloc, server + "/", parts.query, ""))
 
 
 def webhook_payloads(
@@ -255,7 +259,7 @@ def run_command(
     for update in updates:
         label = _label(update, labels)
         fields = _fields(update, label)
-        env = dict(os.environ)
+        env = {k: v for k, v in os.environ.items() if k not in SECRET_ENV}
         # NUL can't be passed through the environment or argv
         env.update({f"YOUPDATED_{k.upper()}": v.replace("\0", "") for k, v in fields.items()})
         stdin = json.dumps({**update.to_dict(), "label": label}, ensure_ascii=False)

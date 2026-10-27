@@ -33,7 +33,7 @@ Use `youpdated init -c ./youpdated.yaml` if you'd rather keep the config in a pr
 
 More details and options beyond the [basics](../README.md#where-to-find-identifiers):
 
-- **git:** `host/owner/repo` as well as a URL, and GitLab subgroups (`group/sub/project`) work. Self-hosted servers are covered in [Git forges](#git-forges).
+- **git:** `host/owner/repo` as well as a URL, and GitLab subgroups (`group/sub/project`) work. A dotted first segment reads as a host, so give a dotted group a `host:` (`repo: my.group/sub/project` with `host: gitlab.com`). A pasted page within a repo (`/releases/tag/v1`) is trimmed to the repo, but `owner/repo/extra` is refused instead of read as `owner/repo`. Self-hosted servers are covered in [Git forges](#git-forges).
 - **homebrew:** only `homebrew/core` and `homebrew/cask` are covered, not third-party taps.
 - **pypi:** case, `-`, `_`, and `.` don't matter. Ex: `typing_extensions` and `Typing-Extensions` are the same package.
 - **steam:** the game's name is looked up for you; set `name:` to override it.
@@ -191,7 +191,7 @@ Without a `GITHUB_TOKEN`, `prerelease` is inferred from the tag name (`v3.15.0rc
 The history database remembers every item it has reported so nothing repeats. To bound its growth, an item that hasn't appeared in any fetch for a year is forgotten, along with everything from targets you've removed from the config. Change the window with `expiry:`, or turn pruning off:
 
 ```yaml
-expiry: 180d      # 30d, 52w, 2y, ... (at least 1d)
+expiry: 180d      # 30d, 52w, 2y, ... (at least 1d, max 100y)
 # expiry: never   # keep everything
 ```
 
@@ -207,4 +207,4 @@ Check your config without sending a request:
 youpdated check --test -v
 ```
 
-That validates the file and prints every URL it would fetch. Config mistakes exit `1` with a message for the issue.
+That validates the file and prints every URL it would fetch. Config mistakes exit `1` with a message for the issue. An entry a source can't read is listed in the `problems` panel while the rest are checked, and with `--fail-on-error` it exits `2`.

@@ -58,8 +58,20 @@ def test_applescript_quoting_is_accepted_by_osascript(text):
     assert done.stdout.strip() == text.replace("\n", "\\n")
 
 
-def test_powershell_quoting_doubles_single_quotes():
-    assert desk._quote_powershell("it's") == "it''s"
+def test_windows_toast_takes_its_text_from_the_environment(monkeypatch):
+    spawned = []
+    monkeypatch.setattr(desk.sys, "platform", "win32")
+    monkeypatch.setattr(desk, "_spawn", lambda cmd, env=None: spawned.append((cmd, env)))
+    # PowerShell ends a '...' string at a curly quote too, so this would run calc
+    title = "x’+(Start-Process calc)+’"
+
+    desk.notify(title, "Don’t miss it")
+
+    ((cmd, env),) = spawned
+    assert "calc" not in " ".join(cmd)
+    assert env["YOUPDATED_TOAST_TITLE"] == title
+    assert env["YOUPDATED_TOAST_BODY"] == "Don’t miss it"
+    assert "$env:YOUPDATED_TOAST_TITLE" in cmd[-1]
 
 
 def test_notify_never_raises(monkeypatch):
@@ -579,3 +591,10 @@ def test_a_bad_digest_time_is_rejected():
     with pytest.raises(SystemExit) as exit_info:
         desk.main(["--digest", "6pm"])
     assert exit_info.value.code == 2
+
+
+def test_a_missing_config_is_an_error_not_a_traceback(tmp_path, capsys):
+    with pytest.raises(SystemExit) as exit_info:
+        desk.main(["-c", str(tmp_path / "nope.yaml")])
+    assert exit_info.value.code == 2
+    assert "config file not found" in capsys.readouterr().err

@@ -11,7 +11,7 @@ if TYPE_CHECKING:
     from .sources.base import Source
 
 _SOURCES: dict[str, "Source"] = {}
-#: Old or alternate config names -> the source that now handles
+# Old or alternate config names -> the source that now handles
 _ALIASES: dict[str, str] = {}
 _ENTRY_POINTS_LOADED = False
 
@@ -35,10 +35,10 @@ def _load_entry_points() -> None:
     for ep in entry_points(group="youpdated.sources"):
         try:
             obj = ep.load()
-        except Exception:  # a broken plugin can't stop all
+            instance = obj() if isinstance(obj, type) else obj
+            name = getattr(instance, "name", ep.name)
+        except Exception:  # broken plugin, failing to import or start
             continue
-        instance = obj() if isinstance(obj, type) else obj
-        name = getattr(instance, "name", ep.name)
         _SOURCES.setdefault(name, instance)
 
 

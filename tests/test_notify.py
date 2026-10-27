@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import sqlite3
 import sys
 import time
 from datetime import datetime, timezone
@@ -155,6 +156,12 @@ def test_ntfy_posts_to_the_server_root_with_the_topic_in_the_body():
     assert many["message"].endswith("more")
 
 
+def test_ntfy_keeps_the_access_token_in_the_query():
+    hook = Webhook("https://ntfy.example.org/my-topic?auth=tk_secret", "ntfy")
+    assert notify._post_url(hook) == "https://ntfy.example.org/?auth=tk_secret"
+    assert notify.ntfy_payload(hook.url, [make_update()], LABELS)["topic"] == "my-topic"
+
+
 def test_ntfy_without_a_topic_is_an_error():
     with pytest.raises(ValueError):
         notify.ntfy_payload("https://ntfy.sh/", [make_update()], LABELS)
@@ -208,6 +215,21 @@ def _recorder(tmp_path):
     )
     out = tmp_path / "calls.jsonl"
     return [sys.executable, str(script), str(out)], out
+
+
+def test_commands_do_not_inherit_youpdateds_secrets(tmp_path, monkeypatch):
+    for name in notify.SECRET_ENV:
+        monkeypatch.setenv(name, "secret")
+    monkeypatch.setenv("UNRELATED_SETTING", "kept")
+    out = tmp_path / "env.json"
+    script = "import json, os, sys; json.dump(dict(os.environ), open(sys.argv[1], 'w'))"
+
+    assert notify.run_command([sys.executable, "-c", script, str(out)], [make_update()], LABELS, 10) is None
+
+    env = json.loads(out.read_text())
+    assert not set(notify.SECRET_ENV) & set(env)
+    assert env["UNRELATED_SETTING"] == "kept"
+    assert env["YOUPDATED_TITLE"] == "express 5.0.1"
 
 
 def test_command_runs_once_per_update_with_no_shell(tmp_path):
@@ -350,9 +372,17 @@ def test_encrypted_state_is_saved_before_notifying(tmp_path, monkeypatch):
     recorded = []
 
     def send(updates, labels, config, client):
-        # What a run killed at this moment leaves on disk
-        with State(tmp_path / "state.db", passphrase="pw") as on_disk:
-            recorded.extend(not on_disk.is_new(u) for u in updates)
+        # What a run killed at this moment leaves on disk. Read as a file: the run holds
+        # the lock a State would wait for
+        on_disk = sqlite3.connect(":memory:")
+        on_disk.deserialize(crypto.decrypt((tmp_path / "state.db").read_bytes(), "pw"))
+        recorded.extend(
+            on_disk.execute(
+                "SELECT 1 FROM seen WHERE source=? AND target=? AND uid=?", u.dedupe_key
+            ).fetchone()
+            is not None
+            for u in updates
+        )
         return []
 
     monkeypatch.setattr(notify, "send", send)

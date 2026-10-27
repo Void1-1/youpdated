@@ -61,24 +61,28 @@ class NotifyConfig:
         return bool(self.webhooks or self.commands)
 
 
-#: top-level `ignore:` mapping applied to every source
+# top-level `ignore:` mapping applied to every source
 IGNORE_ALL = "*"
 
-#: How long a seen item is kept after it last appeared in a fetch
+# How long a seen item is kept after it last appeared in a fetch
 DEFAULT_EXPIRY = timedelta(days=365)
-#: Shorter and conditional GETs stop paying off (see ``State.conditional_headers``)
+# Shorter and conditional GETs stop paying off (see ``State.conditional_headers``)
 MIN_EXPIRY = timedelta(days=1)
 
 _DURATION_RE = re.compile(r"^(\d+)\s*([smhdwy])$", re.IGNORECASE)
 _UNITS = {"s": "seconds", "m": "minutes", "h": "hours", "d": "days", "w": "weeks"}
+MAX_DURATION = timedelta(days=365 * 100)
 
 
 def parse_duration(value: str) -> timedelta:
-    """Parse a window like ``7d``, ``12h``, ``2w``, ``1y``"""
+    """Parse a window like ``7d``, ``12h``, ``2w``, ``1y``, up to 100y"""
     match = _DURATION_RE.match(value.strip())
     if not match:
         raise ValueError(f"`{value}` is not a duration like 30m, 12h, 7d, 2w, 1y")
     amount, unit = int(match.group(1)), match.group(2).lower()
+    seconds = amount * {"s": 1, "m": 60, "h": 3600, "d": 86400, "w": 604800, "y": 31536000}[unit]
+    if seconds > MAX_DURATION.total_seconds():
+        raise ValueError(f"`{value}` is longer than 100y")
     if unit == "y":
         return timedelta(days=365 * amount)
     return timedelta(**{_UNITS[unit]: amount})
@@ -88,9 +92,9 @@ def parse_duration(value: str) -> timedelta:
 class Config:
     privacy: PrivacyConfig = field(default_factory=PrivacyConfig)
     sources: dict[str, list[Any]] = field(default_factory=dict)
-    #: Source name (or ``*``) -> update tags to drop
+    # Source name (or ``*``) -> update tags to drop
     ignore: dict[str, frozenset[str]] = field(default_factory=dict)
-    #: Forget seen items absent from every fetch this long. ``None`` keeps them forever
+    # Forget seen items absent from every fetch this long. ``None`` keeps them forever
     expiry: timedelta | None = DEFAULT_EXPIRY
     notify: NotifyConfig = field(default_factory=NotifyConfig)
     path: Path | None = None
@@ -170,14 +174,19 @@ def load_config(explicit: str | Path | None = None, passphrase: str | None = Non
 def read_config_text(path: Path, passphrase: str | None = None) -> str:
     """Config as YAML text, decrypting in memory first if it is encrypted."""
     blob = path.read_bytes()
-    if not crypto.is_encrypted(blob):
-        return blob.decode("utf-8")
-    if passphrase is None:
-        raise ConfigError(f"{path} is encrypted; a passphrase is required")
+    if crypto.is_encrypted(blob):
+        if passphrase is None:
+            raise ConfigError(f"{path} is encrypted; a passphrase is required")
+        try:
+            blob = crypto.decrypt(blob, passphrase)
+        except crypto.EncryptionError as exc:
+            raise ConfigError(f"{path}: {exc}") from exc
     try:
-        return crypto.decrypt(blob, passphrase).decode("utf-8")
-    except crypto.EncryptionError as exc:
-        raise ConfigError(f"{path}: {exc}") from exc
+        return blob.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise ConfigError(
+            f"{path}: not UTF-8 text (byte {exc.start}); save it as UTF-8"
+        ) from exc
 
 
 def parse_config(raw: Any, path: Path | None = None) -> Config:
@@ -222,7 +231,7 @@ def _parse_expiry(raw: Any, where: str) -> timedelta | None:
     # YAML reads `off`/`no` as False
     if raw is False or (isinstance(raw, str) and raw.strip().lower() == "never"):
         return None
-    message = f"{where}`expiry` must be a duration like 180d, 52w, 1y, or `never`"
+    message = f"{where}`expiry` must be a duration like 180d, 52w, 1y (100y max), or `never`"
     if not isinstance(raw, str):
         raise ConfigError(message)
     try:
@@ -272,7 +281,11 @@ def _parse_ignore(raw: Any, where: str) -> dict[str, frozenset[str]]:
 def split_command(command: Any, where: str = "", name: str = "`notify.command`") -> list[str]:
     """notify command as argv. A string is split like a shell would"""
     if isinstance(command, list):
-        if not command or not all(isinstance(part, (str, int, float)) for part in command):
+        # YAML reads a `yes` or `off` as boolean, which would run as "True"/"False"
+        if not command or not all(
+            isinstance(part, (str, int, float)) and not isinstance(part, bool) and part != ""
+            for part in command
+        ):
             raise ConfigError(f"{where}{name} list must hold non-empty strings")
         return [str(part) for part in command]
     if not isinstance(command, str) or not command.strip():

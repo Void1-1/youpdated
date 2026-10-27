@@ -8,11 +8,28 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from typing import Any, Protocol, runtime_checkable
 
-from .config import Config, parse_duration, parse_ignore_list
+from .config import IGNORE_ALL, Config, parse_duration, parse_ignore_list
 from .http import Client, Validator
 from .models import RunError, Target, Update
 from .registry import all_sources, canonical_name
 from .state import State
+
+# ``(source, key)`` of a target
+Key = tuple[str, str]
+
+
+@dataclass
+class _Pending:
+    """What a run has to record, see :func:`record`"""
+
+    seen: list[Update]
+    validators: list[Validator]
+    links: list[tuple[str, str, str]]
+    succeeded: dict[Key, Target]
+    # Ignore rules of each entry fetched cleanly, by key
+    rules: dict[Key, list[frozenset[str]]]
+    keep_targets: set[Key]
+    keep_sources: set[str]
 
 
 @dataclass
@@ -20,15 +37,18 @@ class RunResult:
     updates: list[Update] = field(default_factory=list)
     errors: list[RunError] = field(default_factory=list)
     targets: list[Target] = field(default_factory=list)
-    #: Every target fetched this run was new, so nothing was reported
+    # Every target fetched this run was new, so nothing was reported
     baseline: bool = False
-    #: Targets fetched for the first time; their items were recorded, not reported
+    # Targets fetched for the first time; their items were recorded, not reported
     baselined: list[Target] = field(default_factory=list)
     total_fetched: int = 0
-    #: Items dropped by an `ignore:` rule, before any new/seen comparison
+    # Items dropped by an `ignore:` rule, before any new/seen comparison
     ignored: int = 0
-    #: Seen items forgotten this run for passing the `expiry:`
+    # Seen items forgotten this run for passing the `expiry:`
     pruned: int = 0
+    # Config that does nothing, not a failure
+    warnings: list[str] = field(default_factory=list)
+    _pending: _Pending | None = field(default=None, repr=False, compare=False)
 
     @property
     def ok(self) -> bool:
@@ -47,7 +67,7 @@ class ProgressReporter(Protocol):
         """``target`` is done, with the exception it raised or ``None``."""
 
 
-#: ``--since`` takes the same durations as ``expiry:``
+# ``--since`` takes the same durations as ``expiry:``
 parse_since = parse_duration
 
 
@@ -73,16 +93,32 @@ def build_targets(config: Config) -> tuple[list[Target], list[RunError]]:
         if canonical != name:
             # `ignore: {github: [...]}` still covers entries listed under `github:`
             base |= config.ignored_tags(name)
-        try:
-            for entry in entries:
+        for entry in entries:
+            # One bad entry is reported on its own; the rest of the source still runs
+            try:
                 entry_ignore, cleaned = _split_entry_ignore(entry, name)
                 for target in source.targets([cleaned]):
                     target.ignore = base | entry_ignore
                     targets.append(target)
-        except Exception as exc:
-            errors.append(RunError(source=canonical, target="-", message=str(exc)))
+            except Exception as exc:
+                errors.append(RunError(source=canonical, target="-", message=str(exc)))
 
     return targets, errors
+
+
+def ignore_warnings(config: Config) -> list[str]:
+    """`ignore:` keys with no source in config"""
+    listed = set(config.sources) | {canonical_name(name) for name in config.sources}
+    warnings = []
+    for name in config.ignore:
+        if name == IGNORE_ALL or name in listed:
+            continue
+        message = f"`ignore.{name}` covers nothing: no entries are listed under `sources.{name}`"
+        canonical = canonical_name(name)
+        if canonical != name and canonical in listed:
+            message += f"; the ones under `sources.{canonical}` need `ignore.{canonical}`"
+        warnings.append(message)
+    return warnings
 
 
 def _split_entry_ignore(entry: Any, source: str) -> tuple[frozenset[str], Any]:
@@ -115,13 +151,18 @@ def run(
         targets = [t for t in targets if t.source in wanted]
         errors = [e for e in errors if e.source in wanted]
 
-    result = RunResult(errors=errors, targets=targets)
+    result = RunResult(errors=errors, targets=targets, warnings=ignore_warnings(config))
     if not targets:
         return result
 
     sources = all_sources()
     fetched: list[Update] = []
-    succeeded: dict[tuple[str, str], Target] = {}
+    succeeded: dict[Key, Target] = {}
+    # Every entry's rules count for its key: a repo can be listed twice with different ones
+    rules: dict[Key, list[frozenset[str]]] = {}
+    for target in targets:
+        rules.setdefault((target.source, target.key), []).append(target.ignore)
+    succeeded_rules: dict[Key, list[frozenset[str]]] = {}
     # Stored only for targets whose items are recorded, see Client.deferred_validators
     validators: list[Validator] = []
     # (source, target, url) for `State.forget` to find target's validators with
@@ -140,7 +181,9 @@ def run(
         # A first fetch must see the whole document, same with one thats ignore rules changed
         full = (
             not state.is_baselined(target.source, target.key)
-            or state.ignore_rules_changed(target.source, target.key, target.ignore)
+            or state.ignore_rules_changed(
+                target.source, target.key, rules[(target.source, target.key)]
+            )
         )
         try:
             with (
@@ -169,6 +212,9 @@ def run(
     with client.run_scope(), ThreadPoolExecutor(max_workers=workers) as pool:
         for target, outcome, dropped, pending, urls in pool.map(work, targets):
             result.ignored += dropped
+            if isinstance(outcome, Exception) and client.test:
+                # Nothing was sent, so a source that needs an answer to go on stopped early
+                continue
             if isinstance(outcome, Exception):
                 result.errors.append(
                     RunError(
@@ -182,6 +228,7 @@ def run(
                 validators.extend(pending)
                 links.extend((target.source, target.key, url) for url in urls)
                 succeeded.setdefault((target.source, target.key), target)
+                succeeded_rules.setdefault((target.source, target.key), []).append(target.ignore)
 
     # One repo can be listed twice, e.g. under both `github:` and `git:` while moving over
     fetched = list({u.dedupe_key: u for u in reversed(fetched)}.values())[::-1]
@@ -196,25 +243,49 @@ def run(
     known = [u for u in fetched if (u.source, u.target) not in fresh]
     new = known if show_all else state.filter_new(known)
 
+    # New items --since leaves out stay new, so a run without still reports
+    withheld: set[tuple[str, str, str]] = set()
     if since is not None:
         cutoff = datetime.now(timezone.utc) - since
-        new = [u for u in new if u.published is None or u.published >= cutoff]
+
+        def recent(update: Update) -> bool:
+            return update.published is None or update.published >= cutoff
+
+        withheld = {u.dedupe_key for u in new if not recent(u) and state.is_new(u)}
+        new = [u for u in new if recent(u)]
 
     new.sort(key=lambda u: u.published or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
     result.updates = new
+    result._pending = _Pending(
+        seen=[u for u in fetched if u.dedupe_key not in withheld],
+        validators=validators,
+        links=links,
+        succeeded=succeeded,
+        rules=succeeded_rules,
+        # Targets not fetched cleanly (failed, or left out by --source) keep history
+        keep_targets={(t.source, t.key) for t in configured} - succeeded.keys(),
+        keep_sources=unlisted,
+    )
 
     if save:
-        state.mark_seen(fetched)
-        for validator in validators:
-            state.remember_validators(*validator)
-        state.link_urls(links)
-        state.mark_baselined(succeeded)
-        state.mark_ignore_rules((s, k, t.ignore) for (s, k), t in succeeded.items())
-        state.set_last_run()
-        # Prune only after marking. Targets not fetched cleanly (failed, or left out by --source) keep history
-        result.pruned = state.prune(
-            keep_targets={(t.source, t.key) for t in configured} - succeeded.keys(),
-            keep_sources=unlisted,
-        )
+        record(state, result)
 
     return result
+
+
+def record(state: State, result: RunResult) -> None:
+    """Record what :func:`run` fetched: seen items, validators, and baselines, then prune"""
+    pending, result._pending = result._pending, None
+    if pending is None:
+        return
+    state.mark_seen(pending.seen)
+    for validator in pending.validators:
+        state.remember_validators(*validator)
+    state.link_urls(pending.links)
+    state.mark_baselined(pending.succeeded)
+    state.mark_ignore_rules((s, k, pending.rules[(s, k)]) for s, k in pending.succeeded)
+    state.set_last_run()
+    # Prune only after marking
+    result.pruned = state.prune(
+        keep_targets=pending.keep_targets, keep_sources=pending.keep_sources
+    )

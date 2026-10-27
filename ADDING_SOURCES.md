@@ -4,7 +4,7 @@ A source is one class with two methods. This guide builds a complete, working on
 
 > Youpdated now ships a fuller `pypi` source ([youpdated/sources/pypi.py](youpdated/sources/pypi.py)).
 > The version here is kept short to teach the contract. If you build it to follow along, give it
-> another `name`: a plugin whose name is already taken by a built-in source is ignored.
+> another `name`: duplicate named plugins are ignored.
 
 - [The contract](#the-contract)
 - [Two ways to add one](#two-ways-to-add-one)
@@ -93,7 +93,7 @@ so name the offending value and say what was expected.
 
 ## Step 2: fetch updates
 
-`fetch()` gets one target and the shared `Client`. **Always use that client** never `httpx` or `requests` directly. It applies the user's proxy, rotates user agents, paces requests per host, and clears cookies.
+`fetch()` gets one target and the shared `Client`. **Always use that client** never `httpx` or `requests` directly. It applies the user's proxy, rotates user agents, paces requests per host, and keeps no cookies.
 
 ```python
 def fetch(self, target: Target, client: Client) -> Iterable[Update]:
@@ -111,7 +111,7 @@ Useful arguments:
 | --- | --- |
 | `conditional=True` | Send ETag/Last-Modified and get `None` on a 304. Use it for anything polled repeatedly. |
 | `soft_statuses=(404,)` | Return the response instead of raising, when a status is expected. itch answers 404 for a game with no devlog. |
-| `headers={...}` | Extra request headers. The user agent is added for you. |
+| `headers={...}` | Extra request headers. The user agent is added for you. These are dropped on a redirect to another host, so put a key or token here, never in the URL, which `-v`, `--test`, and errors print. |
 | `retries=0` | Skip retries when you're probing a fallback and want to fail fast. |
 
 Any other non-200 raises `FetchError`, which the runner catches and reports without killing.
@@ -123,6 +123,10 @@ from youpdated.sources.feed import parse_feed
 
 return parse_feed(fetched.content, source=self.name, target=target.key, tags=("release",))
 ```
+
+A body that isn't a feed, such as a web page, raises `FetchError` instead of reading as an empty feed. A fetch that returns nothing counts as a target with nothing in it, and a first fetch records that as its baseline, so raise rather than return `[]` when you can't tell what the target holds.
+
+Update fields are cleaned when an `Update` is made: control characters and lone surrogates are dropped and a non-string title becomes text, so the terminal, `--rss`, and `--json` are safe from what a site sends.
 
 ## The complete source
 
@@ -137,7 +141,7 @@ from typing import Any, ClassVar, Iterable
 from youpdated.http import Client
 from youpdated.models import Target, Update
 from youpdated.registry import register
-from youpdated.sources.base import ConfigEntryError, entry_fields, require
+from youpdated.sources.base import ConfigEntryError, entry_fields, parse_iso, require
 
 MAX_VERSIONS = 10
 
@@ -171,7 +175,7 @@ class PyPISource:
         for version, files in (doc.get("releases") or {}).items():
             if not files or all(f.get("yanked") for f in files):
                 continue
-            dated.append((version, _parse_iso(files[0].get("upload_time_iso_8601"))))
+            dated.append((version, parse_iso(files[0].get("upload_time_iso_8601"))))
         dated.sort(
             key=lambda pair: pair[1] or datetime.min.replace(tzinfo=timezone.utc), reverse=True
         )
@@ -190,17 +194,9 @@ class PyPISource:
             )
             for version, published in dated[:MAX_VERSIONS]
         ]
-
-
-def _parse_iso(value: str | None) -> datetime | None:
-    if not value:
-        return None
-    try:
-        parsed = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
-    except ValueError:
-        return None
-    return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
 ```
+
+`parse_iso()` reads an API's ISO 8601 timestamp, taking one with no zone as UTC, and returns `None` for anything it can't read.
 
 ## Notes
 
@@ -267,6 +263,12 @@ If the key is the target's `key`, list the namespace on the source so `youpdated
 
 ```python
 caches: ClassVar[tuple[str, ...]] = ("my_namespace",)
+```
+
+A namespace shared by every target, like YouTube's list of Invidious instances, goes in `shared_caches` instead; `--wipe` on any of the source's targets clears it whole:
+
+```python
+shared_caches: ClassVar[tuple[str, ...]] = ("my_shared_namespace",)
 ```
 
 ### Recognizing your entries

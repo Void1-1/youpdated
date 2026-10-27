@@ -302,7 +302,7 @@ def test_recorded_ignore_rules_go_with_their_expired_baseline_mark(expiring_stat
     state = expiring_state
     state.mark_baselined([("npm", "gone"), ("npm", "kept")])
     state.mark_ignore_rules(
-        [("npm", "gone", frozenset({"prerelease"})), ("npm", "kept", frozenset())]
+        [("npm", "gone", [frozenset({"prerelease"})]), ("npm", "kept", [frozenset()])]
     )
     backdate(state, 2 * YEAR, table="baseline")
     state.mark_baselined([("npm", "kept")])

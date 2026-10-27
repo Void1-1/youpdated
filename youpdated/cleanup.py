@@ -20,6 +20,7 @@ from .config import (
     project_config_paths,
     tool_dir,
 )
+from .state import lock_path
 
 APP_DIR_NAME = "youpdated"
 DIST_NAME = "youpdated"
@@ -65,6 +66,9 @@ def find_traces(
 
     add(state_override, "state", "history database (--state)")
     add(default_state_path(), "state", "history database")
+    for state in (state_override, default_state_path()):
+        if state is not None:
+            add(lock_path(Path(state).expanduser()), "state", "history database lock")
 
     # Dirs last
     for directory in (config_dir(), data_dir()):

@@ -309,6 +309,34 @@ def test_brave_falls_back_to_atom_on_a_transport_error(client):
 
 
 @respx.mock
+def test_brave_fails_when_the_atom_feed_has_nothing_for_its_channel(state, client):
+    """Recorded as a baseline, an empty list would report old stable releases as new later"""
+    from youpdated.config import parse_config
+    from youpdated.runner import run
+
+    respx.get(BRAVE_API_URL).mock(return_value=httpx.Response(403, json={"message": "limit"}))
+    entry = (
+        "<entry><id>tag:github.com,2008:Repository/1/v1.96.{n}</id><title>Nightly v1.96.{n}</title>"
+        '<updated>2026-10-2{n}T00:00:00Z</updated>'
+        '<link href="https://github.com/brave/brave-browser/releases/tag/v1.96.{n}"/></entry>'
+    )
+    respx.get(BRAVE_ATOM_URL).mock(
+        return_value=httpx.Response(
+            200,
+            text='<feed xmlns="http://www.w3.org/2005/Atom"><title>Release notes</title>'
+            + "".join(entry.format(n=n) for n in range(5))
+            + "</feed>",
+        )
+    )
+
+    result = run(parse_config({"sources": {"browser": ["brave"]}}), state, client)
+
+    (error,) = result.errors
+    assert "GitHub API returned 403" in error.message and "no stable release" in error.message
+    assert not state.is_baselined("browser", "brave/stable")
+
+
+@respx.mock
 def test_brave_still_raises_when_both_paths_fail(client):
     """Falling back must not paper over a total outage."""
     respx.get(BRAVE_API_URL).mock(return_value=httpx.Response(504, text="gateway"))

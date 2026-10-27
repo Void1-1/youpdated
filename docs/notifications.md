@@ -40,6 +40,10 @@ notify:
   command: [sh, -c, 'echo "$YOUPDATED_LABEL: $YOUPDATED_TITLE" >> ~/updates.txt']
 ```
 
+A command gets youpdated's environment without secrets: `YOUPDATED_PASSPHRASE`, `GITHUB_TOKEN`, `GITLAB_TOKEN`, and `YOUTUBE_API_KEY`. A `token_env:` variable of your own is allowed through.
+
 ## When a notification fails
 
 A failed webhook or command shows in the `problems` panel and counts for `--fail-on-error`. The updates are still recorded, so they are not sent again. Webhook URLs usually contain their secret, so errors and `-v` show only the host. Webhooks go through `privacy.proxy` like everything else.
+
+A webhook is sent again only when it can't have arrived: connection failed, server answered `429` or `503`. A timeout or a `500`, `502`, or `504` may come after the server accepted, so that is reported as failure instead of trying a second notification. A redirect is followed only with `307` or `308`; `301`, `302`, `303` would resend it with no body, so it fails. An ntfy URL keeps its query, so `?auth=` works for a protected topic.
