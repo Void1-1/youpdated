@@ -74,7 +74,12 @@ class PyPISource:
 
         status = _status(doc)
         updates = [_status_update(doc, target, status)] if status else []
-        for version, published in dated[:MAX_VERSIONS]:
+        finals = [version for version, _ in dated if not _is_prerelease(version)]
+        listed = {version for version, _ in dated[:MAX_VERSIONS]}
+        listed |= {*finals[:MAX_VERSIONS], latest}
+        for version, published in dated:
+            if version not in listed:
+                continue
             tags = ("release",)
             if _is_prerelease(version):
                 tags += ("prerelease",)

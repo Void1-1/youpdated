@@ -16,6 +16,10 @@ _NON_VERSION_KEYS = {"created", "modified"}
 MAX_VERSIONS = 10
 
 
+def _is_prerelease(version: str) -> bool:
+    return "-" in version.split("+", 1)[0]
+
+
 @register
 class NpmSource:
     name: ClassVar[str] = "npm"
@@ -70,13 +74,17 @@ class NpmSource:
         times = doc.get("time") or {}
         dated = [(v, parse_iso(times.get(v))) for v in versions if v]
         dated.sort(key=lambda pair: pair[1] or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
+        finals = [version for version, _ in dated if not _is_prerelease(version)]
+        listed = {version for version, _ in dated[:MAX_VERSIONS]}
+        listed |= {*finals[:MAX_VERSIONS], latest}
 
         updates = []
-        for version, published in dated[:MAX_VERSIONS]:
+        for version, published in dated:
+            if version not in listed:
+                continue
             meta = (doc.get("versions") or {}).get(version) or {}
             tags = ("release",) if version == latest else ()
-            # Build metadata after `+` may hold a hyphen too; only the part before counts
-            if "-" in version.split("+", 1)[0]:
+            if _is_prerelease(version):
                 tags += ("prerelease",)
             updates.append(
                 Update(

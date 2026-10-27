@@ -34,15 +34,18 @@ KNOWN_HOSTS = {
 DEFAULT_TOKEN_ENV = {"github.com": "GITHUB_TOKEN", "gitlab.com": "GITLAB_TOKEN"}
 
 PER_PAGE = 20
+_REDIRECTS = (301, 302, 303, 307, 308)
 
 _HOST_RE = re.compile(r"^[a-z0-9]([a-z0-9.-]*[a-z0-9])?(:\d+)?$")
 _SEGMENT_RE = re.compile(r"^[A-Za-z0-9._-]+$")
 _ENV_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 # Prerelease markers
 _PRERELEASE_RE = re.compile(
-    r"(?:^|[-._+])(?:alpha|beta|rc|pre(?:view)?|dev|nightly|canary|snapshot|eap|insiders?)"
-    r"[\d._-]*$"
-    r"|\d(?:a|b|rc)\d+$",
+    r"(?:^|[-._+])(?:alpha|beta|rc|pre(?:view)?|dev|nightly|canary|snapshot|eap?|insiders?"
+    r"|next|init|branchpoint)[\d._-]*(?:-[a-z])?$"
+    r"|(?:^|[-._])(?:m|cr)\d+$"
+    r"|\.\d+(?:a|b|rc)\d+$"
+    r"|\.\d+(?:alpha|beta|rc|pre(?:view)?|dev)\d*$",
     re.IGNORECASE,
 )
 # Hostname hints for self-hosted instances: gitlab.gnome.org, gitea.example.org, github.corp.com
@@ -56,7 +59,10 @@ _HOST_HINTS = (
 
 
 def _is_prerelease(version: str | None) -> bool:
-    return bool(version and _PRERELEASE_RE.search(version.strip()))
+    if not version:
+        return False
+    version = version.strip()
+    return any(_PRERELEASE_RE.search(part) for part in {version, version.split("+", 1)[0]})
 
 
 def _guess_forge(host: str) -> str | None:
@@ -233,6 +239,13 @@ def _first_line(message: str | None) -> str:
     lines = (message or "").strip().splitlines()
     return lines[0].strip() if lines else ""
 
+
+def _with_latest(updates: list[Update], latest: Update | None) -> list[Update]:
+    """``updates`` and latest release, if other releases pushed it off"""
+    if latest is None or any(u.uid == latest.uid for u in updates):
+        return updates
+    return [*updates, latest]
+
 # GitHub: anonymous .atom feeds, or the REST API for releases with a token
 
 def _github(source: str, target: Target, client: Client, token: str | None) -> list[Update]:
@@ -245,10 +258,20 @@ def _github(source: str, target: Target, client: Client, token: str | None) -> l
     for kind in params.get("watch") or ["releases"]:
         if kind == "releases" and token:
             url = f"{api}/repos/{repo}/releases?per_page={PER_PAGE}"
-            updates.extend(_github_releases_via_api(source, target, client, url, token))
+            releases = _github_releases_via_api(source, target, client, url, token)
+            if target.track_latest:
+                latest = f"{api}/repos/{repo}/releases/latest"
+                releases = _with_latest(
+                    releases, _github_latest_via_api(source, target, client, latest, token)
+                )
+            updates.extend(releases)
         elif kind == "releases":
             url = f"{base}/{repo}/releases.atom"
-            updates.extend(_github_atom(source, target, client, url, "release"))
+            releases = _github_atom(source, target, client, url, "release")
+            if target.track_latest:
+                latest = f"{base}/{repo}/releases/latest"
+                releases = _with_latest(releases, _github_latest(source, target, client, latest))
+            updates.extend(releases)
         elif kind == "tags":
             updates.extend(_github_atom(source, target, client, f"{base}/{repo}/tags.atom", "tag"))
         elif kind == "commits":
@@ -283,46 +306,81 @@ def _github_atom(source: str, target: Target, client: Client, url: str, tag: str
     ]
 
 
+def _github_api_headers(token: str) -> dict[str, str]:
+    return {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+
+
 def _github_releases_via_api(
     source: str, target: Target, client: Client, url: str, token: str
 ) -> list[Update]:
-    fetched = client.get(
-        url,
-        conditional=True,
-        headers={
-            "Authorization": f"Bearer {token}",
-            "Accept": "application/vnd.github+json",
-            "X-GitHub-Api-Version": "2022-11-28",
-        },
-    )
+    fetched = client.get(url, conditional=True, headers=_github_api_headers(token))
     if fetched is None:
         return []
+    return [
+        update
+        for release in fetched.json()
+        if (update := _github_release(source, target, release)) is not None
+    ]
 
-    updates = []
-    for release in fetched.json():
-        if release.get("draft"):
-            continue
-        published = release.get("published_at") or release.get("created_at")
-        legacy = f"release:{release['id']}"
-        tag_name = release.get("tag_name")
-        updates.append(
-            Update(
-                source=source,
-                target=target.key,
-                # Keyed by tag so the atom path, which has no release id, agrees
-                uid=f"release:{tag_name}" if tag_name else legacy,
-                title=(release.get("name") or release.get("tag_name") or "").strip()
-                or "(untitled)",
-                url=release.get("html_url", ""),
-                published=parse_iso(published),
-                version=release.get("tag_name"),
-                body=html_to_text(release.get("body")),
-                tags=("release",) + (("prerelease",) if release.get("prerelease") else ()),
-                # <= 0.3.1 keyed this path by release id
-                aliases=(legacy,) if tag_name else (),
-            )
-        )
-    return updates
+
+def _github_latest_via_api(
+    source: str, target: Target, client: Client, url: str, token: str
+) -> Update | None:
+    fetched = client.get(
+        url, conditional=True, headers=_github_api_headers(token), soft_statuses=(404,)
+    )
+    # 404: no release yet
+    if fetched is None or fetched.status == 404:
+        return None
+    return _github_release(source, target, fetched.json())
+
+
+def _github_latest(source: str, target: Target, client: Client, url: str) -> Update | None:
+    """The latest release by where /releases/latest redirects, without loading the page"""
+    fetched = client.get(url, follow_redirects=False, soft_statuses=_REDIRECTS)
+    if fetched is None:
+        return None
+    location = fetched.headers.get("location", "")
+    # A repo with no release redirects to /releases
+    match = re.search(r"/releases/tag/([^/?#]+)$", location)
+    if not match:
+        return None
+    tag = unquote(match.group(1))
+    return Update(
+        source=source,
+        target=target.key,
+        uid=f"release:{tag}",
+        title=tag,
+        url=location,
+        version=tag,
+        tags=_versioned("release", tag),
+    )
+
+
+def _github_release(source: str, target: Target, release: dict[str, Any]) -> Update | None:
+    if release.get("draft"):
+        return None
+    published = release.get("published_at") or release.get("created_at")
+    legacy = f"release:{release['id']}"
+    tag_name = release.get("tag_name")
+    return Update(
+        source=source,
+        target=target.key,
+        uid=f"release:{tag_name}" if tag_name else legacy,
+        title=(release.get("name") or release.get("tag_name") or "").strip()
+        or "(untitled)",
+        url=release.get("html_url", ""),
+        published=parse_iso(published),
+        version=release.get("tag_name"),
+        body=html_to_text(release.get("body")),
+        tags=("release",) + (("prerelease",) if release.get("prerelease") else ()),
+        # <= 0.3.1 keyed this path by release id
+        aliases=(legacy,) if tag_name else (),
+    )
 
 
 def _with_release_uid(update: Update) -> Update:
@@ -334,9 +392,12 @@ def _with_release_uid(update: Update) -> Update:
 
 
 def _version_from_entry(entry: Any) -> str | None:
-    """Recover the tag from an atom entry id like ``tag:github.com,...:Repository/1/v3.13.0``."""
+    """Recover the tag from an atom entry id like ``tag:github.com,...:Repository/1/v3.13.0``.
+
+    A tag without a number (`nightly`) is kept
+    """
     for candidate in (entry.get("id", ""), entry.get("link", "")):
-        match = re.search(r"[/:]([^/:]*\d[^/:]*)$", str(candidate))
+        match = re.search(r"[/:]([^/:]+)$", str(candidate))
         if match:
             return match.group(1)
     return None
@@ -355,26 +416,20 @@ def _gitlab(source: str, target: Target, client: Client, token: str | None) -> l
         if kind == "releases":
             fetched = client.get(f"{api}/releases?per_page={PER_PAGE}", conditional=True,
                                  headers=headers)
-            for release in fetched.json() if fetched else []:
-                tag = release.get("tag_name")
-                if not tag:
-                    continue
-                links = release.get("_links") or {}
-                updates.append(
-                    Update(
-                        source=source,
-                        target=target.key,
-                        uid=f"release:{tag}",
-                        title=(release.get("name") or tag).strip() or tag,
-                        url=links.get("self") or f"{web}/-/releases/{quote(tag, safe='')}",
-                        published=parse_iso(
-                            release.get("released_at") or release.get("created_at")
-                        ),
-                        version=tag,
-                        body=html_to_text(release.get("description")),
-                        tags=_versioned("release", tag),
+            releases = [
+                update
+                for release in (fetched.json() if fetched else [])
+                if (update := _gitlab_release(source, target, web, release)) is not None
+            ]
+            if target.track_latest:
+                # Redirects to the release itself
+                latest = client.get(f"{api}/releases/permalink/latest", conditional=True,
+                                    headers=headers, soft_statuses=(404,))
+                if latest is not None and latest.status != 404:
+                    releases = _with_latest(
+                        releases, _gitlab_release(source, target, web, latest.json())
                     )
-                )
+            updates.extend(releases)
         elif kind == "tags":
             fetched = client.get(f"{api}/repository/tags?per_page={PER_PAGE}",
                                  conditional=True, headers=headers)
@@ -426,6 +481,25 @@ def _gitlab(source: str, target: Target, client: Client, token: str | None) -> l
 
     return updates
 
+def _gitlab_release(
+    source: str, target: Target, web: str, release: dict[str, Any]
+) -> Update | None:
+    tag = release.get("tag_name")
+    if not tag:
+        return None
+    links = release.get("_links") or {}
+    return Update(
+        source=source,
+        target=target.key,
+        uid=f"release:{tag}",
+        title=(release.get("name") or tag).strip() or tag,
+        url=links.get("self") or f"{web}/-/releases/{quote(tag, safe='')}",
+        published=parse_iso(release.get("released_at") or release.get("created_at")),
+        version=tag,
+        body=html_to_text(release.get("description")),
+        tags=_versioned("release", tag),
+    )
+
 # Forgejo and Gitea: /api/v1, the same on every instance
 
 def _forgejo(source: str, target: Target, client: Client, token: str | None) -> list[Update]:
@@ -441,26 +515,19 @@ def _forgejo(source: str, target: Target, client: Client, token: str | None) -> 
         if kind == "releases":
             fetched = client.get(f"{api}/releases?limit={PER_PAGE}", conditional=True,
                                  headers=headers)
-            for release in fetched.json() if fetched else []:
-                tag = release.get("tag_name")
-                if release.get("draft") or not tag:
-                    continue
-                updates.append(
-                    Update(
-                        source=source,
-                        target=target.key,
-                        uid=f"release:{tag}",
-                        title=(release.get("name") or tag).strip() or tag,
-                        url=release.get("html_url") or f"{web}/releases/tag/{quote(tag, safe='')}",
-                        published=parse_iso(
-                            release.get("published_at") or release.get("created_at")
-                        ),
-                        version=tag,
-                        body=html_to_text(release.get("body")),
-                        tags=("release",)
-                        + (("prerelease",) if release.get("prerelease") else ()),
+            releases = [
+                update
+                for release in (fetched.json() if fetched else [])
+                if (update := _forgejo_release(source, target, web, release)) is not None
+            ]
+            if target.track_latest:
+                latest = client.get(f"{api}/releases/latest", conditional=True,
+                                    headers=headers, soft_statuses=(404,))
+                if latest is not None and latest.status != 404:
+                    releases = _with_latest(
+                        releases, _forgejo_release(source, target, web, latest.json())
                     )
-                )
+            updates.extend(releases)
         elif kind == "tags":
             fetched = client.get(f"{api}/tags?limit={PER_PAGE}", conditional=True,
                                  headers=headers)
@@ -508,3 +575,22 @@ def _forgejo(source: str, target: Target, client: Client, token: str | None) -> 
                 )
 
     return updates
+
+
+def _forgejo_release(
+    source: str, target: Target, web: str, release: dict[str, Any]
+) -> Update | None:
+    tag = release.get("tag_name")
+    if release.get("draft") or not tag:
+        return None
+    return Update(
+        source=source,
+        target=target.key,
+        uid=f"release:{tag}",
+        title=(release.get("name") or tag).strip() or tag,
+        url=release.get("html_url") or f"{web}/releases/tag/{quote(tag, safe='')}",
+        published=parse_iso(release.get("published_at") or release.get("created_at")),
+        version=tag,
+        body=html_to_text(release.get("body")),
+        tags=("release",) + (("prerelease",) if release.get("prerelease") else ()),
+    )

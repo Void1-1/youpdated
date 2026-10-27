@@ -269,7 +269,7 @@ def _reads_back(context: str, value: str) -> bool:
 def _targets(handler: Source, entry: Any) -> list[Target]:
     """targets an entry watches"""
     if isinstance(entry, dict):
-        entry = {k: v for k, v in entry.items() if k != "ignore"}
+        entry = {k: v for k, v in entry.items() if k not in ("ignore", "versions")}
     try:
         return handler.targets([entry])
     except Exception:

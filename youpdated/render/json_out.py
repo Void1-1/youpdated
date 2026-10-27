@@ -16,6 +16,7 @@ def render(result: RunResult) -> str:
             "fetched": result.total_fetched,
             "new": len(result.updates),
             "ignored": result.ignored,
+            "filtered": result.filtered,
             "pruned": result.pruned,
             "errors": len(result.errors),
         },

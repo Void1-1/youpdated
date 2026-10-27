@@ -46,10 +46,15 @@ def _labels(targets: list[Target]) -> dict[tuple[str, str], str]:
 
 
 def _ignored_note(result: RunResult) -> str:
-    """Trailer naming the items `ignore:` dropped"""
-    if not result.ignored:
+    """Trailer naming the items `ignore:` dropped and `versions:` left out"""
+    counts = [
+        f"{count} {what}"
+        for count, what in ((result.ignored, "ignored"), (result.filtered, "left out by version"))
+        if count
+    ]
+    if not counts:
         return ""
-    return f" [dim]{result.ignored} ignored.[/]"
+    return f" [dim]{', '.join(counts)}.[/]"
 
 
 def _baselined_note(result: RunResult, console: Console) -> None:

@@ -407,9 +407,9 @@ class State:
                 "DELETE FROM kv WHERE namespace='baseline' AND key=?",
                 [(key,) for key in stale_marks],
             )
-            # Rules are recorded with the baseline mark, and go with it
+            # Rules and highest versions are recorded with the baseline mark, and are removed with it
             removed_rules = self._conn.execute(
-                "DELETE FROM kv WHERE namespace='ignore' AND key NOT IN "
+                "DELETE FROM kv WHERE namespace IN ('ignore', 'version') AND key NOT IN "
                 "(SELECT key FROM kv WHERE namespace='baseline')"
             ).rowcount
             # URL links, and a link to a URL without a validator
@@ -434,8 +434,8 @@ class State:
         shared: Iterable[str] = (),
     ) -> tuple[int, int]:
         """Delete everything recorded about ``targets``: seen items, baseline marks, ignore
-        rules, entries keyed by the target in the ``caches`` namespaces, ``shared`` namespaces,
-        and validators of every URL they asked for.
+        rules, highest versions, entries keyed by the target in the ``caches`` namespaces,
+        ``shared`` namespaces, and validators of every URL they asked for.
         """
         caches = list(caches)
         seen = 0
@@ -450,7 +450,7 @@ class State:
                 ).rowcount
                 self._conn.executemany(
                     "DELETE FROM kv WHERE namespace=? AND key=?",
-                    [(ns, f"{source}:{target}") for ns in ("baseline", "ignore")]
+                    [(ns, f"{source}:{target}") for ns in ("baseline", "ignore", "version")]
                     + [(ns, target) for ns in caches],
                 )
                 candidates.update(
@@ -538,6 +538,24 @@ class State:
             ("ignore", f"{source}:{target}", _rules_value(rules))
             for source, target, rules in targets
         ]
+        if not rows:
+            return
+        with self._lock:
+            self._conn.executemany(
+                "INSERT INTO kv (namespace, key, value) VALUES (?,?,?) "
+                "ON CONFLICT(namespace, key) DO UPDATE SET value=excluded.value",
+                rows,
+            )
+            self._conn.commit()
+            self._dirty = True
+
+    # targets highest releases, for `versions: {bump: ...}`, see versions.Highest
+
+    def highest_version(self, source: str, target: str) -> str | None:
+        return self.cache_get("version", f"{source}:{target}")
+
+    def mark_highest_versions(self, targets: Iterable[tuple[str, str, str]]) -> None:
+        rows = [("version", f"{source}:{target}", value) for source, target, value in targets]
         if not rows:
             return
         with self._lock:

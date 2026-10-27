@@ -18,6 +18,7 @@ import yaml
 from platformdirs import PlatformDirs
 
 from . import crypto
+from .versions import ANY_BUMP, BUMPS, release
 
 # appauthor=False for Windows: left unset, platformdirs falls back to app name as the author and nests everything under
 # AppData\Local\youpdated\youpdated. macOS and Linux are unaffected.
@@ -94,8 +95,12 @@ class Config:
     sources: dict[str, list[Any]] = field(default_factory=dict)
     # Source name (or ``*``) -> update tags to drop
     ignore: dict[str, frozenset[str]] = field(default_factory=dict)
+    # Source name (or ``*``) -> `versions:` rules, see :func:`parse_version_rules`
+    versions: dict[str, dict[str, Any]] = field(default_factory=dict)
     # Forget seen items absent from every fetch this long. ``None`` keeps them forever
     expiry: timedelta | None = DEFAULT_EXPIRY
+    # Ask every source that can for its latest release, even at a request more per target
+    track_latest: bool = False
     notify: NotifyConfig = field(default_factory=NotifyConfig)
     path: Path | None = None
 
@@ -104,6 +109,13 @@ class Config:
         return self.ignore.get(IGNORE_ALL, frozenset()) | self.ignore.get(
             source, frozenset()
         )
+
+    def version_rules(self, *sources: str) -> dict[str, Any]:
+        """`versions:` rules for every target of ``sources`` """
+        merged: dict[str, Any] = {}
+        for name in (IGNORE_ALL, *sources):
+            merged.update(self.versions.get(name, {}))
+        return merged
 
 
 def config_dir() -> Path:
@@ -218,7 +230,9 @@ def parse_config(raw: Any, path: Path | None = None) -> Config:
         privacy=privacy,
         sources=sources,
         ignore=_parse_ignore(raw.get("ignore"), where),
+        versions=_parse_versions(raw.get("versions"), where),
         expiry=_parse_expiry(raw.get("expiry", DEFAULT_EXPIRY), where),
+        track_latest=_parse_track_latest(raw.get("track_latest", False), where),
         notify=_parse_notify(raw.get("notify"), where),
         path=path,
     )
@@ -241,6 +255,12 @@ def _parse_expiry(raw: Any, where: str) -> timedelta | None:
     if expiry < MIN_EXPIRY:
         raise ConfigError(f"{where}`expiry` must be at least 1d")
     return expiry
+
+
+def _parse_track_latest(raw: Any, where: str) -> bool:
+    if not isinstance(raw, bool):
+        raise ConfigError(f"{where}`track_latest` must be true or false")
+    return raw
 
 
 def parse_ignore_list(value: Any, where: str, what: str) -> frozenset[str]:
@@ -276,6 +296,78 @@ def _parse_ignore(raw: Any, where: str) -> dict[str, frozenset[str]]:
         if tags:
             parsed[str(name)] = tags
     return parsed
+
+
+VERSION_RULES = ("bump", "min")
+_MIN_RE = re.compile(r"^v?\d+(?:\.\d+)*$", re.IGNORECASE)
+
+
+def parse_version_rules(value: Any, where: str, what: str) -> dict[str, Any]:
+    """Normalize a ``versions:`` mapping: ``bump`` a BUMPS name or ``any``, ``min`` a release"""
+    if value is None:
+        return {}
+    if not isinstance(value, dict):
+        raise ConfigError(f"{where}`{what}` must be a mapping with `bump` and/or `min`")
+    unknown = set(value) - set(VERSION_RULES)
+    if unknown:
+        raise ConfigError(
+            f"{where}unknown `{what}` option(s): {', '.join(sorted(map(str, unknown)))}; "
+            f"expected {', '.join(VERSION_RULES)}"
+        )
+    rules: dict[str, Any] = {}
+    bump = value.get("bump")
+    if bump is not None:
+        choices = (*BUMPS, ANY_BUMP)
+        if not isinstance(bump, str) or bump.strip().lower() not in choices:
+            raise ConfigError(f"{where}`{what}.bump` must be one of {', '.join(choices)}")
+        rules["bump"] = bump.strip().lower()
+    lowest = value.get("min")
+    if lowest is not None:
+        rules["min"] = _parse_min(lowest, where, f"{what}.min")
+    return rules
+
+
+def _parse_min(value: Any, where: str, what: str) -> tuple[int, ...]:
+    if isinstance(value, float):
+        # 3.10 has already become 3.1 by now
+        raise ConfigError(
+            f"{where}`{what}` must be in quotes, as YAML reads {value} as a number "
+            f'and drops trailing zeros (3.10 becomes 3.1): "{value}"'
+        )
+    # YAML reads `yes` and `no` as booleans, which are ints too
+    readable = isinstance(value, (str, int)) and not isinstance(value, bool)
+    text = str(value).strip() if readable else ""
+    numbers = release(text) if _MIN_RE.match(text) else None
+    if numbers is None:
+        raise ConfigError(f'{where}`{what}` must be a version number like 2, "3.13", or "1.4.2"')
+    return numbers
+
+
+def _parse_versions(raw: Any, where: str) -> dict[str, dict[str, Any]]:
+    """Parse top-level ``versions:``"""
+    if raw is None:
+        return {}
+    if not isinstance(raw, dict):
+        raise ConfigError(
+            f"{where}`versions` must be a mapping of rules, or of "
+            f"source name -> rules (`{IGNORE_ALL}` for every source)"
+        )
+    rules = [str(key) for key in raw if key in VERSION_RULES]
+    if rules:
+        names = [str(key) for key in raw if key not in VERSION_RULES]
+        if names:
+            raise ConfigError(
+                f"{where}`versions` mixes rules ({', '.join(rules)}) with source names "
+                f"({', '.join(names)}); put the rules under `'{IGNORE_ALL}':`"
+            )
+        parsed = parse_version_rules(raw, where, "versions")
+        return {IGNORE_ALL: parsed} if parsed else {}
+    by_source: dict[str, dict[str, Any]] = {}
+    for name, value in raw.items():
+        parsed = parse_version_rules(value, where, f"versions.{name}")
+        if parsed:
+            by_source[str(name)] = parsed
+    return by_source
 
 
 def split_command(command: Any, where: str = "", name: str = "`notify.command`") -> list[str]:
@@ -461,11 +553,21 @@ privacy:
 # Forget items that haven't appeared in any fetch for this long. Default 1y
 # expiry: 1y
 
+# Also ask git forges and Steam for the latest release (or update post) of each
+# entry, in case busier ones pushed it out of the list. One more request per entry.
+# track_latest: true
+
 # Drop update types you don't want. A bare list applies
 # everywhere; a mapping narrows it to one source ('*' means all).
 # ignore:
 #   '*': [prerelease]
 #   git: [commit]
+
+# Report only some versions: `bump: major` keeps 4.0.0 and drops 3.9.1 (or
+# `minor`, `patch`), and `min` drops versions below it. Takes the same forms as
+# ignore:, and an entry can have its own.
+# versions:
+#   npm: {bump: major}
 
 # Push each run's new updates to a webhook and/or a command run once per update.
 # notify:

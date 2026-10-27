@@ -72,7 +72,7 @@ A check records what it found only once its report is out, so if the report or t
 
 The source can be left out when an entry can only mean one: a GitHub, GitLab, or Codeberg repo, `owner/repo`, a feed URL, a Steam app id or store page, an itch.io page, a YouTube `@handle` or channel, a browser name, `cask:name`, a scoped `@scope/name` npm package, or a package page on npmjs.com, pypi.org, or formulae.brew.sh. Package pages are written as the package name. A bare name like `express` could be npm, PyPI, or Homebrew, so name the source for those. Entries without a source can mix sources: `youpdated add https://github.com/neovim/neovim @types/react`.
 
-A removed target's history is forgotten after [`expiry`](configuration.md#how-long-history-is-kept). `rm --wipe` forgets it immediately: seen items, baseline, names cached for it, and cached addresses it fetched. An address another target still fetches keeps its cache.
+A removed target's history is forgotten after [`expiry`](configuration.md#how-long-history-is-kept). `rm --wipe` forgets it immediately: seen items, baseline, highest version, names cached for it, and cached addresses it fetched. An address another target still fetches keeps its cache.
 
 If the config is written in a way these can't edit safely, they refuse and say to add or remove by hand.
 
@@ -92,7 +92,7 @@ If a dependency is found that no source can watch, it is listed as skipped: a de
 youpdated check --json | jq '.updates[] | select(.target | startswith("github.com/")) | .title'
 ```
 
-Exit codes: `0` success, `1` config, encryption, history file, or proxy error, `2` with `--fail-on-error` when a source or notification failed, `130` on interrupt. `uninstall` exits `1` when it leaves a file in place. The JSON has a `warnings` list for config that does nothing, such as an `ignore:` key no source is listed under.
+Exit codes: `0` success, `1` config, encryption, history file, or proxy error, `2` with `--fail-on-error` when a source or notification failed, `130` on interrupt. `uninstall` exits `1` when it leaves a file in place. The JSON has a `warnings` list for config that does nothing, such as an `ignore:` or `versions:` key on a nonexisting source.
 
 ## Running it on schedule
 

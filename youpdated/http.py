@@ -331,12 +331,14 @@ class Client:
         conditional: bool = False,
         soft_statuses: Sequence[int] | Iterable[int] = (),
         retries: int = 2,
+        follow_redirects: bool = True,
     ) -> Fetched | None:
         """GET ``url``.
 
         Returns ``None`` when the server answers 304 Not Modified, or with ``test``. 
         Statuses listed in ``soft_statuses`` come back as a :class:`Fetched` for interpretation
-        (itch.io answers 404 for a game that simply has no devlog)
+        (itch.io answers 404 for a game that simply has no devlog). Without ``follow_redirects``
+        a redirect is a status like any other, so list it there to read its ``location``
         """
         self.requested_urls.append(url)
         tracked = getattr(self._local, "urls", None)
@@ -366,7 +368,9 @@ class Client:
         for attempt in range(retries + 1):
             self._pace(host)
             try:
-                response = self._send("GET", url, request_headers, private=headers or ())
+                response = self._send(
+                    "GET", url, request_headers, private=headers or (), follow=follow_redirects
+                )
             except NETWORK_ERRORS as exc:
                 last_error = exc
                 self.note(f"GET {url} -> {type(exc).__name__}: {exc}")
@@ -482,6 +486,7 @@ class Client:
         headers: dict[str, str],
         *,
         private: Iterable[str],
+        follow: bool = True,
         **kwargs: Any,
     ) -> httpx.Response:
         """Send a request and follow redirects"""
@@ -489,6 +494,8 @@ class Client:
         request = self._client.build_request(method, url, headers=headers, **kwargs)
         origin = request.url
         response = self._client.send(request)
+        if not follow:
+            return response
         for _ in range(MAX_REDIRECTS):
             hop = response.next_request
             if hop is None or hop.method != method:

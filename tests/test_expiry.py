@@ -312,6 +312,19 @@ def test_recorded_ignore_rules_go_with_their_expired_baseline_mark(expiring_stat
     assert state.cache_get("ignore", "npm:gone") is None
     assert state.cache_get("ignore", "npm:kept") == ""
 
+
+def test_highest_versions_go_with_their_expired_baseline_mark(expiring_state):
+    state = expiring_state
+    state.mark_baselined([("npm", "gone"), ("npm", "kept")])
+    state.mark_highest_versions([("npm", "gone", "4"), ("npm", "kept", "2.1")])
+    backdate(state, 2 * YEAR, table="baseline")
+    state.mark_baselined([("npm", "kept")])
+
+    state.prune()
+
+    assert state.highest_version("npm", "gone") is None
+    assert state.highest_version("npm", "kept") == "2.1"
+
 @respx.mock
 def test_targets_skipped_by_source_filter_are_kept(expiring_state, client):
     state = expiring_state

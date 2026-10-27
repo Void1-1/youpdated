@@ -6,6 +6,7 @@ Config can be an appid; the store name is resolved and cached locally so reports
 from __future__ import annotations
 
 import re
+from datetime import datetime, timezone
 from typing import Any, ClassVar, Iterable
 
 from ..http import Client, FetchError
@@ -15,6 +16,8 @@ from .base import ConfigEntryError, accepted, entry_fields, require, url_parts
 from .feed import parse_feed
 
 NAME_CACHE = "steam_app_names"
+# Store event types of update posts: small, regular, and major updates
+UPDATE_EVENTS = "12,13,14"
 
 
 @register
@@ -66,10 +69,46 @@ class SteamSource:
         if fetched is None:
             return []
 
-        return parse_feed(
+        updates = parse_feed(
             fetched.content,
             source=self.name,
             target=target.key,
+            tags=("news",),
+        )
+        if target.track_latest:
+            latest = self._latest_update_post(target, client)
+            if latest is not None and all(u.uid != latest.uid for u in updates):
+                updates.append(latest)
+        return updates
+
+    def _latest_update_post(self, target: Target, client: Client) -> Update | None:
+        """The newest patch notes post"""
+        fetched = client.get(
+            "https://store.steampowered.com/events/ajaxgetadjacentpartnerevents/"
+            f"?appid={target.key}&count_before=0&count_after=1"
+            f"&event_type_filter={UPDATE_EVENTS}&lang_list=0",
+            conditional=True,
+        )
+        if fetched is None:
+            return None
+        try:
+            event = (fetched.json().get("events") or [None])[0]
+        except (ValueError, AttributeError):
+            return None
+        if not isinstance(event, dict) or not event.get("gid"):
+            return None
+        posted = (event.get("announcement_body") or {}).get("posttime")
+        posted = posted or event.get("rtime32_start_time")
+        page = f"https://store.steampowered.com/news/app/{target.key}/view/{event['gid']}"
+        return Update(
+            source=self.name,
+            target=target.key,
+            uid=page,
+            title=str(event.get("event_name") or "").strip() or "(untitled)",
+            url=page,
+            published=datetime.fromtimestamp(posted, timezone.utc)
+            if isinstance(posted, int)
+            else None,
             tags=("news",),
         )
 
