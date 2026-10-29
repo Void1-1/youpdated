@@ -207,13 +207,27 @@ def _live(width: int = 120):
 
     from youpdated.cli import _LiveProgress
 
-    console = Console(file=io.StringIO(), width=width, force_terminal=True)
+    console = Console(
+        file=io.StringIO(), width=width, force_terminal=True, legacy_windows=False
+    )
     return _LiveProgress(console), console
 
 
 def test_live_progress_satisfies_the_protocol():
     live, _ = _live()
     assert isinstance(live, ProgressReporter)
+
+
+def test_live_progress_keeps_rich_rendering_on_legacy_windows_consoles():
+    from rich.console import Console
+    from rich.live_render import LiveRender
+
+    from youpdated.cli import _LiveProgress
+
+    console = Console(file=io.StringIO(), force_terminal=True, legacy_windows=True)
+    live = _LiveProgress(console)
+
+    assert type(live._progress.live._live_render) is LiveRender
 
 
 def test_live_progress_names_the_targets_in_flight():
@@ -421,7 +435,12 @@ def _live_on(terminal: _Terminal):
     from youpdated.cli import _LiveProgress
 
     console = Console(
-        file=terminal, width=terminal.width, height=40, force_terminal=True, color_system="256"
+        file=terminal,
+        width=terminal.width,
+        height=40,
+        force_terminal=True,
+        color_system="256",
+        legacy_windows=False,
     )
     console.print("$ youpdated")
     live = _LiveProgress(console)
