@@ -2,13 +2,17 @@ from __future__ import annotations
 
 import argparse
 import difflib
+import signal
 import sys
 import threading
+import time
 from contextlib import ExitStack
 from dataclasses import replace
 from pathlib import Path
 
-from rich.console import Console
+from rich.console import Console, ConsoleOptions, RenderableType, RenderResult
+from rich.control import Control
+from rich.live_render import LiveRender
 from rich.markup import escape
 from rich.progress import (
     BarColumn,
@@ -18,6 +22,7 @@ from rich.progress import (
     TextColumn,
     TimeElapsedColumn,
 )
+from rich.segment import ControlType, Segment
 from rich.table import Column
 
 from . import __version__, crypto, notify
@@ -250,7 +255,7 @@ def cmd_edit(
             text.splitlines(), edited.splitlines(), str(path), str(path), n=1, lineterm=""
         )
         for line in diff:
-            console.print(escape(line), highlight=False)
+            console.print(escape(line))
         for change in wiped:
             console.print(
                 f"would forget the history of {escape(change.section)}: "
@@ -313,13 +318,13 @@ def cmd_import(args: argparse.Namespace, console: Console) -> int:
 def cmd_init(args: argparse.Namespace, console: Console) -> int:
     path = Path(args.config).expanduser() if args.config else default_config_path()
     if path.exists() and not args.force:
-        console.print(f"[yellow]{path} already exists.[/] Use --force to overwrite.")
+        console.print(f"[yellow]{escape(str(path))} already exists.[/] Use --force to overwrite.")
         return 1
 
     if not args.encrypt:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(EXAMPLE_CONFIG, encoding="utf-8")
-        console.print(f"Wrote starter config to [bold]{path}[/]")
+        console.print(f"Wrote starter config to [bold]{escape(str(path))}[/]")
         console.print("[dim]Edit it or use `youpdated add`, then run `youpdated check`.[/]")
         return 0
 
@@ -523,6 +528,62 @@ def cmd_uninstall(args: argparse.Namespace, console: Console) -> int:
     return done
 
 
+class _Unpadded:
+    """renderable without padding spaces"""
+
+    def __init__(self, renderable: RenderableType) -> None:
+        self.renderable = renderable
+
+    def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:
+        for index, line in enumerate(console.render_lines(self.renderable, options, pad=False)):
+            if index:
+                yield Segment.line()
+            while line and not line[-1].text.rstrip(" "):
+                line.pop()
+            if line:
+                text, style, control = line.pop()
+                line.append(Segment(text.rstrip(" "), style, control))
+            yield from line
+
+
+def _from_line_start(sequence: str) -> Control:
+    """carriage return, then an escape sequence Rich has no ControlType for"""
+    control = Control()
+    # a segment is only zero width when it lists a control code
+    control.segment = Segment("\r" + sequence, None, [(ControlType.CARRIAGE_RETURN,)])
+    return control
+
+
+class _ResizeSafeLiveRender(LiveRender):
+    """Live render that puts the cursor at the start of its frame"""
+
+    _hidden_until = 0.0
+
+    def hide(self, seconds: float) -> None:
+        self._hidden_until = time.monotonic() + seconds
+
+    def set_renderable(self, renderable: RenderableType) -> None:
+        super().set_renderable(_Unpadded(renderable))
+
+    def __rich_console__(self, console: Console, options: ConsoleOptions) -> RenderResult:
+        if time.monotonic() < self._hidden_until:
+            return
+        # room for about a font size step
+        width = options.max_width - max(options.max_width // 8, 4)
+        yield _from_line_start("\x1b[?7l")
+        yield from super().__rich_console__(console, options.update_width(max(width, 1)))
+        up = self.last_render_height - 1
+        yield Control(ControlType.CARRIAGE_RETURN, *([(ControlType.CURSOR_UP, up)] if up else []))
+        yield _from_line_start("\x1b[?7h")
+
+    def position_cursor(self) -> Control:
+        return Control() if self._shape is None else _from_line_start("\x1b[J")
+
+    def restore_cursor(self) -> Control:
+        # Live.stop moves down a line before this
+        return Control() if self._shape is None else _from_line_start("\x1b[1A\x1b[J")
+
+
 class _LiveProgress:
     """Progress view of a run"""
 
@@ -548,6 +609,12 @@ class _LiveProgress:
             transient=True,
             expand=True,
         )
+        # legacy Windows consoles run Rich's control codes, not escape sequences
+        self._render = None
+        if not console.legacy_windows:
+            live = self._progress.live
+            self._render = live._live_render = _ResizeSafeLiveRender(live.get_renderable())
+        self._resize_handler = None  # the SIGWINCH handler ours replaced
         self._task = None
         self._lock = threading.Lock()
         self._in_flight: dict[tuple[str, str], tuple[str, int]] = {}
@@ -555,10 +622,25 @@ class _LiveProgress:
 
     def __enter__(self) -> "_LiveProgress":
         self._progress.start()
+        # SIGWINCH is Unix only, and only the main thread may handle signals
+        if (
+            self._render is not None
+            and hasattr(signal, "SIGWINCH")
+            and threading.current_thread() is threading.main_thread()
+        ):
+            self._resize_handler = signal.signal(signal.SIGWINCH, self._resized)
         return self
 
     def __exit__(self, *exc: object) -> None:
+        if self._resize_handler is not None:
+            signal.signal(signal.SIGWINCH, self._resize_handler)
         self._progress.stop()
+
+    def _resized(self, *_: object) -> None:
+        """Takes the frame down until the window stops changing size"""
+        if self._render is not None:
+            self._render.hide(0.3)
+            self._progress.refresh()
 
     def _describe(self) -> str:
         """Caller holds the lock"""
@@ -615,7 +697,7 @@ class _LiveProgress:
 
 def cmd_check(args: argparse.Namespace, console: Console) -> int:
     # JSON goes to stdout, status chatter to stderr.
-    status = Console(stderr=True) if args.json else console
+    status = Console(stderr=True, highlight=False) if args.json else console
 
     state_path = Path(args.state).expanduser() if args.state else default_state_path()
     passphrase = None
@@ -670,7 +752,7 @@ def cmd_check(args: argparse.Namespace, console: Console) -> int:
             test=args.test,
             verbose=args.verbose or args.test,
             use_conditional=not args.all,
-            logger=lambda msg: status.print(escape(msg), style="dim", highlight=False),
+            logger=lambda msg: status.print(escape(msg), style="dim"),
         ) as client:
             if args.verbose or args.test:
                 status.print(f"[dim]config: {escape(str(config.path))}[/]")
@@ -756,7 +838,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.command is None:
         args = parser.parse_args(["check"])
 
-    console = Console()
+    console = Console(highlight=False)
     try:
         if args.command == "sources":
             return cmd_sources(console)
