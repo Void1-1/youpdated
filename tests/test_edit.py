@@ -318,6 +318,17 @@ def test_add_and_rm_write_the_config(config, capsys):
     assert "Not watching left-pad" in capsys.readouterr().out
 
 
+def test_a_config_path_with_a_space_keeps_one_style(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("FORCE_COLOR", "1")
+    monkeypatch.setenv("COLUMNS", "500")
+    monkeypatch.delenv("NO_COLOR", raising=False)
+    path = tmp_path / "Application Support" / "youpdated.yaml"
+    path.parent.mkdir()
+    path.write_text(EXAMPLE_CONFIG, encoding="utf-8")
+    assert main(["add", "-c", str(path), "npm", "left-pad"]) == 0
+    assert f"\x1b[1m{path}\x1b[0m" in capsys.readouterr().out
+
+
 def test_test_shows_the_change_and_writes_nothing(config, capsys):
     assert main(["add", "--test", "-c", str(config), "steam", "570"]) == 0
     out = capsys.readouterr().out

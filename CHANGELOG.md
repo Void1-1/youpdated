@@ -50,6 +50,8 @@ All notable changes to this project are documented here. The format follows [Kee
 - **`split_command` accepted** a YAML boolean (`yes`, `off`) or an empty string in a list command.
 - **Timestamps with a fraction and a zone offset**, such as `.123+05:30`, lost the offset in the `browser` source. One parser now serves every source.
 - **Trackpad scrolling in the desktop example on macOS.** Tk 9 sends trackpads as `<TouchpadScroll>`, which the window ignored, and reports a mouse wheel notch as 120 rather than 1, which scrolled 720 pixels a notch. Tk 8.6 behaves as before.
+- **Link highlighting** has been fixed to correctly bold links without extra coloration or breakage at spaces in links.
+- **Terminal resizing** no longer adds extra lines or breaks output formatting in cli.
 
 ## [0.4.0] — 2026-10-24
 

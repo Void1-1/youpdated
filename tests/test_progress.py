@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import io
+import re
+import signal
 import threading
 import time
 
+import pytest
 import respx
 from httpx import Response
 
@@ -312,6 +315,179 @@ def test_live_progress_renders_and_clears():
 
     # transient=True, so the bar is wiped rather than left in the scrollback.
     assert "python/cpython" not in _written(console).splitlines()[-1]
+
+
+def _draw(live, console) -> str:
+    """draws a frame how a live display might, returns its text"""
+    render = live._progress.live._live_render
+    render.set_renderable(live._progress.get_renderable())
+    with console.capture() as capture:
+        console.print(render, end="")
+    return re.sub(r"\x1b\[[?\d;]*[A-Za-z]|\r", "", capture.get())
+
+
+def test_live_progress_frames_are_not_padded_to_the_full_width():
+    live, console = _live(width=120)
+    live.run_started(2)
+    live.target_started(Target(source="github", key="python/cpython"))
+
+    # trailing spaces would rewrap onto extra rows when the window narrows
+    assert _draw(live, console).endswith("github:python/cpython")
+
+
+class _Terminal(io.TextIOBase):
+    """minimal terminal for the live display"""
+
+    def __init__(self, width: int, resize: str) -> None:
+        self.width, self.resize_mode = width, resize
+        self.rows: list[tuple[str, bool]] = [("", False)]  # text, wraps into the next row
+        self.row = self.col = 0  # col == width: about to wrap
+        self.autowrap = True
+
+    def _goto(self, row: int) -> None:
+        self.rows += [("", False)] * (row + 1 - len(self.rows))
+        self.row = row
+
+    def _put(self, char: str) -> None:
+        if self.col >= self.width and self.autowrap:
+            self.rows[self.row] = (self.rows[self.row][0], True)
+            self._goto(self.row + 1)
+            self.col = 0
+        self.col = min(self.col, self.width - 1)
+        text, wraps = self.rows[self.row]
+        text = text.ljust(self.col)
+        self.rows[self.row] = (text[: self.col] + char + text[self.col + 1 :], wraps)
+        if self.autowrap or self.col < self.width - 1:
+            self.col += 1
+
+    def write(self, data: str) -> int:
+        for private, n, code, char in re.findall(r"\x1b\[(\??)([\d;]*)([A-Za-z])|([^\x1b])", data):
+            if char == "\r":
+                self.col = 0
+            elif char == "\n":
+                self._goto(self.row + 1)
+                self.col = 0
+            elif char:
+                self._put(char)
+            elif private and n == "7":
+                self.autowrap = code == "h"
+            elif code == "A":
+                self.row, self.col = max(self.row - int(n or 1), 0), min(self.col, self.width - 1)
+            elif code == "K":
+                self.rows[self.row] = ("", False)
+            elif code == "J":
+                self.rows[self.row] = (self.rows[self.row][0][: self.col], False)
+                del self.rows[self.row + 1 :]
+        return len(data)
+
+    def resize(self, width: int) -> None:
+        if self.resize_mode == "clip":
+            self.rows = [(text[:width], wraps) for text, wraps in self.rows]
+            self.width, self.col = width, min(self.col, width - 1)
+            return
+        lines: list[str] = []
+        cursor, joined = (0, 0), ""
+        for index, (text, wraps) in enumerate(self.rows):
+            if index == self.row:
+                cursor = (len(lines), len(joined) + self.col)
+            joined += text.ljust(self.width) if wraps else text
+            if not wraps:
+                lines.append(joined)
+                joined = ""
+        self.width, self.rows = width, []
+        for index, line in enumerate(lines):
+            clipped = self.resize_mode == "vscode" and index == cursor[0]
+            chunks = [line[:width]] if clipped else [
+                line[i : i + width] for i in range(0, len(line), width)
+            ] or [""]
+            if index == cursor[0]:
+                row, col = (0, min(cursor[1], width - 1)) if clipped else divmod(cursor[1], width)
+                if row >= len(chunks):  # just past the last cell
+                    row, col = len(chunks) - 1, width
+                self.row, self.col = len(self.rows) + row, col
+            self.rows += [(chunk, i < len(chunks) - 1) for i, chunk in enumerate(chunks)]
+
+    def screen(self) -> list[str]:
+        rows = [text.rstrip() for text, _ in self.rows]
+        while rows and not rows[-1]:
+            rows.pop()
+        return rows
+
+
+def _live_on(terminal: _Terminal):
+    """a live display drawing to ``terminal`` under a command line"""
+    from rich.console import Console
+
+    from youpdated.cli import _LiveProgress
+
+    console = Console(
+        file=terminal, width=terminal.width, height=40, force_terminal=True, color_system="256"
+    )
+    console.print("$ youpdated")
+    live = _LiveProgress(console)
+    live._progress.live.auto_refresh = False
+    return console, live
+
+
+def _start(live) -> None:
+    live.run_started(4)
+    for key in ("python/cpython", "torvalds/linux", "rust-lang/rust"):
+        live.target_started(Target(source="github", key=key))
+    live._progress.refresh()
+
+
+@pytest.mark.parametrize("late", [False, True], ids=["width-on-time", "width-late"])
+@pytest.mark.parametrize("resize", ["rewrap", "vscode", "clip"])
+def test_live_progress_leaves_nothing_behind_when_the_window_is_resized(resize, late):
+    """``late``: frames also go out after the terminal resized, before the new width is known"""
+    terminal = _Terminal(100, resize)
+    console, live = _live_on(terminal)
+    with live:
+        _start(live)
+        for width in (70, 45, 30, 80, 52, 120, 37, 90):
+            terminal.resize(width)
+            if late:
+                live._progress.refresh()
+            console.width = width
+            live._progress.refresh()
+            assert len(terminal.screen()) == 2  # the command and one bar
+
+    console.print("done")
+    assert terminal.screen() == ["$ youpdated", "done"]
+
+
+def test_live_progress_frames_leave_room_to_narrow_into():
+    terminal = _Terminal(100, "rewrap")
+    console, live = _live_on(terminal)
+    with live:
+        _start(live)
+        for width in (92, 85, 78, 72, 66):  # font size steps
+            terminal.resize(width)
+            assert not any(wraps for _, wraps in terminal.rows)
+            console.width = width
+            live._progress.refresh()
+
+
+@pytest.mark.skipif(not hasattr(signal, "SIGWINCH"), reason="no SIGWINCH on Windows")
+def test_live_progress_hides_while_the_window_is_resized():
+    before = signal.getsignal(signal.SIGWINCH)
+    terminal = _Terminal(100, "rewrap")
+    console, live = _live_on(terminal)
+    with live:
+        _start(live)
+        for width in range(99, 40, -1):  # a drag
+            terminal.resize(width)
+            assert not any(wraps for _, wraps in terminal.rows)
+            console.width = width
+            signal.raise_signal(signal.SIGWINCH)
+            live._progress.refresh()
+            assert terminal.screen() == ["$ youpdated"]
+
+        live._render._hidden_until = 0  # the window stopped changing size
+        live._progress.refresh()
+        assert len(terminal.screen()) == 2
+
+    assert signal.getsignal(signal.SIGWINCH) == before
 
 
 def test_live_progress_ignores_calls_before_run_started():

@@ -72,7 +72,7 @@ def _baselined_note(result: RunResult, console: Console) -> None:
 
 
 def render(result: RunResult, console: Console | None = None, verbose: bool = False) -> None:
-    console = console or Console()
+    console = console or Console(highlight=False)
 
     if result.baseline:
         console.print(
