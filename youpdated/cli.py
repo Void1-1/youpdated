@@ -555,9 +555,7 @@ def cmd_init(args: argparse.Namespace, console: Console) -> int:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(EXAMPLE_CONFIG, encoding="utf-8")
         console.print(f"Wrote starter config to [bold]{escape(str(path))}[/]")
-        console.print(
-            "[dim]Change it with `youpdated edit` or `youpdated add`, then run `youpdated check`.[/]"
-        )
+        console.print("[dim]Change it with `youpdated edit` or `youpdated add`, then run `youpdated check`.[/]")
         return 0
 
     # Encrypted from the first byte:
