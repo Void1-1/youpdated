@@ -414,7 +414,7 @@ def test_smart_quotes_and_a_bare_at_are_fixed_on_save(config, tmp_path, monkeypa
     assert main(["edit", "-c", str(config)]) == 0
     out = capsys.readouterr().out
     line = EXAMPLE_CONFIG.splitlines().index("    - express") + 3
-    assert f'Fixed line {line}: @scope/x \u2192 "@scope/x" (it needs quotes)' in out
+    assert f'Fixed line {line}: @scope/x --> "@scope/x" (it needs quotes)' in out
     assert "(smart quotes)" in out
     npm = load_config(config).sources["npm"]
     assert "@types/react" in npm and "@scope/x" in npm

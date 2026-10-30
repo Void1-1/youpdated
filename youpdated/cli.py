@@ -360,7 +360,7 @@ def _configured_editor(value: str) -> tuple[list[str], bool]:
     command = split_command(value, name="`editor`")
     if sys.platform == "darwin" and shutil.which(command[0]) is None:
         # like TextEdit or Visual Studio Code
-        return ["open", "-a", value], True
+        return ["open", "-a", os.path.expanduser(value)], True
     return command, False
 
 

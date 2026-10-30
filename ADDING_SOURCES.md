@@ -266,7 +266,7 @@ if not target.label:
 
 ### Caching a resolved value
 
-`client.state` is a small key-value store for things that are expensive to resolve and never change: the Steam source caches appid→name there, so it looks it up once ever:
+`client.state` is a small key-value store for things that are expensive to resolve and never change: the Steam source caches appid to name there, so it looks it up once ever:
 
 ```python
 cached = client.state.cache_get("my_namespace", key) if client.state else None

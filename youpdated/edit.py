@@ -79,7 +79,7 @@ _INVISIBLE = str.maketrans(
 )
 # smart quotes: opener -> what it stands for, and closers
 _CURLY = {"“": ('"', "”“"), "„": ('"', "”“"), "‘": ("'", "’‘")}
-_BARE = re.compile(r"found character '([@`])' that cannot start a token")
+_BARE = re.compile(r"found character '([@`])' that cannot start any token")
 
 
 def tidy_config(text: str) -> tuple[str, list[str]]:
