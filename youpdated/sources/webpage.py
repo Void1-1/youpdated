@@ -525,7 +525,9 @@ class WebpageSource:
             url = str(require(fields, "url", self.name)).strip()
             parts = urlsplit(url)
             if parts.scheme not in ("http", "https") or not parts.netloc:
-                raise ConfigEntryError(f"sources.{self.name}: `{url}` is not a page URL")
+                raise ConfigEntryError(
+                    f"sources.{self.name}: `{url}` is not an http(s) page URL"
+                )
             pattern = fields.get("regex")
             if pattern is not None:
                 if not isinstance(pattern, str) or not pattern.strip():
