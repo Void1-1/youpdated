@@ -27,6 +27,7 @@
 | `youtube` | the channel feed, with fallbacks |
 | `browser` | each vendor's public version history |
 | `feed` | the feed itself |
+| `webpage` | the page itself |
 
 ## The `privacy:` block
 

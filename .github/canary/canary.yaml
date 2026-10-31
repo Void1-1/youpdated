@@ -41,5 +41,11 @@ sources:
   feed:
     - https://pypi.org/rss/project/youpdated/releases.xml
 
+  webpage:
+    - https://www.videolan.org/vlc/              # download links
+    - https://code.visualstudio.com/updates      # structured data
+    - url: https://www.7-zip.org/
+      regex: 'Download 7-Zip ([\d.]+)'
+
   pypi:
     - youpdated

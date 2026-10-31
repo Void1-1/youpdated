@@ -14,6 +14,9 @@ body:
             - https://example.com/releases.atom
         ```
 
+        If it has no feed but a download page shows the current version, try the
+        built-in `webpage` source: `youpdated add https://example.com/download`.
+
         A dedicated source is worth building when the service has no feed, or when
         a feed loses information a real API would give you (version numbers,
         channels, platforms).
