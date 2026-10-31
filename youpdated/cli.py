@@ -354,7 +354,7 @@ def _configured_editor(value: str) -> tuple[list[str], bool]:
     """a command, a program's path (spaces and all), or on macOS an app's name or path"""
     path = Path(value).expanduser()
     if sys.platform == "darwin" and path.suffix == ".app":
-        return ["open", "-a", str(path)], True
+        return ["open", "-a", os.path.expanduser(value)], True
     if path.is_file():
         return [str(path)], False
     command = split_command(value, name="`editor`")
