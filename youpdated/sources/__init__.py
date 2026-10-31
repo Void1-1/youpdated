@@ -1,5 +1,7 @@
 """Built-in sources. Importing this package registers all"""
 
-from . import browser, generic, git, homebrew, itch, npm, pypi, steam, youtube  # noqa: F401
+from . import browser, generic, git, homebrew, itch, npm, pypi, steam, webpage, youtube  # noqa: F401
 
-__all__ = ["browser", "generic", "git", "homebrew", "itch", "npm", "pypi", "steam", "youtube"]
+__all__ = [
+    "browser", "generic", "git", "homebrew", "itch", "npm", "pypi", "steam", "webpage", "youtube"
+]

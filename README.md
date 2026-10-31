@@ -32,6 +32,7 @@ It is built to be **privacy-preserving, anonymous, and customizable**: no accoun
 | `youtube` | New videos on a channel or playlist |
 | `browser` | New Chrome, Brave, Firefox, and Edge releases |
 | `feed` | Anything else with an RSS or Atom feed |
+| `webpage` | The version a download page shows, for anything with no feed |
 
 ## Get started
 
@@ -70,7 +71,7 @@ youpdated add npm react
 youpdated add youtube @NASA
 ```
 
-A link or handle that can only work with one source doesn't need to be named: `youpdated add https://github.com/neovim/neovim`.
+A link or handle that can only work with one source doesn't need to be named: `youpdated add https://github.com/neovim/neovim`. Any other web address goes under `webpage`.
 
 To watch all dependencies of a project, import its `package.json`, `requirements.txt`, or `Brewfile`: `youpdated import package.json`.
 
@@ -111,6 +112,7 @@ youpdated check
 | A YouTube playlist | `playlist: PLxxxx` | The `list=` part of the playlist URL. A full playlist URL also works. |
 | A browser | `chrome`, `brave`, `firefox`, `edge` | Just the name. |
 | Anything else | `https://example.com/feed.xml` | Any RSS or Atom feed URL. Many sites publish one at `/feed.xml`, `/releases.atom`, or `/blog/rss`. |
+| Anything without a feed | `https://www.videolan.org/vlc/` | The download page's URL. The version is read off the page. See [Web pages](docs/configuration.md#web-pages). |
 
 ## Basic commands
 

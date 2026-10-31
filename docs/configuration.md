@@ -6,6 +6,7 @@ Everything Youpdated watches, and how, is in a YAML file. `youpdated init` write
 - [Identifier details](#identifier-details)
 - [Full example](#full-example)
 - [Git forges](#git-forges)
+- [Web pages](#web-pages)
 - [Ignoring update types](#ignoring-update-types)
 - [Filtering by version](#filtering-by-version)
 - [Tracking the latest release](#tracking-the-latest-release)
@@ -43,6 +44,7 @@ More details and options beyond the [basics](../README.md#where-to-find-identifi
 - **steam:** the game's name is looked up for you; set `name:` to override it.
 - **youtube:** a `UC…` channel id or a full channel URL also works.
 - **browser:** narrow it with `platform:` and `channel:`, as in the [full example](#full-example).
+- **webpage:** a URL. Set `name:` if the page's title is long. How the version is found, and what to do when it isn't, is in [Web pages](#web-pages).
 
 ## Full example
 
@@ -131,6 +133,12 @@ sources:
       name: Obsidian
       limit: 5
 
+  webpage:                           # anything else: the version a page shows
+    - https://www.videolan.org/vlc/
+    - url: https://www.7-zip.org/
+      name: 7-Zip
+      regex: 'Download 7-Zip ([\d.]+)' # define the version information location
+
 notify:                              # optional: push new updates somewhere
   webhooks:
     - https://ntfy.sh/my-private-topic
@@ -151,6 +159,38 @@ No forge needs credentials for *public* repos. A token only raises rate limits, 
 
 Updates are reported under the `git` source with the host in the name:
 `github.com/python/cpython`, not `python/cpython`.
+
+## Web pages
+
+The `webpage` source watches a page that has no feed or registry and reports its version when it changes. Each check looks for the version in these places, most reliable first:
+
+1. **Structured data:** JSON-LD or microdata `softwareVersion`, which many product pages publish for search engines.
+2. **Download links** with a version in the file name, like `App-2.4.1.dmg` or `app_2.4.1_amd64.deb`. All of them must agree.
+3. **Text naming the latest version:** "Latest version: 2.4.1", "Current version is 2.4.1", "Stable 2.4.1".
+4. **Text labelling a version:** "Version 2.4.1", "Release 2.4.1".
+
+The first place with a version decides, and it has to name only one. **A check will try to fail over reporting the wrong version**, so it fails when:
+
+- That place names several versions, like a changelog's "Version 2.4.1 … Version 2.4.0", or links to both the current release and the previous one.
+- Two places name different versions, like structured data that's out of date, or "Version 2.4.1" beside a single `App-1.9.8.dmg` for older systems. A series agrees with its release: "GIMP 3.2" beside `gimp-3.2.6-setup.exe` is fine.
+- There's no version anywhere. A page whose content is built by JavaScript has nothing to read, as Youpdated doesn't run it. If the page links a feed, the error states, as a feed is the better thing to watch.
+
+The page is *not* searched for its highest version-like number. Versions something needs, replaced, or is built on are left out ("Requires macOS 14.0 or later", "Python 3.11+", "upgrading from version 1.9", "Tested on macOS version 14.6", "Apache License, Version 2.0"), and so are series like "2.4.x", dates, and copyright years.
+
+**Where the version was found is remembered.** If a later check finds it somewhere else, it fails rather than reporting, so that a redesigned page can't report incorrect versions. Set `regex:` to pin a version location, or start over with `youpdated rm --wipe webpage URL` and re-`add`.
+
+**When it can't tell, give it `regex:`.** It's matched against the page's HTML, as your browser's View Source shows it, and the first match is the version: its `version` named group, otherwise its first group, otherwise the whole match. Regex replaces the search entirely, so other versions on the page don't matter.
+
+```yaml
+sources:
+  webpage:
+    - url: https://www.wireshark.org/download.html
+      regex: 'Stable Release: ([\d.]+)'
+    - url: https://example.com/download
+      regex: '(?i)example-(?P<version>[\d.]+)-mac\.dmg'   # (?i) ignores case
+```
+
+Each check gives one update: the version, linking to the page. A version with a prerelease marker (`2.5.0-beta.1`, `3.13.0rc1`) is tagged `prerelease`. To see what a page reads as without waiting for it to change: `youpdated check --all -v -s webpage`, which also shows where each version was found.
 
 ## Ignoring update types
 
@@ -189,6 +229,7 @@ These are the tags each default source sets:
 | `youtube` | `video` |
 | `steam` | `news` |
 | `feed` | `item` |
+| `webpage` | `release`, `prerelease` |
 
 An update is dropped if it carries **any** tag listed. A GitHub release candidate is tagged both `release` and `prerelease`, so ignoring `prerelease` drops it while ordinary releases stay.
 

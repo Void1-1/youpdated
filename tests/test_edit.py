@@ -397,28 +397,56 @@ def test_a_symlinked_config_keeps_its_link_and_permissions(tmp_path, config):
         ("https://www.npmjs.com/package/@types/node", "npm", "@types/node"),
         ("https://www.npmjs.com/package/react/v/18.0.0", "npm", "react"),
         ("https://pypi.org/project/httpx/0.27.0/", "pypi", "httpx"),
+        # No other source claims -> they're pages
+        ("https://example.com", "webpage", "https://example.com"),
+        ("https://git.example.org/a/b", "webpage", "https://git.example.org/a/b"),
     ],
 )
 def test_a_source_is_guessed_from_an_entry_only_it_could_be(value, source, entry):
     assert guess_source(value) == (source, entry)
 
 
-@pytest.mark.parametrize("value", ["express", "https://example.com", "https://git.example.org/a/b"])
+@pytest.mark.parametrize("value", ["express", "hashicorp/tap/terraform"])
 def test_an_entry_any_source_could_be_asks_for_one(value):
     with pytest.raises(ConfigError, match=rf"provide a source type: youpdated rm \[source type\] {value}"):
         guess_source(value, "rm")
 
 
+class _Mirror:
+    """Claims everything"""
+
+    name = "mirror"
+
+    def claim(self, value):
+        return value
+
+
+class _Fallback(_Mirror):
+    name = "fallback"
+    fallback = True
+
+
 def test_an_entry_two_sources_claim_names_both(monkeypatch):
-    class Mirror:
-        name = "mirror"
-
-        def claim(self, value):
-            return value
-
-    monkeypatch.setattr("youpdated.edit.all_sources", lambda: {"mirror": Mirror(), "steam": STEAM})
+    monkeypatch.setattr("youpdated.edit.all_sources", lambda: {"mirror": _Mirror(), "steam": STEAM})
     with pytest.raises(ConfigError, match="`440` could be mirror or steam"):
         guess_source("440")
+
+
+def test_a_fallback_claim_gives_way_to_any_other(monkeypatch):
+    monkeypatch.setattr(
+        "youpdated.edit.all_sources", lambda: {"fallback": _Fallback(), "steam": STEAM}
+    )
+    assert guess_source("440") == ("steam", "440")
+    assert guess_source("anything") == ("fallback", "anything")
+
+
+def test_two_fallback_claims_name_both(monkeypatch):
+    other = type("Other", (_Fallback,), {"name": "other"})
+    monkeypatch.setattr(
+        "youpdated.edit.all_sources", lambda: {"fallback": _Fallback(), "other": other()}
+    )
+    with pytest.raises(ConfigError, match="`x` could be fallback or other"):
+        guess_source("x")
 
 
 def test_add_without_a_source_guesses_one_per_entry(config, capsys):

@@ -57,7 +57,7 @@ body:
     attributes:
       label: Youpdated version
       description: Output of `youpdated --version`.
-      placeholder: youpdated 0.1.0
+      placeholder: youpdated 0.4.0
     validations:
       required: true
 

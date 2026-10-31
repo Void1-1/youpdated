@@ -12,6 +12,8 @@
 | `notify` in the `problems` panel | A webhook or command failed. The updates were still recorded, so they won't be sent again. Check the URL, or run the command by hand. |
 | YouTube fails every path | Its feed throttles intermittently. Retry, or set `privacy.proxy`, or export `YOUTUBE_API_KEY`. |
 | An itch game reports nothing | It has neither a devlog nor a file listing. Confirm with `youpdated check -s itch --all -v`. |
+| A `webpage` fails with `more than one version`, `no version found`, or `found X in … but Y in …` | The page doesn't say clearly which version is current, so it isn't guessed. Add `regex:` that matches it; see [Web pages](configuration.md#web-pages). |
+| A `webpage` fails with `earlier checks found the version in …` | The page changed, and the version is now somewhere else. Check the page, then add a `regex:`, or `youpdated rm --wipe webpage URL` and `add` it again. |
 | Everything reports as new again | The history database was deleted or `--state` points somewhere new. |
 | `youpdated: command not found` | The install location isn't on your `PATH`. With pipx, run `pipx ensurepath` and open a new terminal; from source, use `.venv/bin/youpdated`. |
 | `ModuleNotFoundError: youpdated` | You used `pip install -e .` on macOS. Use `pip install .` instead. |

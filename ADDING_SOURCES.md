@@ -266,7 +266,7 @@ if not target.label:
 
 ### Caching a resolved value
 
-`client.state` is a small key-value store for things that are expensive to resolve and never change: the Steam source caches appid to name there, so it looks it up once ever:
+`client.state` is a small key-value store for things that are expensive to resolve and never change: the Steam source caches appid to name there, so it looks it up once:
 
 ```python
 cached = client.state.cache_get("my_namespace", key) if client.state else None
@@ -306,6 +306,12 @@ def claim(self, value: str) -> str | None:
 ```
 
 Claim only what is distinguishable and unique: a host you own, or a shape no other source uses. A bare name like `httpx` could be several sources' entry, and two sources claiming a value stops both from getting it. Like `targets()`, `claim()` must not touch the network.
+
+A source that can read anything of a shape, like `webpage` reading any URL, sets `fallback`. Its claim counts only when no other source claims the value. It never claims a GitHub or itch.io URL away from the source made for it:
+
+```python
+fallback: ClassVar[bool] = True
+```
 
 ### Thread
 

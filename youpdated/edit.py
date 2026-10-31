@@ -161,10 +161,12 @@ def _straighten(text: str, fixes: list[str]) -> str:
 def guess_source(value: str, command: str = "add") -> tuple[str, str]:
     """The source a given value belongs to and it's entry
 
-    Sources with ``claim()`` say which values can only be theirs: a GitHub URL is `git`
+    Sources with ``claim()`` say which values can only be theirs: a GitHub URL is `git`.
+    A ``fallback`` source's claim counts only if no other source claims the value
     """
     value = _clean(value)
     claims: dict[str, str] = {}
+    fallbacks: dict[str, str] = {}
     for name, source in sorted(all_sources().items()):
         claim = getattr(source, "claim", None)
         try:
@@ -172,7 +174,8 @@ def guess_source(value: str, command: str = "add") -> tuple[str, str]:
         except Exception: # a plugin's broken claim can't stop the rest
             entry = None
         if entry is not None:
-            claims[name] = entry
+            (fallbacks if getattr(source, "fallback", False) else claims)[name] = entry
+    claims = claims or fallbacks
     if len(claims) == 1:
         return next(iter(claims.items()))
     if claims:

@@ -646,4 +646,8 @@ sources:
     - https://blog.rust-lang.org/feed.xml
     - url: https://github.com/obsidianmd/obsidian-releases/releases.atom
       name: Obsidian
+
+  # Anything without a feed:
+  # webpage:
+  #   - https://www.videolan.org/vlc/
 """
