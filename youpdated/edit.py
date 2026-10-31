@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 import json
 import os
+import re
 import shutil
 import tempfile
 from contextlib import contextmanager, suppress
@@ -70,6 +71,91 @@ def yaml_scalar(value: str) -> str:
         return value
     # JSON strings are valid YAML double-quoted scalars
     return json.dumps(value, ensure_ascii=False)
+
+
+# no break spaces yaml doesn't like and invisible ones
+_INVISIBLE = str.maketrans(
+    {" ": " ", "​": None, "‌": None, "‍": None, "⁠": None, "﻿": None}
+)
+# smart quotes: opener -> what it stands for, and closers
+_CURLY = {"“": ('"', "”“"), "„": ('"', "”“"), "‘": ("'", "’‘")}
+_BARE = re.compile(r"found character '([@`])' that cannot start any token")
+
+
+def tidy_config(text: str) -> tuple[str, list[str]]:
+    """``text`` with common config typos fixed"""
+    fixes: list[str] = []
+    lines = [n for n, line in enumerate(text.splitlines(), 1) if line.translate(_INVISIBLE) != line]
+    if lines:
+        text = text.translate(_INVISIBLE)
+        where = "line" if len(lines) == 1 else "lines"
+        fixes.append(f"{where} {', '.join(map(str, lines))}: no-break or invisible spaces")
+    text = _quote_bare(text, fixes)
+    return _straighten(text, fixes), fixes
+
+
+def _quote_bare(text: str, fixes: list[str]) -> str:
+    """quotes values YAML refuses to start with `@` or backtick"""
+    for _ in range(text.count("@") + text.count("`")):
+        try:
+            yaml.safe_load(text)
+            break
+        except yaml.MarkedYAMLError as exc:
+            mark = exc.problem_mark
+            if mark is None or not _BARE.fullmatch(exc.problem or ""):
+                break
+        start = mark.index
+        end = text.find("\n", start)
+        line = text[start : len(text) if end < 0 else end].rstrip("\r")
+        before = text[text.rfind("\n", 0, start) + 1 : start]
+        flow = before.count("[") + before.count("{") > before.count("]") + before.count("}")
+        stops = [" #", ": "] + ([",", "]", "}"] if flow else [])
+        value = line[: min([i for i in map(line.find, stops) if i >= 0] or [len(line)])].rstrip()
+        quoted = json.dumps(value, ensure_ascii=False)
+        text = text[:start] + quoted + text[start + len(value) :]
+        fixes.append(f"line {mark.line + 1}: {value} --> {quoted} (it needs quotes)")
+    return text
+
+
+def _straighten(text: str, fixes: list[str]) -> str:
+    """smart-quoted values changed to the correct form"""
+    try:
+        root = yaml.compose(text, Loader=yaml.SafeLoader)
+    except yaml.YAMLError:
+        return text
+    found: list[tuple[int, int, str, str, int]] = []
+    stack, seen = [root], set()
+    while stack:
+        node = stack.pop()
+        if node is None or id(node) in seen:
+            continue
+        seen.add(id(node))
+        if isinstance(node, yaml.MappingNode):
+            stack.extend(part for pair in node.value for part in pair)
+        elif isinstance(node, yaml.SequenceNode):
+            stack.extend(node.value)
+        elif isinstance(node, yaml.ScalarNode) and node.style is None and len(node.value) > 1:
+            start, end = node.start_mark.index, node.end_mark.index
+            quote, closers = _CURLY.get(node.value[0], ("", ""))
+            if node.value[-1] in closers and "\n" not in text[start:end]:
+                inner = node.value[1:-1]
+                fixed = (
+                    json.dumps(inner, ensure_ascii=False) if quote == '"'
+                    else "'" + inner.replace("'", "''") + "'"
+                )
+                found.append((start, end, text[start:end], fixed, node.start_mark.line + 1))
+    if not found:
+        return text
+    fixed_text = text
+    for start, end, _, fixed, _ in sorted(found, reverse=True):
+        fixed_text = fixed_text[:start] + fixed + fixed_text[end:]
+    try:
+        yaml.safe_load(fixed_text)
+    except yaml.YAMLError:
+        return text
+    for _, _, old, new, line in sorted(found):
+        fixes.append(f"line {line}: {old} --> {new} (smart quotes)")
+    return fixed_text
 
 
 def guess_source(value: str, command: str = "add") -> tuple[str, str]:

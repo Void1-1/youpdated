@@ -2,8 +2,12 @@ from __future__ import annotations
 
 import argparse
 import difflib
+import os
+import shutil
 import signal
+import subprocess
 import sys
+import tempfile
 import threading
 import time
 from contextlib import ExitStack
@@ -36,18 +40,19 @@ from .config import (
     default_state_path,
     find_config,
     load_config,
+    parse_config_text,
     read_config_text,
     require_config,
     split_command,
     tool_dir,
 )
-from .edit import add_to_config, guess_source, remove_from_config, write_config
+from .edit import add_to_config, guess_source, remove_from_config, tidy_config, write_config
 from .http import Client, ProxyUnavailable, probe_proxy
 from .importers import READERS, Found, read_file
 from .models import Target
 from .registry import all_aliases, all_sources, get_source
 from .render import json_out, rss_out, terminal
-from .runner import parse_since, record, run
+from .runner import build_targets, parse_since, record, rule_warnings, run
 from .sources.base import Source
 from .state import State, StateError, state_lock
 
@@ -135,6 +140,9 @@ def build_parser() -> argparse.ArgumentParser:
     )
     imports.add_argument("-c", "--config", help="path to a config file")
     imports.add_argument("--test", action="store_true", help="show changes without writing")
+
+    editor = sub.add_parser("edit", help="open the config in your editor")
+    editor.add_argument("-c", "--config", help="path to a config file")
 
     init = sub.add_parser("init", help="write a starter config file")
     init.add_argument("-c", "--config", help="where to write it")
@@ -315,6 +323,228 @@ def cmd_import(args: argparse.Namespace, console: Console) -> int:
     return cmd_edit(args, console, list(found.entries.items()))
 
 
+# An editor returning before this with nothing changed didn't wait for the file
+_QUICK_EDITOR = 2.0
+_DISCARDED = "[dim]Discarded. Nothing was written.[/]"
+_WHEN_SAVED = "Press Enter once you've saved, or Ctrl-C to discard: "
+_SET_EDITOR = "Set `editor:` in the config, or $VISUAL or $EDITOR, to the one you use."
+
+
+def _editor_command(configured: str | None = None) -> tuple[list[str], bool]:
+    """`editor:`, $VISUAL, $EDITOR, then system default"""
+    if configured:
+        return _configured_editor(configured)
+    for name in ("VISUAL", "EDITOR"):
+        command = os.environ.get(name, "")
+        if command.strip():
+            return split_command(command, name=f"${name}"), False
+    if sys.platform == "win32":
+        return ["notepad"], False
+    # a window over ssh would open on the remote screen
+    if not (os.environ.get("SSH_CONNECTION") or os.environ.get("SSH_TTY")):
+        if sys.platform == "darwin":
+            return ["open", "-t"], True
+        desktop = os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")
+        if desktop and shutil.which("xdg-open"):
+            return ["xdg-open"], True
+    return ["nano" if shutil.which("nano") else "vi"], False
+
+
+def _configured_editor(value: str) -> tuple[list[str], bool]:
+    """a command, a program's path (spaces and all), or on macOS an app's name or path"""
+    path = Path(value).expanduser()
+    if sys.platform == "darwin" and path.suffix == ".app":
+        return ["open", "-a", os.path.expanduser(value)], True
+    if path.is_file():
+        return [str(path)], False
+    command = split_command(value, name="`editor`")
+    if sys.platform == "darwin" and shutil.which(command[0]) is None:
+        # like TextEdit or Visual Studio Code
+        return ["open", "-a", os.path.expanduser(value)], True
+    return command, False
+
+
+def _read(path: Path) -> bytes | None:
+    try:
+        return path.read_bytes()
+    except OSError:
+        return None
+
+
+def _scratch_dir() -> str | None:
+    """memory-backed where the system has one"""
+    shm = Path("/dev/shm")
+    return str(shm) if shm.is_dir() and os.access(shm, os.W_OK) else None
+
+
+def _run_editor(command: list[str], path: Path) -> int:
+    env = {k: v for k, v in os.environ.items() if k != crypto.PASSPHRASE_ENV}
+    process = subprocess.Popen([*command, str(path)], env=env)
+    previous = signal.signal(signal.SIGINT, signal.SIG_IGN)
+    try:
+        return process.wait()
+    finally:
+        signal.signal(signal.SIGINT, previous)
+
+
+def _ask(prompt: str) -> str | None:
+    try:
+        return input(prompt).strip().lower()
+    except (EOFError, KeyboardInterrupt):
+        return None
+
+
+def _after_problems(can_save: bool) -> str:
+    """`e` to edit again, `s` to save anyway, `d` to discard"""
+    allowed = "esd" if can_save else "ed"
+    prompt = (
+        "edit again, save anyway, or discard? [E/s/d] " if can_save
+        else "edit again or discard? [E/d] "
+    )
+    while True:
+        answer = _ask(prompt)
+        if answer is None:
+            return "d"
+        if not answer:
+            return "e"
+        if answer[0] in allowed:
+            return answer[0]
+
+
+def _draft_problems(text: str, path: Path) -> tuple[list[str], list[str]]:
+    try:
+        config = parse_config_text(text, path)
+    except ConfigError as exc:
+        return [str(exc)], []
+    _, errors = build_targets(config)
+    return [f"{e.source}: {e.message}" for e in errors], rule_warnings(config)
+
+
+def _loads(text: str, path: Path) -> Config | None:
+    try:
+        return parse_config_text(text, path)
+    except ConfigError:
+        return None
+
+
+def cmd_editor(args: argparse.Namespace, console: Console) -> int:
+    """`edit`: the config through a copy, checked, then written back"""
+    path = require_config(args.config)
+    locked = crypto.is_encrypted_file(path)
+    passphrase = crypto.prompt_passphrase() if locked else None
+    before = path.read_bytes()
+    original = read_config_text(path, passphrase)
+    loaded = _loads(original, path)
+
+    command, opens = _editor_command(loaded.editor if loaded else None)
+    program = shutil.which(command[0])
+    if program is None:
+        console.print(f"[red]Editor not found:[/] {escape(command[0])}. {_SET_EDITOR}")
+        return 1
+    name = escape(Path(command[0]).name)
+
+    scratch = _scratch_dir()
+
+    # if proxy is set & encrypted, consider as potentially worried about leakage of config.
+    # one that doesn't load might be
+    if locked and (loaded is None or loaded.privacy.proxy):
+        console.print(
+            "[yellow]Warning:[/] this config is encrypted and sends requests through a proxy, "
+            "while you edit it, a plaintext copy is kept in "
+            f"{escape(scratch or tempfile.gettempdir())}. It is deleted afterward; "
+            "your editor or device may keep backups or history elsewhere."
+        )
+        if _ask("Continue? [y/N] ") not in ("y", "yes"):
+            console.print("[dim]Cancelled. Nothing was decrypted to disk.[/]")
+            return 1
+
+    with tempfile.TemporaryDirectory(
+        prefix="youpdated-", dir=scratch, ignore_cleanup_errors=True
+    ) as folder:
+        # config's name, so its highlighted as YAML
+        draft = Path(folder) / path.name
+        crypto.write_private(draft, original.encode("utf-8"))
+        while True:
+            shown = _read(draft)
+            if not opens:
+                console.print(
+                    f"[dim]Waiting for {name} to close {escape(path.name)}...[/]"
+                )
+            started = time.monotonic()
+            try:
+                status = _run_editor([program, *command[1:]], draft)
+            except OSError as exc:
+                console.print(f"[red]Cannot run {name}:[/] {escape(str(exc))}")
+                return 1
+            if status != 0:
+                console.print(
+                    f"[red]{name} exited with status {status}.[/] "
+                    "Nothing was written."
+                )
+                if opens:
+                    console.print(f"[dim]{_SET_EDITOR}[/]")
+                return 1
+
+            # a window editor that's still open, so wait for the user instead
+            early = time.monotonic() - started < _QUICK_EDITOR and _read(draft) == shown
+            if opens or early:
+                console.print(
+                    f"[dim]Opened {escape(path.name)} in your editor.[/]" if opens
+                    else f"[dim]{name} returned right away; if it's still open, edit there.[/]"
+                )
+                if _ask(_WHEN_SAVED) is None:
+                    console.print(_DISCARDED)
+                    return 1
+
+            try:
+                edited = read_config_text(draft)
+            except (ConfigError, OSError) as exc:
+                console.print(f"[red]Config error:[/] {escape(str(exc))}")
+                if _after_problems(can_save=False) == "e":
+                    continue
+                console.print(_DISCARDED)
+                return 1
+            if edited != original:
+                edited, fixes = tidy_config(edited)
+                for fix in fixes:
+                    console.print(f"[dim]Fixed {escape(fix)}[/]")
+                if fixes:
+                    # so editing again starts from them
+                    crypto.write_private(draft, edited.encode("utf-8"))
+            if edited == original:
+                console.print("[dim]No changes.[/]")
+                return 0
+
+            problems, warnings = _draft_problems(edited, path)
+            if not problems:
+                break
+            for problem in problems:
+                console.print(f"[red]Config error:[/] {escape(problem)}")
+            choice = _after_problems(can_save=True)
+            if choice == "s":
+                break
+            if choice == "d":
+                console.print(_DISCARDED)
+                return 1
+
+    for warning in warnings:
+        console.print(f"[yellow]Warning:[/] {escape(warning)}")
+    try:
+        current: bytes | None = path.read_bytes()
+    except OSError:
+        current = None
+    if current != before:
+        console.print(f"[yellow]{escape(str(path))} changed while you were editing it.[/]")
+        if _ask("Overwrite it with your edits? [y/N] ") not in ("y", "yes"):
+            console.print(_DISCARDED)
+            return 1
+    write_config(path, edited, passphrase)
+    console.print(
+        f"Saved {'encrypted ' if locked else ''}changes to [bold]{escape(str(path))}[/]"
+    )
+    return 0
+
+
 def cmd_init(args: argparse.Namespace, console: Console) -> int:
     path = Path(args.config).expanduser() if args.config else default_config_path()
     if path.exists() and not args.force:
@@ -325,7 +555,7 @@ def cmd_init(args: argparse.Namespace, console: Console) -> int:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(EXAMPLE_CONFIG, encoding="utf-8")
         console.print(f"Wrote starter config to [bold]{escape(str(path))}[/]")
-        console.print("[dim]Edit it or use `youpdated add`, then run `youpdated check`.[/]")
+        console.print("[dim]Change it with `youpdated edit` or `youpdated add`, then run `youpdated check`.[/]")
         return 0
 
     # Encrypted from the first byte:
@@ -340,8 +570,8 @@ def cmd_init(args: argparse.Namespace, console: Console) -> int:
 
     console.print(f"Wrote encrypted starter config to [bold]{escape(str(path))}[/]")
     console.print(
-        "[dim]Use `youpdated add` and `youpdated rm` to change what it watches. For "
-        "other edits, run `youpdated decrypt`, edit manually, then `youpdated encrypt` again.[/]"
+        "[dim]Use `youpdated add` and `youpdated rm` to change what it watches, and "
+        "`youpdated edit` for anything else.[/]"
     )
     console.print(
         f"[dim]Every command now asks for the passphrase. Set ${crypto.PASSPHRASE_ENV} "
@@ -846,6 +1076,8 @@ def main(argv: list[str] | None = None) -> int:
             return cmd_edit(args, console)
         if args.command == "import":
             return cmd_import(args, console)
+        if args.command == "edit":
+            return cmd_editor(args, console)
         if args.command == "init":
             return cmd_init(args, console)
         if args.command == "uninstall":
