@@ -57,6 +57,7 @@ youpdated rm --wipe 440                # and delete its history
 youpdated import package.json Brewfile # watch everything listed in dependency files
 youpdated import --test requirements.txt # show what it would add without writing
 youpdated import --format requirements.txt <(pip freeze) # a pipe works too
+youpdated edit                         # open the config in the default editor
 youpdated init --force                 # rewrite the starter config
 youpdated init --encrypt               # starter config written encrypted from the start
 youpdated encrypt                      # lock the config and history behind a passphrase
@@ -75,6 +76,8 @@ The source can be left out when an entry can only mean one: a GitHub, GitLab, or
 A removed target's history is forgotten after [`expiry`](configuration.md#how-long-history-is-kept). `rm --wipe` forgets it immediately: seen items, baseline, highest version, names cached for it, and cached addresses it fetched. An address another target still fetches keeps its cache.
 
 If the config is written in a way these can't edit safely, they refuse and say to add or remove by hand.
+
+`edit` opens the config in the [`editor:`](configuration.md#where-is-the-config) if set, then `$VISUAL`, then `$EDITOR`, then your device default text editor, and saves it once closed. Over SSH or without a desktop, the fallback is `nano` or `vi`. An editor that opens a window and returns immediately, like the defaults or `code`, is waited for: save, then press Enter in the cli. It edits a copy, so nothing is saved if the editor exits with an error. Before saving, common issues an editor or a paste can make are fixed and listed: smart quotes around a value (`“@NASA”`), a value starting with `@` or a backtick that needs quotes, and no-break or invisible spaces. The copy is checked with `check --test`: if it doesn't load or has an entry no source can read, it asks to edit again (keeping changes), save anyway, or discard. For an encrypted config, see [Encryption](encryption.md).
 
 `import` reads a `package.json`, `requirements.txt`, or `Brewfile` and adds what it lists. A file is recognized by its name (`requirements-dev.txt`, `requirements/base.txt`, and `~/.Brewfile` count); `--format` reads one named otherwise.
 

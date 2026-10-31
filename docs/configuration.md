@@ -32,6 +32,8 @@ Four locations are checked when running, in the following order, and the first o
 
 Use `youpdated init -c ./youpdated.yaml` if you'd rather keep the config in a project folder. Add `--force` to overwrite an existing file.
 
+`youpdated edit` opens whichever one is used in your editor, so you don't need its path. See [`edit`](usage.md). To choose the editor, set `editor:` to a command (`code`, `vim -n`), a program's path, or (on macOS) an app's name or path (`TextEdit`, `/Applications/Zed.app`). It's used over `$VISUAL` and `$EDITOR`.
+
 ## Identifier details
 
 More details and options beyond the [basics](../README.md#where-to-find-identifiers):
@@ -65,6 +67,7 @@ versions:                            # which versions are reported
 
 expiry: 1y                           # forget items missing from every fetch this long
 track_latest: true                   # also ask forges and Steam for the latest release
+editor: code                         # what `youpdated edit` opens
 
 sources:
   git:                               # GitHub, GitLab, Codeberg, Forgejo/Gitea

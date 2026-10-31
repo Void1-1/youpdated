@@ -102,6 +102,8 @@ class Config:
     # Ask every source that can for its latest release, even at a request more per target
     track_latest: bool = False
     notify: NotifyConfig = field(default_factory=NotifyConfig)
+    # editor `youpdated edit` opens
+    editor: str | None = None
     path: Path | None = None
 
     def ignored_tags(self, source: str) -> frozenset[str]:
@@ -175,11 +177,16 @@ def require_config(explicit: str | Path | None = None) -> Path:
 
 def load_config(explicit: str | Path | None = None, passphrase: str | None = None) -> Config:
     path = require_config(explicit)
-    text = read_config_text(path, passphrase)
+    return parse_config_text(read_config_text(path, passphrase), path)
+
+
+def parse_config_text(text: str, path: Path | None = None) -> Config:
+    """:func:`parse_config` for YAML text"""
     try:
         raw = yaml.safe_load(text) or {}
     except yaml.YAMLError as exc:
-        raise ConfigError(f"{path}: invalid YAML: {exc}") from exc
+        where = f"{path}: " if path else ""
+        raise ConfigError(f"{where}invalid YAML: {exc}") from exc
     return parse_config(raw, path=path)
 
 
@@ -234,8 +241,17 @@ def parse_config(raw: Any, path: Path | None = None) -> Config:
         expiry=_parse_expiry(raw.get("expiry", DEFAULT_EXPIRY), where),
         track_latest=_parse_track_latest(raw.get("track_latest", False), where),
         notify=_parse_notify(raw.get("notify"), where),
+        editor=_parse_editor(raw.get("editor"), where),
         path=path,
     )
+
+
+def _parse_editor(raw: Any, where: str) -> str | None:
+    if raw is None:
+        return None
+    if not isinstance(raw, str) or not raw.strip():
+        raise ConfigError(f"{where}`editor` must be a command, a program's path, or an app's name")
+    return raw.strip()
 
 
 def _parse_expiry(raw: Any, where: str) -> timedelta | None:
@@ -568,6 +584,10 @@ privacy:
 # ignore:, and an entry can have its own.
 # versions:
 #   npm: {bump: major}
+
+# The editor `youpdated edit` opens: a command, a program's path, or app's name on
+# macOS. Default: $VISUAL, $EDITOR, or the system's text editor.
+# editor: code
 
 # Push each run's new updates to a webhook and/or a command run once per update.
 # notify:
