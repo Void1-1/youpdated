@@ -43,18 +43,32 @@ class PrivacyConfig:
 WEBHOOK_FORMATS = ("json", "discord", "slack", "ntfy")
 
 
+# target's priority, lowest first
+PRIORITIES = ("low", "normal", "high")
+
+
 @dataclass
 class Webhook:
     url: str
     format: str = "json"
     headers: dict[str, str] = field(default_factory=dict)
+    priority: str = "normal"
+    # follow app's digest if set
+    digest: bool = True
+
+
+@dataclass
+class Command:
+    # once per update
+    argv: list[str]
+    priority: str = "normal"
+    digest: bool = True
 
 
 @dataclass
 class NotifyConfig:
     webhooks: list[Webhook] = field(default_factory=list)
-    # argv lists, run once per update
-    commands: list[list[str]] = field(default_factory=list)
+    commands: list[Command] = field(default_factory=list)
     timeout: float = 30.0
 
     @property
@@ -175,19 +189,26 @@ def require_config(explicit: str | Path | None = None) -> Path:
     return path
 
 
-def load_config(explicit: str | Path | None = None, passphrase: str | None = None) -> Config:
+def load_config(
+    explicit: str | Path | None = None,
+    passphrase: str | None = None,
+    *,
+    allow_empty: bool = False,
+) -> Config:
     path = require_config(explicit)
-    return parse_config_text(read_config_text(path, passphrase), path)
+    return parse_config_text(read_config_text(path, passphrase), path, allow_empty=allow_empty)
 
 
-def parse_config_text(text: str, path: Path | None = None) -> Config:
+def parse_config_text(
+    text: str, path: Path | None = None, *, allow_empty: bool = False
+) -> Config:
     """:func:`parse_config` for YAML text"""
     try:
         raw = yaml.safe_load(text) or {}
     except yaml.YAMLError as exc:
         where = f"{path}: " if path else ""
         raise ConfigError(f"{where}invalid YAML: {exc}") from exc
-    return parse_config(raw, path=path)
+    return parse_config(raw, path=path, allow_empty=allow_empty)
 
 
 def read_config_text(path: Path, passphrase: str | None = None) -> str:
@@ -208,7 +229,8 @@ def read_config_text(path: Path, passphrase: str | None = None) -> str:
         ) from exc
 
 
-def parse_config(raw: Any, path: Path | None = None) -> Config:
+def parse_config(raw: Any, path: Path | None = None, *, allow_empty: bool = False) -> Config:
+    """``allow_empty``: a config watching nothing is fine, as it is for the app"""
     where = f"{path}: " if path else ""
     if not isinstance(raw, dict):
         raise ConfigError(f"{where}top level must be a mapping")
@@ -216,6 +238,8 @@ def parse_config(raw: Any, path: Path | None = None) -> Config:
     privacy = _parse_privacy(raw.get("privacy") or {}, where)
 
     sources_raw = raw.get("sources")
+    if sources_raw is None and allow_empty:
+        sources_raw = {}
     if sources_raw is None:
         raise ConfigError(f"{where}missing required `sources:` section")
     if not isinstance(sources_raw, dict):
@@ -230,7 +254,7 @@ def parse_config(raw: Any, path: Path | None = None) -> Config:
         if entries:
             sources[str(name)] = entries
 
-    if not sources:
+    if not sources and not allow_empty:
         raise ConfigError(f"{where}`sources` has no entries. Nothing to check")
 
     return Config(
@@ -425,7 +449,36 @@ def guess_webhook_format(url: str) -> str:
 
 # RFC 9110 token characters. httpx accepted in a header name
 _HEADER_NAME_RE = re.compile(r"[!#$%&'*+\-.^_`|~0-9A-Za-z]+")
-_WEBHOOK_KEYS = {"url", "format", "headers"}
+_ENDPOINT_KEYS = {"priority", "digest"}
+_WEBHOOK_KEYS = {"url", "format", "headers"} | _ENDPOINT_KEYS
+_COMMAND_KEYS = {"run"} | _ENDPOINT_KEYS
+
+
+def _parse_endpoint_rules(fields: dict[Any, Any], where: str, name: str) -> tuple[str, bool]:
+    """An endpoint's `priority:` and `digest:`"""
+    priority = fields.get("priority", "normal")
+    if not isinstance(priority, str) or priority.strip().lower() not in PRIORITIES:
+        raise ConfigError(f"{where}{name} `priority` must be one of {list(PRIORITIES)}")
+    digest = fields.get("digest", True)
+    if not isinstance(digest, bool):
+        raise ConfigError(f"{where}{name} `digest` must be true or false")
+    return priority.strip().lower(), digest
+
+
+def _parse_command(raw: Any, where: str) -> Command:
+    """`command:` as a string or list, or a mapping with `run:` and options"""
+    if not isinstance(raw, dict):
+        return Command(split_command(raw, where))
+    unknown = set(raw) - _COMMAND_KEYS
+    if unknown:
+        raise ConfigError(
+            f"{where}unknown `notify.command` option(s): "
+            f"{', '.join(sorted(map(str, unknown)))}; expected {sorted(_COMMAND_KEYS)}"
+        )
+    if "run" not in raw:
+        raise ConfigError(f"{where}`notify.command` mapping needs `run:`, the command")
+    priority, digest = _parse_endpoint_rules(raw, where, "`notify.command`")
+    return Command(split_command(raw["run"], where, "`notify.command.run`"), priority, digest)
 
 
 def _parse_webhook(raw: Any, where: str) -> Webhook:
@@ -473,7 +526,14 @@ def _parse_webhook(raw: Any, where: str) -> Webhook:
             raise ConfigError(
                 f"{where}`notify.webhooks` header {name} has a line break in its value"
             )
-    return Webhook(url=url, format=fmt, headers={k: str(v) for k, v in headers.items()})
+    priority, digest = _parse_endpoint_rules(fields, where, "`notify.webhooks`")
+    return Webhook(
+        url=url,
+        format=fmt,
+        headers={k: str(v) for k, v in headers.items()},
+        priority=priority,
+        digest=digest,
+    )
 
 
 def _parse_notify(raw: Any, where: str) -> NotifyConfig:
@@ -491,7 +551,7 @@ def _parse_notify(raw: Any, where: str) -> NotifyConfig:
 
     command = raw.get("command")
     if command is not None:
-        notify.commands.append(split_command(command, where))
+        notify.commands.append(_parse_command(command, where))
 
     timeout = raw.get("timeout")
     if timeout is not None:

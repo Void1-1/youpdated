@@ -1,0 +1,16 @@
+{
+  "description": "For the widget",
+  "request": {
+    "id": 27,
+    "op": "snapshot.write",
+    "path": "/Users/me/Library/Group Containers/TEAMID.app.youpdated/snapshot.json"
+  },
+  "events": [],
+  "reply": {
+    "id": 27,
+    "ok": true,
+    "path": "/Users/me/Library/Group Containers/TEAMID.app.youpdated/snapshot.json",
+    "redacted": false,
+    "items": 3
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "description": "No icon",
+  "request": {
+    "id": 47,
+    "op": "icon.get",
+    "source": "npm",
+    "key": "react"
+  },
+  "events": [],
+  "reply": {
+    "id": 47,
+    "ok": true,
+    "icon": null
+  }
+}

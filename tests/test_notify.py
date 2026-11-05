@@ -16,7 +16,14 @@ import respx
 
 from youpdated import crypto, notify
 from youpdated.cli import main
-from youpdated.config import ConfigError, NotifyConfig, Webhook, parse_config, split_command
+from youpdated.config import (
+    Command,
+    ConfigError,
+    NotifyConfig,
+    Webhook,
+    parse_config,
+    split_command,
+)
 from youpdated.models import Update
 from youpdated.state import State
 
@@ -90,6 +97,10 @@ def test_a_single_webhook_needs_no_list():
         {"webhooks": ["https://ntfy.sh/"]},
         {"webhooks": [{"url": "https://ntfy.example.org", "format": "ntfy"}]},
         {"timeout": "5"},
+        {"webhooks": [{"url": "https://x.org", "priority": "urgent"}]},
+        {"webhooks": [{"url": "https://x.org", "digest": "no"}]},
+        {"command": {"priority": "high"}},
+        {"command": {"run": "say hi", "when": "now"}},
     ],
 )
 def test_bad_notify_config_is_rejected(raw):
@@ -102,7 +113,38 @@ def test_command_strings_split_like_a_shell_without_running_one():
     assert split_command("notify-send 'New: {title}' {url}") == [
         "notify-send", "New: {title}", "{url}",
     ]
-    assert parse_notify({"command": ["say", "{title}"]}).commands == [["say", "{title}"]]
+    assert parse_notify({"command": ["say", "{title}"]}).commands == [Command(["say", "{title}"])]
+
+
+def test_endpoints_take_a_priority_and_digest():
+    config = parse_notify({
+        "webhooks": [
+            {"url": "https://ntfy.sh/phone", "priority": "high"},
+            {"url": "https://example.com/archive", "priority": "low", "digest": False},
+            "https://example.com/plain",
+        ],
+        "command": {"run": ["notify-send", "{label}", "{title}"], "priority": "Normal"},
+    })
+    assert [(h.priority, h.digest) for h in config.webhooks] == [
+        ("high", True), ("low", False), ("normal", True),
+    ]
+    assert config.commands == [Command(["notify-send", "{label}", "{title}"], "normal", True)]
+
+
+def test_takes_follows_priority_and_the_digest():
+    high, normal, low = (make_update(n, target=t) for n, t in ((1, "h"), (2, "n"), (3, "l")))
+    updates, priorities = [high, normal, low], {("npm", "h"): "high", ("npm", "l"): "low"}
+    everything = Command(["x"], priority="low")
+    at_once = Command(["x"], digest=False)
+
+    assert notify.takes(Command(["x"]), updates, priorities) == [high, normal]
+    assert notify.takes(Command(["x"], priority="high"), updates, priorities) == [high]
+    assert notify.takes(everything, updates, priorities) == updates
+    # while a digest is held, only high goes out at once
+    assert notify.takes(everything, updates, priorities, "hold") == [high]
+    assert notify.takes(everything, updates, priorities, "send") == updates
+    assert notify.takes(at_once, updates, priorities, "hold") == [high, normal]
+    assert notify.takes(at_once, updates, priorities, "send") == []
 
 
 def test_command_errors_name_where_the_command_came_from():
@@ -371,7 +413,7 @@ def test_encrypted_state_is_saved_before_notifying(tmp_path, monkeypatch):
         state.set_last_run()  # creates the file encrypted
     recorded = []
 
-    def send(updates, labels, config, client):
+    def send(updates, labels, config, client, priorities=None):
         # What a run killed at this moment leaves on disk. Read as a file: the run holds
         # the lock a State would wait for
         on_disk = sqlite3.connect(":memory:")

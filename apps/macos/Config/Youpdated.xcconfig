@@ -1,0 +1,21 @@
+// Settings every target shares
+
+YOUPDATED_BUNDLE_ID = io.github.void1-1.Youpdated
+
+// Set to Apple Developer team once enrolled. Empty builds unsigned or ad-hoc signed.
+DEVELOPMENT_TEAM =
+
+// Team-ID-prefixed
+YOUPDATED_APP_GROUP = $(DEVELOPMENT_TEAM).$(YOUPDATED_BUNDLE_ID)
+
+// app's version, released on `app-v*` tags; the release workflow checks it against the tag.
+MARKETING_VERSION = 0.9.0
+CURRENT_PROJECT_VERSION = 1
+
+MACOSX_DEPLOYMENT_TARGET = 15.0
+SWIFT_VERSION = 6.0
+// Apple silicon only, like the frozen engine
+ARCHS = arm64
+ONLY_ACTIVE_ARCH[config=Debug] = YES
+ENABLE_HARDENED_RUNTIME = YES
+CODE_SIGN_STYLE = Automatic

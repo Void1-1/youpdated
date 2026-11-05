@@ -1,0 +1,47 @@
+name: apps
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/**"
+      - "youpdated/**"
+      - ".github/workflows/apps.yml"
+  pull_request:
+    paths:
+      - "apps/**"
+      - "youpdated/**"
+      - ".github/workflows/apps.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  macos:
+    name: macOS app
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Build
+        run: swift build --package-path apps/macos
+
+      - name: Test
+        run: swift test --package-path apps/macos
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+
+      # In a temporary setup, and sends no real requests
+      - name: Test against the real engine
+        run: |
+          python -m pip install .
+          YOUPDATED_LIVE_ENGINE="$(which python) -m youpdated" swift test --package-path apps/macos --filter LiveEngineTests
+
+      # The app bundle only builds through the project
+      - name: Build the app
+        run: >
+          xcodebuild -project apps/macos/Youpdated.xcodeproj -scheme Youpdated
+          -destination 'generic/platform=macOS' CODE_SIGNING_ALLOWED=NO build

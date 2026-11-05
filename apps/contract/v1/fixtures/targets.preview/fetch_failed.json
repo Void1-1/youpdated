@@ -1,0 +1,20 @@
+{
+  "description": "Recognized, but the fetch failed",
+  "request": {
+    "id": 36,
+    "op": "targets.preview",
+    "value": "https://store.steampowered.com/app/440/"
+  },
+  "events": [],
+  "reply": {
+    "id": 36,
+    "ok": true,
+    "source": "steam",
+    "entry": "440",
+    "key": "440",
+    "display": "440",
+    "already_watching": false,
+    "newest": null,
+    "fetch_error": "FetchError: https://store.steampowered.com/feeds/news/app/440: timed out"
+  }
+}

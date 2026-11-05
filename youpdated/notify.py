@@ -7,11 +7,12 @@ import os
 import re
 import signal
 import subprocess
+from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Protocol
 from urllib.parse import urlsplit, urlunsplit
 
-from .config import NotifyConfig, Webhook
+from .config import PRIORITIES, NotifyConfig, Webhook
 from .crypto import PASSPHRASE_ENV
 from .http import Client, FetchError, redact_url
 from .models import RunError, Update
@@ -30,20 +31,77 @@ _PLACEHOLDER_RE = re.compile(r"\{(source|target|label|title|url|version|publishe
 SECRET_ENV = (PASSPHRASE_ENV, "GITHUB_TOKEN", "GITLAB_TOKEN", "YOUTUBE_API_KEY")
 
 
+class Endpoint(Protocol):
+    @property
+    def priority(self) -> str: ...
+
+    @property
+    def digest(self) -> bool: ...
+
+
+@dataclass(frozen=True)
+class Rules:
+    """Endpoint rules for the app's OS notifications"""
+
+    priority: str = "normal"
+    digest: bool = True
+
+
+# ``(source, key)``
+Priorities = dict[tuple[str, str], str]
+
+
+def priority_of(update: Update, priorities: Priorities | None) -> str:
+    return (priorities or {}).get((update.source, update.target), "normal")
+
+
+def receives(endpoint: Endpoint, priority: str) -> bool:
+    """if ``endpoint`` takes an item of ``priority``"""
+    return PRIORITIES.index(priority) >= PRIORITIES.index(endpoint.priority)
+
+
+def takes(
+    endpoint: Endpoint,
+    updates: list[Update],
+    priorities: Priorities | None = None,
+    digest: str | None = None,
+) -> list[Update]:
+    """``updates`` ``endpoint`` gets now"""
+    following = digest is not None and endpoint.digest
+    if digest == "send" and not following:
+        # it had them as they were found
+        return []
+    kept = []
+    for update in updates:
+        priority = priority_of(update, priorities)
+        if not receives(endpoint, priority):
+            continue
+        if digest == "hold" and following and priority != "high":
+            continue
+        kept.append(update)
+    return kept
+
+
 def send(
     updates: list[Update],
     labels: dict[tuple[str, str], str],
     notify: NotifyConfig,
     client: Client,
+    priorities: Priorities | None = None,
+    *,
+    digest: str | None = None,
 ) -> list[RunError]:
     """Notify every configured endpoint about ``updates``. Failures returned"""
     if not updates or not notify.enabled:
         return []
     errors = []
     for hook in notify.webhooks:
+        wanted = takes(hook, updates, priorities, digest)
+        if not wanted:
+            continue
         url = _post_url(hook)
         try:
-            for payload in webhook_payloads(hook, updates, labels):
+            for payload in webhook_payloads(hook, wanted, labels):
                 client.post(url, json=payload, headers=hook.headers)
         except (FetchError, ValueError) as exc:
             # The target already names the endpoint
@@ -54,17 +112,26 @@ def send(
             errors.append(
                 RunError(source="notify", target=redact_url(hook.url), message=type(exc).__name__)
             )
-    for argv in notify.commands:
-        error = run_command(argv, updates, labels, notify.timeout)
+    for command in notify.commands:
+        wanted = takes(command, updates, priorities, digest)
+        if not wanted:
+            continue
+        error = run_command(command.argv, wanted, labels, notify.timeout)
         if error is not None:
             errors.append(error)
     return errors
 
 
+def _rules(endpoint: Endpoint) -> str:
+    return "" if endpoint.priority == "normal" else f" (priority {endpoint.priority} and up)"
+
+
 def describe(notify: NotifyConfig) -> list[str]:
     """One line per endpoint, for ``check --test``"""
-    lines = [f"{hook.format} webhook {redact_url(hook.url)}" for hook in notify.webhooks]
-    lines += [f"command {' '.join(argv)}" for argv in notify.commands]
+    lines = [
+        f"{hook.format} webhook {redact_url(hook.url)}{_rules(hook)}" for hook in notify.webhooks
+    ]
+    lines += [f"command {' '.join(c.argv)}{_rules(c)}" for c in notify.commands]
     return lines
 
 # webhooks

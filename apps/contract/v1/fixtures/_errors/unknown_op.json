@@ -1,0 +1,16 @@
+{
+  "description": "An op this engine doesn't have",
+  "request": {
+    "id": 3,
+    "op": "inbox.purge"
+  },
+  "events": [],
+  "reply": {
+    "id": 3,
+    "ok": false,
+    "error": {
+      "code": "unknown_op",
+      "message": "unknown op `inbox.purge`"
+    }
+  }
+}

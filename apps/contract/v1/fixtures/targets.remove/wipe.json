@@ -1,0 +1,23 @@
+{
+  "description": "Remove and forget history",
+  "request": {
+    "id": 42,
+    "op": "targets.remove",
+    "source": "steam",
+    "key": "440",
+    "wipe": true
+  },
+  "events": [],
+  "reply": {
+    "id": 42,
+    "ok": true,
+    "removed": [
+      "440"
+    ],
+    "wiped": {
+      "seen": 42,
+      "validators": 1,
+      "inbox": 2
+    }
+  }
+}

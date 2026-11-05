@@ -5,11 +5,22 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for the report. Before filing, it's worth checking the
-        [Troubleshooting table](https://github.com/Void1-1/youpdated#troubleshooting)
+        Thanks for the report. Before filing, it's worth checking
+        [Troubleshooting](https://github.com/Void1-1/youpdated/blob/main/docs/troubleshooting.md)
 
         **Please don't paste API keys or tokens.** If you set `GITHUB_TOKEN` or
         `YOUTUBE_API_KEY`, say *that* you set it rather than what it is.
+
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where it happened
+      options:
+        - Mac app (beta)
+        - Command line
+        - Both
+    validations:
+      required: true
 
   - type: textarea
     id: what-happened
@@ -23,7 +34,9 @@ body:
     id: repro
     attributes:
       label: How to reproduce
-      description: The exact command you ran, and the smallest config that shows it.
+      description: |
+        In the app, the steps you took. On the command line, the exact command you ran,
+        and the smallest config that shows it.
       placeholder: |
         1. Config (trim it to just the entry that misbehaves):
            sources:
@@ -42,13 +55,16 @@ body:
       description: Leave blank if it isn't source-specific.
       multiple: true
       options:
-        - github
+        - git
         - npm
+        - pypi
+        - homebrew
         - steam
         - itch
         - youtube
         - browser
         - feed
+        - webpage
         - not source-specific / core
         - a third-party source plugin
 
@@ -56,27 +72,30 @@ body:
     id: version
     attributes:
       label: Youpdated version
-      description: Output of `youpdated --version`.
-      placeholder: youpdated 0.4.0
+      description: |
+        In the app, App version and Engine version, from the bottom of Settings.
+        On the command line, the output of `youpdated --version`.
+      placeholder: App 0.9.0, Engine 0.4.0 / youpdated 0.4.0
     validations:
       required: true
 
   - type: input
     id: environment
     attributes:
-      label: OS and Python version
-      description: Output of `python3 --version`, plus your OS.
-      placeholder: macOS 15.1, Python 3.12.4
+      label: OS, and Python version on the command line
+      description: Your OS, plus the output of `python3 --version` if you use the command line.
+      placeholder: macOS 15.1 / macOS 15.1, Python 3.12.4
     validations:
       required: true
 
   - type: textarea
     id: verbose-output
     attributes:
-      label: Verbose output
+      label: Details or verbose output
       description: |
-        Run the failing command with `-v` and paste the output. This shows each
-        request and its status, which is usually enough to identify the cause.
+        In the app, the text from Copy Details in the Problems list, if there is one.
+        On the command line, run the failing command with `-v` and paste the output. This
+        shows each request and its status, which is usually enough to identify the cause.
         `--test` is a good alternative if the problem is in config handling.
       render: text
 
@@ -85,7 +104,7 @@ body:
     attributes:
       label: Before submitting
       options:
-        - label: I checked the Troubleshooting section
+        - label: I checked the Troubleshooting page
           required: true
         - label: I removed any tokens, keys, or personal paths from what I pasted
           required: true

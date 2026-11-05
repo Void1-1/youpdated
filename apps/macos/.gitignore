@@ -1,0 +1,5 @@
+# SwiftPM and Xcode build output. scripts/ builds under ~/Library/Caches/Youpdated.
+.build/
+.swiftpm/
+xcuserdata/
+DerivedData/

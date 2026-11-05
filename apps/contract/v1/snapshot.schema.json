@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Void1-1/youpdated/apps/contract/v1/snapshot.schema.json",
+  "title": "Widget snapshot, version 1",
+  "description": "File `snapshot.write` gives a macOS widget. When the history is encrypted, `redacted` is true and `items` is empty.",
+  "type": "object",
+  "required": ["version", "written_at", "last_check", "unread", "redacted", "items"],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "const": 1 },
+    "written_at": { "$ref": "contract.schema.json#/$defs/Timestamp" },
+    "last_check": {
+      "oneOf": [{ "$ref": "contract.schema.json#/$defs/Timestamp" }, { "type": "null" }]
+    },
+    "unread": { "type": "integer", "minimum": 0 },
+    "redacted": { "type": "boolean" },
+    "items": {
+      "description": "The newest unread items, newest first, at most 10",
+      "type": "array",
+      "maxItems": 10,
+      "items": {
+        "type": "object",
+        "required": ["id", "source", "display", "title", "url", "found_at"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string" },
+          "source": { "type": "string" },
+          "display": { "type": "string" },
+          "title": { "type": "string" },
+          "url": { "type": "string" },
+          "found_at": { "$ref": "contract.schema.json#/$defs/Timestamp" }
+        }
+      }
+    }
+  }
+}

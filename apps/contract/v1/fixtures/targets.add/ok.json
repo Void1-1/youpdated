@@ -1,0 +1,28 @@
+{
+  "description": "Adding previewed content",
+  "request": {
+    "id": 33,
+    "op": "targets.add",
+    "source": "git",
+    "entries": [
+      "python/cpython"
+    ]
+  },
+  "events": [],
+  "reply": {
+    "id": 33,
+    "ok": true,
+    "section": "git",
+    "added": [
+      "python/cpython"
+    ],
+    "skipped": [],
+    "targets": [
+      {
+        "source": "git",
+        "key": "github.com/python/cpython",
+        "display": "python/cpython"
+      }
+    ]
+  }
+}

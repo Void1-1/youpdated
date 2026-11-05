@@ -1,0 +1,23 @@
+{
+  "description": "Turning on icons; the next check fetches",
+  "request": {
+    "id": 45,
+    "op": "settings.set",
+    "settings": {
+      "show_icons": true
+    }
+  },
+  "events": [],
+  "reply": {
+    "id": 45,
+    "ok": true,
+    "settings": {
+      "check_interval_hours": 6,
+      "digest_time": null,
+      "os_notifications": true,
+      "self_watch_declined": false,
+      "cli_notice_shown": false,
+      "show_icons": true
+    }
+  }
+}

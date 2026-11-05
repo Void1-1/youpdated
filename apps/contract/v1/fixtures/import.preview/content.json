@@ -1,0 +1,26 @@
+{
+  "description": "Pasted requirements",
+  "request": {
+    "id": 15,
+    "op": "import.preview",
+    "content": "httpx>=0.27\nrich\n",
+    "format": "requirements.txt"
+  },
+  "events": [],
+  "reply": {
+    "id": 15,
+    "ok": true,
+    "add": [
+      {
+        "source": "pypi",
+        "entries": [
+          "httpx",
+          "rich"
+        ]
+      }
+    ],
+    "already": [],
+    "skipped": [],
+    "warnings": []
+  }
+}

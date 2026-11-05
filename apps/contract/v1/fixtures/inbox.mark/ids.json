@@ -1,0 +1,18 @@
+{
+  "description": "Opening an item",
+  "request": {
+    "id": 20,
+    "op": "inbox.mark",
+    "read": true,
+    "ids": [
+      "i_8f3a1c2e9b7d4a10"
+    ]
+  },
+  "events": [],
+  "reply": {
+    "id": 20,
+    "ok": true,
+    "changed": 1,
+    "unread": 3
+  }
+}

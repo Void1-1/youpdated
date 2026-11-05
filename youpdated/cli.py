@@ -33,9 +33,9 @@ from . import __version__, crypto, notify
 from .cleanup import Trace, find_package, find_traces, remove_package, remove_traces
 from .config import (
     EXAMPLE_CONFIG,
+    Command,
     Config,
     ConfigError,
-    PrivacyConfig,
     default_config_path,
     default_state_path,
     find_config,
@@ -46,14 +46,19 @@ from .config import (
     split_command,
     tool_dir,
 )
-from .edit import add_to_config, guess_source, remove_from_config, tidy_config, write_config
+from .edit import (
+    add_to_config,
+    guess_source,
+    remove_from_config,
+    requested_urls,
+    tidy_config,
+    write_config,
+)
 from .http import Client, ProxyUnavailable, probe_proxy
 from .importers import READERS, Found, read_file
-from .models import Target
 from .registry import all_aliases, all_sources, get_source
 from .render import json_out, rss_out, terminal
 from .runner import build_targets, parse_since, record, rule_warnings, run
-from .sources.base import Source
 from .state import State, StateError, state_lock
 
 
@@ -179,6 +184,17 @@ def build_parser() -> argparse.ArgumentParser:
         "-y", "--yes", action="store_true", help="skip confirmation"
     )
 
+    api = sub.add_parser(
+        "api",
+        help="JSON interface for desktop apps",
+        description="`serve` uses JSON lines on stdin and stdout",
+    )
+    api.add_argument("op", metavar="OP", help="serve, or an op, ex: status, inbox.list")
+    api.add_argument("--json", action="store_true", help="print the reply as JSON (always on)")
+    api.add_argument("--params", metavar="JSON", help="op's params, as JSON")
+    api.add_argument("-c", "--config", help="path to a config file")
+    api.add_argument("--state", help="path to the state database")
+
     return parser
 
 
@@ -193,18 +209,6 @@ def cmd_sources(console: Console) -> int:
         "\n[dim]Add with `youpdated add SOURCE ENTRY`, or under `sources:` in your config.[/]"
     )
     return 0
-
-
-def _probe_urls(source: Source | None, targets: list[Target], state: State) -> set[str]:
-    if source is None:
-        return set()
-    with Client(PrivacyConfig(), state, test=True) as client:
-        for target in targets:
-            try:
-                list(source.fetch(target, client))
-            except Exception: # a source that needs an answer to continue stops early
-                pass
-        return set(client.requested_urls)
 
 
 def _edit_plan(command: str, words: list[str]) -> list[tuple[str, list[str]]]:
@@ -277,7 +281,7 @@ def cmd_edit(
         with State(state_path, passphrase=passphrase if state_locked else None) as state:
             for change in wiped:
                 source = get_source(change.section)
-                urls = _probe_urls(source, change.dropped, state)
+                urls = requested_urls(source, change.dropped, state)
                 seen, validators = state.forget(
                     change.section,
                     change.dropped_keys,
@@ -455,7 +459,7 @@ def cmd_editor(args: argparse.Namespace, console: Console) -> int:
             "your editor or device may keep backups or history elsewhere."
         )
         if _ask("Continue? [y/N] ") not in ("y", "yes"):
-            console.print("[dim]Cancelled. Nothing was decrypted to disk.[/]")
+            console.print("[dim]Canceled. Nothing was decrypted to disk.[/]")
             return 1
 
     with tempfile.TemporaryDirectory(
@@ -717,7 +721,7 @@ def cmd_uninstall(args: argparse.Namespace, console: Console) -> int:
         except (EOFError, KeyboardInterrupt):
             answer = ""
         if answer not in ("yes", "y"):
-            console.print("[dim]Cancelled. Nothing deleted.[/]")
+            console.print("[dim]Canceled. Nothing deleted.[/]")
             return 1
 
     failed: list[tuple[Trace, str]] = []
@@ -948,7 +952,7 @@ def cmd_check(args: argparse.Namespace, console: Console) -> int:
         notify_config = replace(
             notify_config,
             commands=notify_config.commands
-            + [split_command(cmd, name="--notify-cmd") for cmd in args.notify_cmd],
+            + [Command(split_command(cmd, name="--notify-cmd")) for cmd in args.notify_cmd],
         )
     # --all and --no-save report things already seen, they will not send notification by default
     send_notifications = (
@@ -1043,7 +1047,10 @@ def cmd_check(args: argparse.Namespace, console: Console) -> int:
                 # save first: a run killed while a slow webhook answers must not notify twice
                 state.flush()
                 labels = {(t.source, t.key): t.display for t in result.targets}
-                failures = notify.send(result.updates, labels, notify_config, client)
+                # app priorities apply here too, digest doesn't
+                failures = notify.send(
+                    result.updates, labels, notify_config, client, state.priorities()
+                )
                 result.errors.extend(failures)
                 if not args.json:
                     terminal.render_errors(failures, console)
@@ -1067,6 +1074,11 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     if args.command is None:
         args = parser.parse_args(["check"])
+
+    if args.command == "api":
+        from . import api
+
+        return api.main(args)
 
     console = Console(highlight=False)
     try:

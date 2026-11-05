@@ -1,0 +1,16 @@
+{
+  "description": "A check while another is running",
+  "request": {
+    "id": 4,
+    "op": "check"
+  },
+  "events": [],
+  "reply": {
+    "id": 4,
+    "ok": false,
+    "error": {
+      "code": "busy",
+      "message": "a check is already running"
+    }
+  }
+}

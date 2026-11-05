@@ -1,0 +1,15 @@
+{
+  "description": "First launch, no config",
+  "request": {
+    "id": 10,
+    "op": "config.init"
+  },
+  "events": [],
+  "reply": {
+    "id": 10,
+    "ok": true,
+    "config_path": "/Users/me/Library/Application Support/youpdated/config.yaml",
+    "created": true,
+    "self_watch_added": true
+  }
+}

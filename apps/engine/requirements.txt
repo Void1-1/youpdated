@@ -1,0 +1,25 @@
+# What the frozen engine is built from. Update with `pip freeze` in the build venv.
+altgraph==0.17.5
+anyio==4.16.0
+certifi==2026.10.23
+cffi==2.1.1
+cryptography==50.0.2
+feedparser==6.0.14
+feedparser-sgmllib==2.1.0
+h11==0.16.0
+httpcore==1.0.9
+httpx==0.28.1
+idna==3.20
+macholib==1.16.4
+markdown-it-py==4.2.0
+mdurl==0.1.2
+packaging==26.3
+platformdirs==4.14.5
+pycparser==3.12
+Pygments==2.21.0
+pyinstaller==6.22.3
+pyinstaller-hooks-contrib==2026.9
+PyYAML==6.0.3
+rich==15.0.0
+socksio==1.0.0
+typing_extensions==4.16.0

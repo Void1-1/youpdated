@@ -1,0 +1,16 @@
+{
+  "description": "A check before `unlock`",
+  "request": {
+    "id": 7,
+    "op": "check"
+  },
+  "events": [],
+  "reply": {
+    "id": 7,
+    "ok": false,
+    "error": {
+      "code": "locked",
+      "message": "the config and history are encrypted; unlock first"
+    }
+  }
+}

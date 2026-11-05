@@ -1,0 +1,26 @@
+{
+  "description": "After `ambiguous`, with the source the user picked",
+  "request": {
+    "id": 38,
+    "op": "targets.preview",
+    "value": "express",
+    "source": "npm"
+  },
+  "events": [],
+  "reply": {
+    "id": 38,
+    "ok": true,
+    "source": "npm",
+    "entry": "express",
+    "key": "express",
+    "display": "express",
+    "already_watching": true,
+    "newest": {
+      "title": "5.2.0",
+      "url": "https://www.npmjs.com/package/express/v/5.2.0",
+      "version": "5.2.0",
+      "published": "2026-10-01T09:00:00Z"
+    },
+    "fetch_error": null
+  }
+}

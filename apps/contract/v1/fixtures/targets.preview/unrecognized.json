@@ -1,0 +1,17 @@
+{
+  "description": "A value no source claims",
+  "request": {
+    "id": 39,
+    "op": "targets.preview",
+    "value": "hello there"
+  },
+  "events": [],
+  "reply": {
+    "id": 39,
+    "ok": false,
+    "error": {
+      "code": "unrecognized",
+      "message": "source type could not be determined for `hello there`"
+    }
+  }
+}

@@ -1,0 +1,72 @@
+{
+  "description": "Checking only a new target, which records a baseline",
+  "request": {
+    "id": 9,
+    "op": "check",
+    "targets": [
+      {
+        "source": "itch",
+        "key": "https://foo.itch.io/bar"
+      }
+    ]
+  },
+  "events": [
+    {
+      "event": "progress",
+      "done": 0,
+      "of": 1
+    },
+    {
+      "event": "progress",
+      "done": 1,
+      "of": 1,
+      "target": {
+        "source": "itch",
+        "key": "https://foo.itch.io/bar",
+        "display": "Bar"
+      },
+      "failed": false
+    }
+  ],
+  "reply": {
+    "id": 9,
+    "ok": true,
+    "checked_at": "2026-10-29T08:00:06Z",
+    "new": 0,
+    "items": [
+      {
+        "id": "i_0f1e2d3c4b5a6978",
+        "source": "itch",
+        "target": "https://foo.itch.io/bar",
+        "display": "Bar",
+        "title": "Bar 0.9 is out",
+        "url": "https://foo.itch.io/bar/devlog/123",
+        "version": "0.9",
+        "published": "2026-10-25T10:00:00Z",
+        "tags": [
+          "devlog"
+        ],
+        "body": null,
+        "found_at": "2026-10-29T08:00:06Z",
+        "read": true,
+        "baseline": true,
+        "priority": "normal",
+        "starred": false,
+        "snoozed_until": null
+      }
+    ],
+    "baselined": [
+      {
+        "source": "itch",
+        "key": "https://foo.itch.io/bar",
+        "display": "Bar"
+      }
+    ],
+    "errors": [],
+    "warnings": [],
+    "notify_failures": [],
+    "alerts": [],
+    "held": 0,
+    "unread": 3
+  }
+}

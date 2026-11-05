@@ -10,7 +10,7 @@ import os
 import re
 from dataclasses import replace
 from typing import Any, ClassVar, Iterable
-from urllib.parse import quote, unquote, urlsplit
+from urllib.parse import quote, unquote, urljoin, urlsplit
 
 import httpx
 
@@ -221,6 +221,29 @@ class GitSource:
         if forge == "gitlab":
             return _gitlab(self.name, target, client, token)
         return _forgejo(self.name, target, client, token)
+
+    def icon(self, target: Target, client: Client) -> str | None:
+        """Owner's avatar. GitHub by name; others by repo's API"""
+        params = target.params
+        base, path, forge = params["base"], params["path"], params["forge"]
+        if forge == "github":
+            return f"{base}/{quote(path.split('/')[0], safe='')}.png?size=128"
+        token_env = params.get("token_env")
+        token = os.environ.get(token_env) if token_env else None
+        if forge == "gitlab":
+            api = f"{base}/api/v4/projects/{quote(path, safe='')}"
+            headers = _api_headers(client, {"PRIVATE-TOKEN": token} if token else {})
+        else:
+            owner, repo = (quote(part, safe="") for part in path.split("/"))
+            api = f"{base}/api/v1/repos/{owner}/{repo}"
+            headers = _api_headers(client, {"Authorization": f"token {token}"} if token else {})
+        fetched = client.get(api, headers=headers)
+        if fetched is None:
+            return None
+        repo_info = fetched.json()
+        owner_info = repo_info.get("namespace" if forge == "gitlab" else "owner") or {}
+        avatar = owner_info.get("avatar_url") or repo_info.get("avatar_url")
+        return urljoin(f"{base}/", avatar) if isinstance(avatar, str) and avatar else None
 
 
 def _versioned(kind: str, version: str | None) -> tuple[str, ...]:

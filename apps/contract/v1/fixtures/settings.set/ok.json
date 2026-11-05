@@ -1,0 +1,23 @@
+{
+  "description": "Turning on a digest",
+  "request": {
+    "id": 25,
+    "op": "settings.set",
+    "settings": {
+      "digest_time": "18:00"
+    }
+  },
+  "events": [],
+  "reply": {
+    "id": 25,
+    "ok": true,
+    "settings": {
+      "check_interval_hours": 6,
+      "digest_time": "18:00",
+      "os_notifications": true,
+      "self_watch_declined": false,
+      "cli_notice_shown": false,
+      "show_icons": false
+    }
+  }
+}

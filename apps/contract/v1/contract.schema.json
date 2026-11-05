@@ -1,0 +1,708 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Void1-1/youpdated/apps/contract/v1/contract.schema.json",
+  "title": "Youpdated engine contract, version 1",
+  "description": "For `youpdated api serve`. Each op has `<op>.request` and `<op>.reply`.",
+  "$defs": {
+    "Request": {
+      "description": "Request envelope.",
+      "type": "object",
+      "required": ["id", "op"],
+      "properties": {
+        "id": { "type": "integer", "minimum": 1 },
+        "op": { "type": "string" }
+      }
+    },
+    "Reply": {
+      "description": "Reply envelope.",
+      "type": "object",
+      "required": ["id", "ok"],
+      "properties": {
+        "id": { "type": "integer", "minimum": 1 },
+        "ok": { "type": "boolean" }
+      }
+    },
+    "ErrorReply": {
+      "type": "object",
+      "required": ["id", "ok", "error"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": ["integer", "null"], "description": "null if request line could not be read" },
+        "ok": { "const": false },
+        "error": { "$ref": "#/$defs/Error" }
+      }
+    },
+    "Error": {
+      "type": "object",
+      "required": ["code", "message"],
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "description": "Unknown codes are a generic failure.",
+          "enum": [
+            "bad_request",
+            "unknown_op",
+            "locked",
+            "wrong_passphrase",
+            "encryption_unavailable",
+            "no_config",
+            "config_error",
+            "history_busy",
+            "busy",
+            "ambiguous",
+            "unrecognized",
+            "bad_entry",
+            "not_found",
+            "io_error",
+            "internal"
+          ]
+        },
+        "message": { "type": "string", "description": "Explanation text for the user." },
+        "choices": {
+          "description": "With `ambiguous`: the sources the value could belong to",
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "Event": {
+      "description": "Sent while an op runs, or after `check`.",
+      "oneOf": [{ "$ref": "#/$defs/ProgressEvent" }, { "$ref": "#/$defs/IconEvent" }]
+    },
+    "IconEvent": {
+      "description": "A target's icon arrived: `icon.get` it now",
+      "type": "object",
+      "required": ["event", "target"],
+      "additionalProperties": false,
+      "properties": {
+        "event": { "const": "icon" },
+        "target": { "$ref": "#/$defs/TargetKey" }
+      }
+    },
+    "ProgressEvent": {
+      "type": "object",
+      "required": ["event", "done", "of"],
+      "additionalProperties": false,
+      "properties": {
+        "event": { "const": "progress" },
+        "done": { "type": "integer", "minimum": 0 },
+        "of": { "type": "integer", "minimum": 0 },
+        "target": {
+          "description": "The target that just finished",
+          "$ref": "#/$defs/TargetRef"
+        },
+        "failed": { "type": "boolean", "description": "Whether `target` failed" }
+      }
+    },
+
+    "Timestamp": {
+      "description": "UTC, whole seconds",
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"
+    },
+    "Priority": { "enum": ["high", "normal", "low"] },
+    "TargetKey": {
+      "description": "Names a target by source and dedupe key",
+      "type": "object",
+      "required": ["source", "key"],
+      "additionalProperties": false,
+      "properties": {
+        "source": { "type": "string" },
+        "key": { "type": "string" }
+      }
+    },
+    "TargetRef": {
+      "type": "object",
+      "required": ["source", "key", "display"],
+      "additionalProperties": false,
+      "properties": {
+        "source": { "type": "string" },
+        "key": { "type": "string" },
+        "display": { "type": "string", "description": "Display name" }
+      }
+    },
+    "Target": {
+      "type": "object",
+      "required": ["source", "key", "display", "priority", "starred", "last_checked", "last_error", "unread", "latest"],
+      "additionalProperties": false,
+      "properties": {
+        "source": { "type": "string" },
+        "key": { "type": "string" },
+        "display": { "type": "string" },
+        "priority": { "$ref": "#/$defs/Priority" },
+        "starred": { "type": "boolean", "description": "Youpdated app updates" },
+        "last_checked": { "oneOf": [{ "$ref": "#/$defs/Timestamp" }, { "type": "null" }], "description": "Last successful fetch" },
+        "last_error": { "type": ["string", "null"], "description": "From the last check, when it failed" },
+        "unread": { "type": "integer", "minimum": 0 },
+        "latest": {
+          "description": "The newest item the engine has seen for the target, null before first fetch.",
+          "oneOf": [{ "$ref": "#/$defs/Latest" }, { "type": "null" }]
+        }
+      }
+    },
+    "Latest": {
+      "type": "object",
+      "required": ["version", "title", "published"],
+      "additionalProperties": false,
+      "properties": {
+        "version": { "type": ["string", "null"] },
+        "title": { "type": "string" },
+        "published": { "oneOf": [{ "$ref": "#/$defs/Timestamp" }, { "type": "null" }] }
+      }
+    },
+    "InboxItem": {
+      "type": "object",
+      "required": [
+        "id", "source", "target", "display", "title", "url", "version", "published", "tags",
+        "body", "found_at", "read", "baseline", "priority", "starred", "snoozed_until"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "string", "minLength": 1, "description": "Opaque and stable" },
+        "source": { "type": "string" },
+        "target": { "type": "string", "description": "The target's key" },
+        "display": { "type": "string", "description": "The target's display name" },
+        "title": { "type": "string" },
+        "url": { "type": "string" },
+        "version": { "type": ["string", "null"] },
+        "published": { "oneOf": [{ "$ref": "#/$defs/Timestamp" }, { "type": "null" }] },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "body": { "type": ["string", "null"], "description": "Trimmed" },
+        "found_at": { "$ref": "#/$defs/Timestamp" },
+        "read": { "type": "boolean" },
+        "baseline": { "type": "boolean", "description": "A new target's newest item, stored as read" },
+        "priority": { "$ref": "#/$defs/Priority", "description": "The target's current priority" },
+        "starred": { "type": "boolean" },
+        "snoozed_until": { "oneOf": [{ "$ref": "#/$defs/Timestamp" }, { "type": "null" }] }
+      }
+    },
+    "PreviewItem": {
+      "type": "object",
+      "required": ["title", "url", "version", "published"],
+      "additionalProperties": false,
+      "properties": {
+        "title": { "type": "string" },
+        "url": { "type": "string" },
+        "version": { "type": ["string", "null"] },
+        "published": { "oneOf": [{ "$ref": "#/$defs/Timestamp" }, { "type": "null" }] }
+      }
+    },
+    "Problem": {
+      "type": "object",
+      "required": ["kind", "source", "target", "key", "message"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "description": "`source`: a target failed. `notify`: a webhook or command failed. `config`: an entry could not be read.",
+          "enum": ["source", "notify", "config"]
+        },
+        "source": { "type": "string" },
+        "target": { "type": "string", "description": "Display name, endpoint, or `-`" },
+        "key": {
+          "type": ["string", "null"],
+          "description": "The failing target's key, for retrying: `check {\"targets\": [{source, key}]}`; null for `notify` and `config`"
+        },
+        "message": { "type": "string" }
+      }
+    },
+    "Alert": {
+      "description": "An OS notification for the app.",
+      "type": "object",
+      "required": ["priority", "target", "item_ids"],
+      "additionalProperties": false,
+      "properties": {
+        "priority": { "enum": ["high", "normal"] },
+        "target": {
+          "description": "The target of a high priority alert; null for combined normal",
+          "oneOf": [{ "$ref": "#/$defs/TargetRef" }, { "type": "null" }]
+        },
+        "item_ids": { "type": "array", "items": { "type": "string" }, "minItems": 1 }
+      }
+    },
+    "Settings": {
+      "type": "object",
+      "required": ["check_interval_hours", "digest_time", "os_notifications", "self_watch_declined", "cli_notice_shown", "show_icons"],
+      "additionalProperties": false,
+      "properties": {
+        "check_interval_hours": { "enum": [1, 3, 6, 12, 24] },
+        "digest_time": {
+          "description": "Local time the app sends the digest at, or null for no digest",
+          "oneOf": [{ "type": "string", "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$" }, { "type": "null" }]
+        },
+        "os_notifications": { "type": "boolean" },
+        "self_watch_declined": { "type": "boolean" },
+        "cli_notice_shown": { "type": "boolean" },
+        "show_icons": {
+          "type": "boolean",
+          "default": false,
+          "description": "Fetch targets' icons during checks."
+        }
+      }
+    },
+    "SettingsPatch": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": false,
+      "properties": {
+        "check_interval_hours": { "$ref": "#/$defs/Settings/properties/check_interval_hours" },
+        "digest_time": { "$ref": "#/$defs/Settings/properties/digest_time" },
+        "os_notifications": { "type": "boolean" },
+        "self_watch_declined": { "type": "boolean" },
+        "cli_notice_shown": { "type": "boolean" },
+        "show_icons": { "type": "boolean" }
+      }
+    },
+    "Icon": {
+      "type": "object",
+      "required": ["mime", "data"],
+      "additionalProperties": false,
+      "properties": {
+        "mime": { "enum": ["image/png", "image/jpeg", "image/gif", "image/webp", "image/x-icon"] },
+        "data": { "type": "string", "contentEncoding": "base64", "minLength": 1, "description": "The image, base64; max 256 KiB before encoding" }
+      }
+    },
+    "SourceEntries": {
+      "type": "object",
+      "required": ["source", "entries"],
+      "additionalProperties": false,
+      "properties": {
+        "source": { "type": "string" },
+        "entries": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "Skipped": {
+      "type": "object",
+      "required": ["what", "why"],
+      "additionalProperties": false,
+      "properties": {
+        "what": { "type": "string" },
+        "why": { "type": "string" }
+      }
+    },
+    "ImportSource": {
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["path"],
+          "additionalProperties": false,
+          "properties": { "path": { "type": "string", "minLength": 1 } }
+        },
+        {
+          "type": "object",
+          "required": ["content", "format"],
+          "additionalProperties": false,
+          "properties": {
+            "content": { "type": "string" },
+            "format": { "enum": ["package.json", "requirements.txt", "Brewfile"] }
+          }
+        }
+      ]
+    },
+    "Encrypted": {
+      "type": "object",
+      "required": ["config", "history"],
+      "additionalProperties": false,
+      "properties": {
+        "config": { "type": "boolean" },
+        "history": { "type": "boolean" }
+      }
+    },
+
+    "hello.request": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "client": {
+          "type": "object",
+          "required": ["name", "version", "platform"],
+          "additionalProperties": false,
+          "properties": {
+            "name": { "type": "string" },
+            "version": { "type": "string" },
+            "platform": { "enum": ["macos", "windows", "other"] }
+          }
+        }
+      }
+    },
+    "hello.reply": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["engine", "contract", "ops", "commit", "encryption"],
+      "properties": {
+        "engine": { "type": "string", "description": "The engine's package version" },
+        "contract": { "const": 1 },
+        "ops": { "type": "array", "items": { "type": "string" } },
+        "commit": { "type": ["string", "null"], "description": "Short commit hash when no `v*` tag points at the engine's commit" },
+        "encryption": { "type": "boolean", "description": "If this engine can read and write encrypted files" }
+      }
+    },
+
+    "unlock.request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["passphrase"],
+      "properties": { "passphrase": { "type": "string", "minLength": 1 } }
+    },
+    "unlock.reply": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["encrypted"],
+      "properties": { "encrypted": { "$ref": "#/$defs/Encrypted" } }
+    },
+
+    "status.request": { "type": "object", "additionalProperties": false },
+    "status.reply": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "locked", "encrypted", "config_path", "config_exists", "config_error", "history_path",
+        "last_run", "last_run_by", "self_watch", "counts"
+      ],
+      "properties": {
+        "locked": { "type": "boolean", "description": "Encrypted and locked" },
+        "encrypted": { "$ref": "#/$defs/Encrypted" },
+        "config_path": { "type": ["string", "null"], "description": "The current config, or where `config.init` would write one" },
+        "config_exists": { "type": "boolean" },
+        "config_error": { "type": ["string", "null"], "description": "Why the config can't be read" },
+        "history_path": { "type": "string" },
+        "last_run": { "oneOf": [{ "$ref": "#/$defs/Timestamp" }, { "type": "null" }] },
+        "last_run_by": { "enum": ["app", "cli", null] },
+        "self_watch": {
+          "description": "If the config has Youpdated; null while locked or without config",
+          "enum": ["watching", "declined", "absent", null]
+        },
+        "counts": {
+          "description": "null while locked or without config",
+          "oneOf": [
+            {
+              "type": "object",
+              "required": ["targets", "unread", "problems"],
+              "additionalProperties": false,
+              "properties": {
+                "targets": { "type": "integer", "minimum": 0 },
+                "unread": { "type": "integer", "minimum": 0 },
+                "problems": { "type": "integer", "minimum": 0 }
+              }
+            },
+            { "type": "null" }
+          ]
+        }
+      }
+    },
+
+    "check.request": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "sources": { "type": "array", "items": { "type": "string" }, "description": "Only these sources" },
+        "targets": { "type": "array", "items": { "$ref": "#/$defs/TargetKey" }, "description": "Only these targets" },
+        "notify": { "type": "boolean", "default": true, "description": "false to not send. (no webhooks, commands, or alerts)" }
+      }
+    },
+    "check.reply": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["checked_at", "new", "items", "baselined", "errors", "warnings", "notify_failures", "alerts", "held", "unread"],
+      "properties": {
+        "checked_at": { "$ref": "#/$defs/Timestamp" },
+        "new": { "type": "integer", "minimum": 0, "description": "Unread items this check added to the inbox" },
+        "items": { "type": "array", "items": { "$ref": "#/$defs/InboxItem" }, "description": "Every item this check added, with baselines" },
+        "baselined": { "type": "array", "items": { "$ref": "#/$defs/TargetRef" } },
+        "errors": { "type": "array", "items": { "$ref": "#/$defs/Problem" } },
+        "warnings": { "type": "array", "items": { "type": "string" } },
+        "notify_failures": { "type": "array", "items": { "$ref": "#/$defs/Problem" } },
+        "alerts": { "type": "array", "items": { "$ref": "#/$defs/Alert" } },
+        "held": { "type": "integer", "minimum": 0, "description": "Items held for digest" },
+        "unread": { "type": "integer", "minimum": 0 }
+      }
+    },
+
+    "inbox.list.request": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "unread": { "type": "boolean", "description": "Only unread items" },
+        "source": { "type": "string" },
+        "target": { "$ref": "#/$defs/TargetKey" },
+        "sort": { "enum": ["newest", "priority", "source", "name"], "default": "newest" },
+        "limit": { "type": "integer", "minimum": 1, "maximum": 500, "default": 100 },
+        "cursor": { "type": ["string", "null"] }
+      }
+    },
+    "inbox.list.reply": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["items", "cursor", "total", "unread"],
+      "properties": {
+        "items": { "type": "array", "items": { "$ref": "#/$defs/InboxItem" } },
+        "cursor": { "type": ["string", "null"], "description": "Pass back for the next page; null on the last" },
+        "total": { "type": "integer", "minimum": 0, "description": "Items matching filters" },
+        "unread": { "type": "integer", "minimum": 0, "description": "Unread inbox items" }
+      }
+    },
+
+    "inbox.mark.request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["read"],
+      "properties": {
+        "read": { "type": "boolean" },
+        "ids": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "all": { "const": true },
+        "source": { "type": "string", "description": "With `all`: only this source's items" }
+      },
+      "oneOf": [{ "required": ["ids"] }, { "required": ["all"] }]
+    },
+    "inbox.mark.reply": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["changed", "unread"],
+      "properties": {
+        "changed": { "type": "integer", "minimum": 0 },
+        "unread": { "type": "integer", "minimum": 0 }
+      }
+    },
+
+    "inbox.snooze.request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ids"],
+      "properties": {
+        "ids": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "minutes": { "type": "integer", "minimum": 1, "maximum": 10080, "default": 60 }
+      }
+    },
+    "inbox.snooze.reply": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["until"],
+      "properties": { "until": { "$ref": "#/$defs/Timestamp" } }
+    },
+
+    "targets.list.request": { "type": "object", "additionalProperties": false },
+    "targets.list.reply": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["targets"],
+      "properties": { "targets": { "type": "array", "items": { "$ref": "#/$defs/Target" } } }
+    },
+
+    "targets.preview.request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["value"],
+      "properties": {
+        "value": { "type": "string", "minLength": 1, "description": "A link or name, as pasted" },
+        "source": { "type": "string", "description": "Set once the user has picked after `ambiguous`" }
+      }
+    },
+    "targets.preview.reply": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "entry", "key", "display", "already_watching", "newest", "fetch_error"],
+      "properties": {
+        "source": { "type": "string" },
+        "entry": { "type": "string", "description": "What `targets.add` should be given" },
+        "key": { "type": "string" },
+        "display": { "type": "string" },
+        "already_watching": { "type": "boolean" },
+        "newest": { "oneOf": [{ "$ref": "#/$defs/PreviewItem" }, { "type": "null" }] },
+        "fetch_error": { "type": ["string", "null"], "description": "Why the fetch failed" }
+      }
+    },
+
+    "targets.add.request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "entries"],
+      "properties": {
+        "source": { "type": "string" },
+        "entries": { "type": "array", "items": { "type": "string" }, "minItems": 1 }
+      }
+    },
+    "targets.add.reply": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["section", "added", "skipped", "targets"],
+      "properties": {
+        "section": { "type": "string", "description": "`sources:` key added under" },
+        "added": { "type": "array", "items": { "type": "string" } },
+        "skipped": { "type": "array", "items": { "type": "string" }, "description": "Already watched" },
+        "targets": { "type": "array", "items": { "$ref": "#/$defs/TargetRef" }, "description": "The targets added, to `check` now" }
+      }
+    },
+
+    "targets.remove.request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "key"],
+      "properties": {
+        "source": { "type": "string" },
+        "key": { "type": "string" },
+        "wipe": { "type": "boolean", "default": false, "description": "Also forget history, inbox, priority" }
+      }
+    },
+    "targets.remove.reply": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["removed", "wiped"],
+      "properties": {
+        "removed": { "type": "array", "items": { "type": "string" } },
+        "wiped": {
+          "oneOf": [
+            {
+              "type": "object",
+              "required": ["seen", "validators", "inbox"],
+              "additionalProperties": false,
+              "properties": {
+                "seen": { "type": "integer", "minimum": 0 },
+                "validators": { "type": "integer", "minimum": 0 },
+                "inbox": { "type": "integer", "minimum": 0 }
+              }
+            },
+            { "type": "null" }
+          ]
+        }
+      }
+    },
+
+    "import.preview.request": { "$ref": "#/$defs/ImportSource" },
+    "import.preview.reply": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["add", "already", "skipped", "warnings"],
+      "properties": {
+        "add": { "type": "array", "items": { "$ref": "#/$defs/SourceEntries" } },
+        "already": { "type": "array", "items": { "$ref": "#/$defs/SourceEntries" } },
+        "skipped": { "type": "array", "items": { "$ref": "#/$defs/Skipped" } },
+        "warnings": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "import.apply.request": { "$ref": "#/$defs/ImportSource" },
+    "import.apply.reply": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["added", "skipped", "warnings", "targets"],
+      "properties": {
+        "added": { "type": "array", "items": { "$ref": "#/$defs/SourceEntries" } },
+        "skipped": { "type": "array", "items": { "$ref": "#/$defs/Skipped" } },
+        "warnings": { "type": "array", "items": { "type": "string" } },
+        "targets": { "type": "array", "items": { "$ref": "#/$defs/TargetRef" } }
+      }
+    },
+
+    "settings.get.request": { "type": "object", "additionalProperties": false },
+    "settings.get.reply": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["settings"],
+      "properties": { "settings": { "$ref": "#/$defs/Settings" } }
+    },
+    "settings.set.request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["settings"],
+      "properties": { "settings": { "$ref": "#/$defs/SettingsPatch" } }
+    },
+    "settings.set.reply": { "$ref": "#/$defs/settings.get.reply" },
+
+    "priority.set.request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "key", "priority"],
+      "properties": {
+        "source": { "type": "string" },
+        "key": { "type": "string" },
+        "priority": { "$ref": "#/$defs/Priority" }
+      }
+    },
+    "priority.set.reply": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["priority"],
+      "properties": { "priority": { "$ref": "#/$defs/Priority" } }
+    },
+
+    "icon.get.request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "key"],
+      "properties": {
+        "source": { "type": "string" },
+        "key": { "type": "string" }
+      }
+    },
+    "icon.get.reply": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["icon"],
+      "properties": {
+        "icon": {
+          "description": "null if `show_icons` is off, or if the target has none: show a monogram",
+          "oneOf": [{ "$ref": "#/$defs/Icon" }, { "type": "null" }]
+        }
+      }
+    },
+
+    "problems.list.request": { "type": "object", "additionalProperties": false },
+    "problems.list.reply": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["problems", "checked_at"],
+      "properties": {
+        "problems": { "type": "array", "items": { "$ref": "#/$defs/Problem" } },
+        "checked_at": { "oneOf": [{ "$ref": "#/$defs/Timestamp" }, { "type": "null" }] }
+      }
+    },
+
+    "digest.send.request": { "type": "object", "additionalProperties": false },
+    "digest.send.reply": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["items", "alerts", "notify_failures"],
+      "properties": {
+        "items": { "type": "array", "items": { "$ref": "#/$defs/InboxItem" } },
+        "alerts": { "type": "array", "items": { "$ref": "#/$defs/Alert" } },
+        "notify_failures": { "type": "array", "items": { "$ref": "#/$defs/Problem" } }
+      }
+    },
+
+    "snapshot.write.request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path"],
+      "properties": { "path": { "type": "string", "minLength": 1 } }
+    },
+    "snapshot.write.reply": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "redacted", "items"],
+      "properties": {
+        "path": { "type": "string" },
+        "redacted": { "type": "boolean", "description": "true if history is encrypted" },
+        "items": { "type": "integer", "minimum": 0 }
+      }
+    },
+
+    "config.init.request": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "self_watch": { "type": "boolean", "default": true, "description": "Add Youpdated's app entry" }
+      }
+    },
+    "config.init.reply": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["config_path", "created", "self_watch_added"],
+      "properties": {
+        "config_path": { "type": "string" },
+        "created": { "type": "boolean" },
+        "self_watch_added": { "type": "boolean" }
+      }
+    },
+
+    "shutdown.request": { "type": "object", "additionalProperties": false },
+    "shutdown.reply": { "type": "object", "additionalProperties": false }
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "written_at": "2026-10-29T08:00:07Z",
+  "last_check": "2026-10-29T08:00:06Z",
+  "unread": 3,
+  "redacted": false,
+  "items": [
+    {
+      "id": "i_5e7a9c1b3d2f4068",
+      "source": "git",
+      "display": "Void1-1/youpdated",
+      "title": "app-v1.1.0",
+      "url": "https://github.com/Void1-1/youpdated/releases/tag/app-v1.1.0",
+      "found_at": "2026-10-29T08:00:04Z"
+    },
+    {
+      "id": "i_8f3a1c2e9b7d4a10",
+      "source": "git",
+      "display": "python/cpython",
+      "title": "v3.14.7",
+      "url": "https://github.com/python/cpython/releases/tag/v3.14.7",
+      "found_at": "2026-10-29T08:00:04Z"
+    },
+    {
+      "id": "i_2b9e5d7f0c1a3e44",
+      "source": "steam",
+      "display": "Team Fortress 2",
+      "title": "CLTF2 Halloween Cup",
+      "url": "https://store.steampowered.com/news/app/440/view/5001",
+      "found_at": "2026-10-29T08:00:05Z"
+    }
+  ]
+}

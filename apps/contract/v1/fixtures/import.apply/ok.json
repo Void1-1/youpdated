@@ -1,0 +1,41 @@
+{
+  "description": "Confirming an import",
+  "request": {
+    "id": 14,
+    "op": "import.apply",
+    "path": "/Users/me/project/package.json"
+  },
+  "events": [],
+  "reply": {
+    "id": 14,
+    "ok": true,
+    "added": [
+      {
+        "source": "npm",
+        "entries": [
+          "react-dom",
+          "vite"
+        ]
+      }
+    ],
+    "skipped": [
+      {
+        "what": "my-lib",
+        "why": "a local path, not a registry version"
+      }
+    ],
+    "warnings": [],
+    "targets": [
+      {
+        "source": "npm",
+        "key": "react-dom",
+        "display": "react-dom"
+      },
+      {
+        "source": "npm",
+        "key": "vite",
+        "display": "vite"
+      }
+    ]
+  }
+}

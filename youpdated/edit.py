@@ -11,21 +11,25 @@ import tempfile
 from contextlib import contextmanager, suppress
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Generator
+from typing import Any, Callable, Generator, Sequence
 
 import yaml
 
 from . import crypto
-from .config import ConfigError
+from .config import ConfigError, PrivacyConfig
+from .http import Client
 from .models import Target
 from .registry import all_aliases, all_sources, canonical_name
 from .sources.base import Source
+from .state import State
 
 _NULL_TAG = "tag:yaml.org,2002:null"
 # Indent of new sections and lists
 _STEP = 2
 # plain scalar is written only if it reads back the same in all of these
 _CONTEXTS = ("- {}", "[{}]", "{}: x")
+# a value removed by key, which equals no config entry
+_NO_ENTRY = object()
 
 
 class _Unsupported(Exception):
@@ -158,14 +162,14 @@ def _straighten(text: str, fixes: list[str]) -> str:
     return fixed_text
 
 
-def guess_source(value: str, command: str = "add") -> tuple[str, str]:
-    """The source a given value belongs to and it's entry
+def claims(value: str) -> dict[str, str]:
+    """Every source that says ``value`` could be theirs, with the entry it would be
 
     Sources with ``claim()`` say which values can only be theirs: a GitHub URL is `git`.
     A ``fallback`` source's claim counts only if no other source claims the value
     """
     value = _clean(value)
-    claims: dict[str, str] = {}
+    found: dict[str, str] = {}
     fallbacks: dict[str, str] = {}
     for name, source in sorted(all_sources().items()):
         claim = getattr(source, "claim", None)
@@ -174,14 +178,20 @@ def guess_source(value: str, command: str = "add") -> tuple[str, str]:
         except Exception: # a plugin's broken claim can't stop the rest
             entry = None
         if entry is not None:
-            (fallbacks if getattr(source, "fallback", False) else claims)[name] = entry
-    claims = claims or fallbacks
-    if len(claims) == 1:
-        return next(iter(claims.items()))
-    if claims:
+            (fallbacks if getattr(source, "fallback", False) else found)[name] = entry
+    return found or fallbacks
+
+
+def guess_source(value: str, command: str = "add") -> tuple[str, str]:
+    """source a value belongs to and entry"""
+    value = _clean(value)
+    found = claims(value)
+    if len(found) == 1:
+        return next(iter(found.items()))
+    if found:
         raise ConfigError(
-            f"`{value}` could be {' or '.join(claims)}; name one: "
-            f"youpdated {command} {next(iter(claims))} {value}"
+            f"`{value}` could be {' or '.join(found)}. Name one: "
+            f"youpdated {command} {next(iter(found))} {value}"
         )
     raise ConfigError(
         f"source type could not be determined for `{value}`, please provide a source type: "
@@ -189,7 +199,7 @@ def guess_source(value: str, command: str = "add") -> tuple[str, str]:
     )
 
 
-def add_to_config(text: str, source: str, values: list[str]) -> Change:
+def add_to_config(text: str, source: str, values: Sequence[str | dict[str, Any]]) -> Change:
     """``text`` with ``values`` appended to ``source``'s list"""
     parsed = _parse(text, source)
     # alias section is used if canonical is absent
@@ -204,11 +214,19 @@ def add_to_config(text: str, source: str, values: list[str]) -> Change:
     lines: list[str] = []
     entries: list[Any] = []
     for value in values:
-        value = _clean(value)
-        line = yaml_scalar(value)
-        entry = _read(line)
+        if isinstance(value, dict):
+            entry = value
+            line = value = yaml.safe_dump(
+                value, default_flow_style=True, sort_keys=False, width=1 << 16
+            ).strip()
+            # the source never sees the rules, see runner._split_entry_rules
+            fields = {k: v for k, v in entry.items() if k not in ("ignore", "versions")}
+        else:
+            value = _clean(value)
+            line = yaml_scalar(value)
+            entry = fields = _read(line)
         try:
-            keys = {t.key for t in parsed.handler.targets([entry])}
+            keys = {t.key for t in parsed.handler.targets([fields])}
         except Exception as exc:
             raise ConfigError(str(exc)) from exc
         if keys and keys <= watched:
@@ -235,12 +253,20 @@ def add_to_config(text: str, source: str, values: list[str]) -> Change:
     return change
 
 
-def remove_from_config(text: str, source: str, values: list[str]) -> Change:
-    """``text`` without ``source`` entries that watch ``values``"""
+def remove_from_config(
+    text: str, source: str, values: list[str], *, by_key: bool = False
+) -> Change:
+    """``text`` without ``source`` entries that watch ``values``
+
+    ``by_key``: the values are target keys
+    """
     parsed = _parse(text, source)
     wanted = []
     for value in values:
         value = _clean(value)
+        if by_key:
+            wanted.append((value, _NO_ENTRY, {value}))
+            continue
         entry = _read(yaml_scalar(value))
         wanted.append((value, entry, _keys(parsed.handler, entry)))
 
@@ -269,7 +295,8 @@ def remove_from_config(text: str, source: str, values: list[str]) -> Change:
             else:
                 kept.update(t.key for t in targets)
     for _, raw, _ in wanted:
-        named += _targets(parsed.handler, raw)
+        if raw is not _NO_ENTRY:
+            named += _targets(parsed.handler, raw)
     # something no longer watched can be wiped; something watched cannot
     change.dropped = [t for t in named if t.key not in kept]
     if not change.applied:
@@ -290,6 +317,19 @@ def remove_from_config(text: str, source: str, values: list[str]) -> Change:
         _verify(edited, expected)
     change.text = _line_ends(edited, text)
     return change
+
+
+def requested_urls(source: Source | None, targets: list[Target], state: State) -> set[str]:
+    """URLs ``targets`` ask for"""
+    if source is None:
+        return set()
+    with Client(PrivacyConfig(), state, test=True) as client:
+        for target in targets:
+            try:
+                list(source.fetch(target, client))
+            except Exception: # a source that needs an answer to continue stops early
+                pass
+        return set(client.requested_urls)
 
 
 def write_config(path: Path, text: str, passphrase: str | None = None) -> None:

@@ -1,0 +1,18 @@
+{
+  "description": "A Steam game's header image, fetched earlier",
+  "request": {
+    "id": 46,
+    "op": "icon.get",
+    "source": "steam",
+    "key": "440"
+  },
+  "events": [],
+  "reply": {
+    "id": 46,
+    "ok": true,
+    "icon": {
+      "mime": "image/png",
+      "data": "iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAAEElEQVR4nGM4EaABRwzEcQASUhQBFGG4BQAAAABJRU5ErkJggg=="
+    }
+  }
+}

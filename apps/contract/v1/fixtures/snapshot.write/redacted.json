@@ -1,0 +1,16 @@
+{
+  "description": "Encrypted history only writes the count",
+  "request": {
+    "id": 28,
+    "op": "snapshot.write",
+    "path": "/Users/me/Library/Group Containers/TEAMID.app.youpdated/snapshot.json"
+  },
+  "events": [],
+  "reply": {
+    "id": 28,
+    "ok": true,
+    "path": "/Users/me/Library/Group Containers/TEAMID.app.youpdated/snapshot.json",
+    "redacted": true,
+    "items": 0
+  }
+}

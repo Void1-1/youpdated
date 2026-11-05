@@ -29,6 +29,19 @@ def state():
 
 
 @pytest.fixture
+def fake(tmp_path, monkeypatch):
+    """api tests fake source"""
+    from . import fake_source
+
+    items = tmp_path / "items.json"
+    fake_source.write_items(items, {})
+    monkeypatch.setenv(fake_source.ITEMS_ENV, str(items))
+    fake_source.register()
+    yield items
+    fake_source.unregister()
+
+
+@pytest.fixture
 def client(state):
     # Zero jitter keeps fast; respx intercepts before socket
     privacy = PrivacyConfig(jitter=(0.0, 0.0), concurrency=1)

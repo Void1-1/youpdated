@@ -42,6 +42,27 @@ notify:
 
 A command gets youpdated's environment without secrets: `YOUPDATED_PASSPHRASE`, `GITHUB_TOKEN`, `GITLAB_TOKEN`, and `YOUTUBE_API_KEY`. A `token_env:` variable of your own is allowed through.
 
+## Priorities and the digest
+
+Each target is `high`, `normal` (default), or `low` priority, set in the desktop app. An endpoint gets updates at its `priority:` and above:
+
+```yaml
+notify:
+  webhooks:
+    - url: https://ntfy.sh/my-phone
+      priority: high          # only high priority
+    - url: https://example.com/archive
+      priority: low           # everything, low included
+      digest: false           # as found, even while the app holds a digest
+  command:
+    run: [notify-send, "{label}", "{title}"]
+    priority: normal
+```
+
+`command:` also takes a mapping: `run:` is the command, as a string or a list, beside `priority:` and `digest:`.
+
+While the app has a digest time set, it holds updates for the digest and sends only high priority ones at once. An endpoint with `digest: false` still gets them as they're found. Turning the digest off sends what it held with the next check. The CLI has no digest, so it sends at once and ignores `digest:`, but it applies `priority:`, since priorities are kept in the history.
+
 ## When a notification fails
 
 A failed webhook or command shows in the `problems` panel and counts for `--fail-on-error`. The updates are still recorded, so they are not sent again. Webhook URLs usually contain their secret, so errors and `-v` show only the host. Webhooks go through `privacy.proxy` like everything else.

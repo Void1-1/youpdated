@@ -21,6 +21,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, ClassVar, Iterable
 from urllib.parse import urlsplit
 
+from ..icons import page_image
 from ..http import Client, FetchError
 from ..models import Target, Update
 from ..registry import register
@@ -30,6 +31,8 @@ from .feed import feed_title, parse_document, parse_entries
 CHANNEL_ID_RE = re.compile(r"^UC[A-Za-z0-9_-]{22}$")
 PLAYLIST_ID_RE = re.compile(r"^(?:PL|UU|LL|FL|OL)[A-Za-z0-9_-]{10,}$")
 EXTERNAL_ID_RE = re.compile(r'"externalId"\s*:\s*"(UC[A-Za-z0-9_-]{22})"')
+# A channel picture's size, in its URL: `=s900-c-k-…`
+PICTURE_SIZE_RE = re.compile(r"=s\d+(?=-|$)")
 VIDEO_ID_RE = re.compile(r"^[A-Za-z0-9_-]{11}$")
 
 CHANNEL_CACHE = "youtube_channel_ids"
@@ -331,6 +334,21 @@ class YouTubeSource:
                 )
             )
         return normalized
+
+    def icon(self, target: Target, client: Client) -> str | None:
+        """Channel's picture, from ``og:image``"""
+        if target.params["kind"] != "channel":
+            return None
+        ref = target.params["ref"]
+        if CHANNEL_ID_RE.match(ref):
+            page = f"https://www.youtube.com/channel/{ref}"
+        else:
+            page = f"https://www.youtube.com/{ref}" if ref.startswith("@") else ref
+        fetched = client.get(page)
+        if fetched is None:
+            return None
+        url = page_image(fetched.text, page)
+        return PICTURE_SIZE_RE.sub("=s176", url, count=1) if url else None
 
     def _channel_id(self, ref: str, client: Client) -> str | None:
         if CHANNEL_ID_RE.match(ref):

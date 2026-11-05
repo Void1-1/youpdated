@@ -6,7 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 from contextlib import nullcontext
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
-from typing import Any, Protocol, runtime_checkable
+from typing import Any, Iterable, Protocol, runtime_checkable
 
 from .config import IGNORE_ALL, Config, parse_duration, parse_ignore_list, parse_version_rules
 from .http import Client, Validator
@@ -33,6 +33,8 @@ class _Pending:
     highest: list[tuple[str, str, str]]
     keep_targets: set[Key]
     keep_sources: set[str]
+    # The newest item of each target fetched
+    latest: list[Update] = field(default_factory=list)
 
 
 @dataclass
@@ -44,6 +46,8 @@ class RunResult:
     baseline: bool = False
     # Targets fetched for the first time; their items were recorded, not reported
     baselined: list[Target] = field(default_factory=list)
+    # The newest item of each of those
+    baseline_items: list[Update] = field(default_factory=list)
     total_fetched: int = 0
     # Items dropped by an `ignore:` rule, before any new/seen comparison
     ignored: int = 0
@@ -151,6 +155,7 @@ def run(
     client: Client,
     *,
     only_sources: list[str] | None = None,
+    only_targets: list[Key] | None = None,
     show_all: bool = False,
     since: timedelta | None = None,
     save: bool = True,
@@ -164,6 +169,10 @@ def run(
         wanted = {canonical_name(name) for name in only_sources}
         targets = [t for t in targets if t.source in wanted]
         errors = [e for e in errors if e.source in wanted]
+    if only_targets is not None:
+        picked = {(canonical_name(source), key) for source, key in only_targets}
+        targets = [t for t in targets if (t.source, t.key) in picked]
+        errors = []
 
     result = RunResult(errors=errors, targets=targets, warnings=rule_warnings(config))
     if not targets:
@@ -242,6 +251,7 @@ def run(
                         source=target.source,
                         target=target.display,
                         message=f"{type(outcome).__name__}: {outcome}",
+                        key=target.key,
                     )
                 )
             else:
@@ -261,6 +271,9 @@ def run(
     }
     result.baselined = [t for entry, t in succeeded.items() if entry in fresh]
     result.baseline = bool(fresh) and len(fresh) == len(succeeded)
+    # what target's `versions:` rules allow
+    latest = _newest(u for u in fetched if u.dedupe_key in admitted)
+    result.baseline_items = [u for u in latest if (u.source, u.target) in fresh]
 
     known = [u for u in fetched if (u.source, u.target) not in fresh]
     new = known if show_all else state.filter_new(known)
@@ -293,12 +306,27 @@ def run(
         # Targets not fetched cleanly (failed, or left out by --source) keep history
         keep_targets={(t.source, t.key) for t in configured} - succeeded.keys(),
         keep_sources=unlisted,
+        latest=latest,
     )
 
     if save:
         record(state, result)
 
     return result
+
+
+def _newest(updates: Iterable[Update]) -> list[Update]:
+    """target's newest item (by date)"""
+    newest: dict[Key, Update] = {}
+    for update in updates:
+        key = (update.source, update.target)
+        held = newest.get(key)
+        if held is None or (
+            update.published is not None
+            and (held.published is None or update.published > held.published)
+        ):
+            newest[key] = update
+    return list(newest.values())
 
 
 def _highest_versions(
@@ -317,8 +345,11 @@ def _highest_versions(
     return rows
 
 
-def record(state: State, result: RunResult) -> None:
-    """Record what :func:`run` fetched: seen items, validators, and baselines, then prune"""
+def record(state: State, result: RunResult, by: str = "cli") -> None:
+    """Record what :func:`run` fetched: seen items, validators, and baselines, then prune
+
+    ``by`` is what ran the check, ``cli`` or ``app``
+    """
     pending, result._pending = result._pending, None
     if pending is None:
         return
@@ -329,7 +360,8 @@ def record(state: State, result: RunResult) -> None:
     state.mark_baselined(pending.succeeded)
     state.mark_ignore_rules((s, k, pending.rules[(s, k)]) for s, k in pending.succeeded)
     state.mark_highest_versions(pending.highest)
-    state.set_last_run()
+    state.mark_latest(pending.latest)
+    state.set_last_run(by=by)
     # Prune only after marking
     result.pruned = state.prune(
         keep_targets=pending.keep_targets, keep_sources=pending.keep_sources

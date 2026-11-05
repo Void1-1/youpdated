@@ -1,0 +1,18 @@
+{
+  "description": "Remove, keeping history",
+  "request": {
+    "id": 41,
+    "op": "targets.remove",
+    "source": "npm",
+    "key": "react"
+  },
+  "events": [],
+  "reply": {
+    "id": 41,
+    "ok": true,
+    "removed": [
+      "react"
+    ],
+    "wiped": null
+  }
+}

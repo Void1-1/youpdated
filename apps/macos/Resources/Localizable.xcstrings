@@ -1,0 +1,173 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "“%@” could be %@. Set Source to one of them." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "“%1$@” could be %2$@. Set Source to one of them."
+          }
+        }
+      }
+    },
+    "%@" : {
+
+    },
+    "1 Hour" : {
+
+    },
+    "Add Source" : {
+
+    },
+    "Already watching %@." : {
+
+    },
+    "and %lld more…" : {
+
+    },
+    "Check for Updates" : {
+
+    },
+    "Check Now" : {
+
+    },
+    "Checking…" : {
+
+    },
+    "Checking… %lld of %lld" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Checking… %1$lld of %2$lld"
+          }
+        }
+      }
+    },
+    "Checks everything Youpdated watches now." : {
+
+    },
+    "Checks stop while Youpdated is closed." : {
+
+    },
+    "Download" : {
+
+    },
+    "Downloading Youpdated %@…" : {
+
+    },
+    "Get Unread Updates" : {
+
+    },
+    "Link" : {
+
+    },
+    "Link or Name" : {
+
+    },
+    "Locked: enter the passphrase to check" : {
+
+    },
+    "Mark All as Read" : {
+
+    },
+    "Mark All Updates as Read" : {
+
+    },
+    "Mark as Read" : {
+
+    },
+    "Marked everything as read." : {
+
+    },
+    "Marks everything in the inbox as read." : {
+
+    },
+    "Name" : {
+
+    },
+    "No new updates" : {
+
+    },
+    "Only needed when the name could be more than one thing, like npm or pypi." : {
+
+    },
+    "Open" : {
+
+    },
+    "Open Youpdated…" : {
+
+    },
+    "Pause" : {
+
+    },
+    "Paused" : {
+
+    },
+    "Paused until %@" : {
+
+    },
+    "Quit Youpdated" : {
+
+    },
+    "Resume Checks" : {
+
+    },
+    "Settings…" : {
+
+    },
+    "Show Problems…" : {
+
+    },
+    "Snooze 1 Hour" : {
+
+    },
+    "Source" : {
+
+    },
+    "Starts watching a link or name, the same as pasting it into Youpdated." : {
+
+    },
+    "The updates you haven't opened yet, newest first." : {
+
+    },
+    "There's no link or name to watch in the selection." : {
+
+    },
+    "Title" : {
+
+    },
+    "Unlock Youpdated…" : {
+
+    },
+    "Unread Updates" : {
+
+    },
+    "Until Resumed" : {
+
+    },
+    "Until Tomorrow" : {
+
+    },
+    "Update" : {
+
+    },
+    "Watch ${value}" : {
+
+    },
+    "Watching %@." : {
+
+    },
+    "Youpdated" : {
+
+    },
+    "Youpdated is locked. Open it and enter the passphrase first." : {
+
+    },
+    "Youpdated isn't running its checks yet. Open it and try again." : {
+
+    }
+  },
+  "version" : "1.0"
+}
