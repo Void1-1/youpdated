@@ -394,14 +394,22 @@ class Engine:
     def _history(self, config: Config | None = None) -> Iterator[State]:
         """running check's history, or one opened for this op"""
         with self._cond:
-            # a check opening it holds the lock already
+            # one opens at a time, or an op could wait out a whole check for the lock
             while self._opening:
                 self._cond.wait()
             shared = self._shared
             if shared is not None:
                 self._borrowers += 1
+            else:
+                self._opening = True
         if shared is None:
-            with self._open_state(config) as state:
+            try:
+                state = self._open_state(config)
+            finally:
+                with self._cond:
+                    self._opening = False
+                    self._cond.notify_all()
+            with state:
                 yield state
             return
         try:
@@ -606,6 +614,8 @@ class Engine:
         if config.privacy.proxy:
             probe_proxy(config.privacy.proxy, timeout=config.privacy.timeout)
         with self._cond:
+            while self._opening:
+                self._cond.wait()
             self._opening = True
         try:
             state = self._open_state(config)

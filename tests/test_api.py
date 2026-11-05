@@ -389,6 +389,27 @@ def test_a_second_check_is_busy(engine, fake):
     assert replies[0]["ok"]
 
 
+def test_a_check_starting_as_an_op_opens_the_history_does_not_overtake_it(engine, fake, monkeypatch):
+    write_items(fake, {"alpha": {"sleep": 1, "items": [item("1.1")]}})
+    replies = []
+    check = threading.Thread(target=lambda: replies.append(engine("check")))
+    open_state = engine._open_state
+
+    def open_late(config):
+        # the op found nothing to share, and doesn't have the lock yet
+        if threading.current_thread() is not check:
+            check.start()
+            time.sleep(0.3)
+        return open_state(config)
+
+    monkeypatch.setattr(engine, "_open_state", open_late)
+
+    assert engine("inbox.list")["ok"]
+    assert not replies
+    check.join()
+    assert replies[0]["ok"]
+
+
 def test_the_cli_holding_the_history_is_history_busy(engine, tmp_path):
     engine.lock_timeout = 0.2
     with State(tmp_path / "state.db"):
