@@ -1,0 +1,137 @@
+{
+  "description": "Inbox, newest first",
+  "request": {
+    "id": 17,
+    "op": "inbox.list",
+    "sort": "newest",
+    "limit": 100
+  },
+  "events": [],
+  "reply": {
+    "id": 17,
+    "ok": true,
+    "items": [
+      {
+        "id": "i_5e7a9c1b3d2f4068",
+        "source": "git",
+        "target": "github.com/Void1-1/youpdated",
+        "display": "Void1-1/youpdated",
+        "title": "app-v1.1.0",
+        "url": "https://github.com/Void1-1/youpdated/releases/tag/app-v1.1.0",
+        "version": "app-v1.1.0",
+        "published": "2026-10-29T06:00:00Z",
+        "tags": [
+          "release"
+        ],
+        "body": null,
+        "found_at": "2026-10-29T08:00:04Z",
+        "read": false,
+        "baseline": false,
+        "priority": "normal",
+        "starred": true,
+        "snoozed_until": null
+      },
+      {
+        "id": "i_8f3a1c2e9b7d4a10",
+        "source": "git",
+        "target": "github.com/python/cpython",
+        "display": "python/cpython",
+        "title": "v3.14.7",
+        "url": "https://github.com/python/cpython/releases/tag/v3.14.7",
+        "version": "v3.14.7",
+        "published": "2026-10-28T14:02:11Z",
+        "tags": [
+          "release"
+        ],
+        "body": null,
+        "found_at": "2026-10-29T08:00:04Z",
+        "read": false,
+        "baseline": false,
+        "priority": "high",
+        "starred": false,
+        "snoozed_until": null
+      },
+      {
+        "id": "i_2b9e5d7f0c1a3e44",
+        "source": "steam",
+        "target": "440",
+        "display": "Team Fortress 2",
+        "title": "CLTF2 Halloween Cup",
+        "url": "https://store.steampowered.com/news/app/440/view/5001",
+        "version": null,
+        "published": "2026-10-28T19:30:00Z",
+        "tags": [
+          "news"
+        ],
+        "body": "Sign-ups for the Halloween cup are open until Friday.",
+        "found_at": "2026-10-29T08:00:05Z",
+        "read": false,
+        "baseline": false,
+        "priority": "normal",
+        "starred": false,
+        "snoozed_until": null
+      },
+      {
+        "id": "i_c4d1e8a2f6b39017",
+        "source": "npm",
+        "target": "react",
+        "display": "react",
+        "title": "19.3.0",
+        "url": "https://www.npmjs.com/package/react/v/19.3.0",
+        "version": "19.3.0",
+        "published": "2026-10-27T21:15:40Z",
+        "tags": [],
+        "body": null,
+        "found_at": "2026-10-29T08:00:05Z",
+        "read": false,
+        "baseline": false,
+        "priority": "low",
+        "starred": false,
+        "snoozed_until": null
+      },
+      {
+        "id": "i_0f1e2d3c4b5a6978",
+        "source": "itch",
+        "target": "https://foo.itch.io/bar",
+        "display": "Bar",
+        "title": "Bar 0.9 is out",
+        "url": "https://foo.itch.io/bar/devlog/123",
+        "version": "0.9",
+        "published": "2026-10-25T10:00:00Z",
+        "tags": [
+          "devlog"
+        ],
+        "body": null,
+        "found_at": "2026-10-29T08:00:06Z",
+        "read": true,
+        "baseline": true,
+        "priority": "normal",
+        "starred": false,
+        "snoozed_until": null
+      },
+      {
+        "id": "i_9a0b1c2d3e4f5061",
+        "source": "steam",
+        "target": "440",
+        "display": "Team Fortress 2",
+        "title": "Team Fortress 2 Update Released",
+        "url": "https://store.steampowered.com/news/app/440/view/4990",
+        "version": null,
+        "published": "2026-10-20T00:10:00Z",
+        "tags": [
+          "news"
+        ],
+        "body": null,
+        "found_at": "2026-10-21T12:00:00Z",
+        "read": true,
+        "baseline": false,
+        "priority": "normal",
+        "starred": false,
+        "snoozed_until": null
+      }
+    ],
+    "cursor": null,
+    "total": 6,
+    "unread": 4
+  }
+}

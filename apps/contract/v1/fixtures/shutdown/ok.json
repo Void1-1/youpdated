@@ -1,0 +1,12 @@
+{
+  "description": "Quitting the app",
+  "request": {
+    "id": 26,
+    "op": "shutdown"
+  },
+  "events": [],
+  "reply": {
+    "id": 26,
+    "ok": true
+  }
+}

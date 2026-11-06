@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="oklch(0.72 0.11 188)"/><stop offset="1" stop-color="oklch(0.48 0.1 210)"/></linearGradient>
+    <linearGradient id="sheen" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".18"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/></linearGradient>
+    <mask id="badge" maskUnits="userSpaceOnUse" x="0" y="0" width="1024" height="1024"><rect width="1024" height="1024" fill="#fff"/><circle cx="694" cy="314" r="112" fill="#000"/></mask>
+  </defs>
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#bg)"/>
+  <g mask="url(#badge)" fill="#fff">
+    <circle cx="512" cy="262" r="30"/>
+    <path d="M512 268 C400 268 350 350 350 452 L350 556 C350 598 330 620 304 638 C284 652 292 676 318 676 L706 676 C732 676 740 652 720 638 C694 620 674 598 674 556 L674 452 C674 350 624 268 512 268 Z"/>
+    <path d="M454 700 L570 700 C570 734 544 760 512 760 C480 760 454 734 454 700 Z"/>
+  </g>
+  <circle cx="694" cy="314" r="84" fill="oklch(0.68 0.19 30)"/>
+  <rect x="101" y="101" width="822" height="822" rx="184" fill="none" stroke="url(#sheen)" stroke-width="3"/>
+</svg>

@@ -1,0 +1,216 @@
+{
+  "description": "Cases for both apps to test against",
+  "palette": [
+    "Red",
+    "Orange",
+    "Amber",
+    "Olive",
+    "Green",
+    "Teal",
+    "Cyan",
+    "Blue",
+    "Indigo",
+    "Purple",
+    "Pink",
+    "Graphite"
+  ],
+  "targets": [
+    {
+      "source": "git",
+      "key": "github.com/python/cpython",
+      "display": "python/cpython",
+      "hash": 881751882,
+      "color": 6,
+      "color_name": "Cyan",
+      "initials": "C",
+      "label": "GitHub"
+    },
+    {
+      "source": "git",
+      "key": "github.com/Void1-1/youpdated",
+      "display": "Void1-1/youpdated",
+      "hash": 2509661447,
+      "color": 11,
+      "color_name": "Graphite",
+      "initials": "Y",
+      "label": "GitHub"
+    },
+    {
+      "source": "git",
+      "key": "gitlab.com/inkscape/inkscape",
+      "display": "inkscape/inkscape",
+      "hash": 4057521337,
+      "color": 1,
+      "color_name": "Orange",
+      "initials": "I",
+      "label": "GitLab"
+    },
+    {
+      "source": "git",
+      "key": "codeberg.org/forgejo/forgejo",
+      "display": "forgejo/forgejo",
+      "hash": 3372569996,
+      "color": 8,
+      "color_name": "Indigo",
+      "initials": "F",
+      "label": "Codeberg"
+    },
+    {
+      "source": "git",
+      "key": "git.example.org/team/tool",
+      "display": "team/tool",
+      "hash": 2333125582,
+      "color": 10,
+      "color_name": "Pink",
+      "initials": "T",
+      "label": "git.example.org"
+    },
+    {
+      "source": "steam",
+      "key": "440",
+      "display": "Team Fortress 2",
+      "hash": 1684962129,
+      "color": 9,
+      "color_name": "Purple",
+      "initials": "TF",
+      "label": "Steam"
+    },
+    {
+      "source": "steam",
+      "key": "1145350",
+      "display": "Hades II",
+      "hash": 2321714702,
+      "color": 2,
+      "color_name": "Amber",
+      "initials": "HI",
+      "label": "Steam"
+    },
+    {
+      "source": "itch",
+      "key": "https://foo.itch.io/bar",
+      "display": "Bar",
+      "hash": 3715904144,
+      "color": 8,
+      "color_name": "Indigo",
+      "initials": "B",
+      "label": "itch.io"
+    },
+    {
+      "source": "npm",
+      "key": "react",
+      "display": "react",
+      "hash": 3908284335,
+      "color": 3,
+      "color_name": "Olive",
+      "initials": "R",
+      "label": "npm"
+    },
+    {
+      "source": "npm",
+      "key": "@vitejs/plugin-react",
+      "display": "@vitejs/plugin-react",
+      "hash": 4066090347,
+      "color": 3,
+      "color_name": "Olive",
+      "initials": "P",
+      "label": "npm"
+    },
+    {
+      "source": "pypi",
+      "key": "httpx",
+      "display": "httpx",
+      "hash": 3952528695,
+      "color": 3,
+      "color_name": "Olive",
+      "initials": "H",
+      "label": "PyPI"
+    },
+    {
+      "source": "homebrew",
+      "key": "formula/wget",
+      "display": "wget",
+      "hash": 994671768,
+      "color": 0,
+      "color_name": "Red",
+      "initials": "W",
+      "label": "Homebrew"
+    },
+    {
+      "source": "youtube",
+      "key": "UC123",
+      "display": "@SomeChannel",
+      "hash": 615833832,
+      "color": 0,
+      "color_name": "Red",
+      "initials": "S",
+      "label": "YouTube"
+    },
+    {
+      "source": "feed",
+      "key": "https://blog.example.com/feed.xml",
+      "display": "Example Blog",
+      "hash": 1331431193,
+      "color": 5,
+      "color_name": "Teal",
+      "initials": "EB",
+      "label": "blog.example.com"
+    },
+    {
+      "source": "browser",
+      "key": "firefox/stable",
+      "display": "Firefox",
+      "hash": 92831966,
+      "color": 2,
+      "color_name": "Amber",
+      "initials": "F",
+      "label": "Browsers"
+    },
+    {
+      "source": "mysource",
+      "key": "thing",
+      "display": "Thing",
+      "hash": 2122712944,
+      "color": 4,
+      "color_name": "Green",
+      "initials": "T",
+      "label": "mysource"
+    }
+  ],
+  "since": [
+    {
+      "now": "2026-10-30T15:00:00",
+      "found": "2026-10-30T08:00:00",
+      "says": "Since this morning"
+    },
+    {
+      "now": "2026-10-30T15:00:00",
+      "found": "2026-10-30T12:00:00",
+      "says": "Since this afternoon"
+    },
+    {
+      "now": "2026-10-30T21:00:00",
+      "found": "2026-10-30T18:30:00",
+      "says": "Since this evening"
+    },
+    {
+      "now": "2026-10-30T09:00:00",
+      "found": "2026-10-29T23:10:00",
+      "says": "Since yesterday"
+    },
+    {
+      "now": "2026-10-30T09:00:00",
+      "found": "2026-10-27T10:00:00",
+      "says": "Since Tuesday"
+    },
+    {
+      "now": "2026-10-30T09:00:00",
+      "found": "2026-10-24T10:00:00",
+      "says": "Since Saturday"
+    },
+    {
+      "now": "2026-10-30T09:00:00",
+      "found": "2026-10-12T10:00:00",
+      "says": "Since Oct 12"
+    }
+  ]
+}

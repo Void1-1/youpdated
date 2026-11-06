@@ -687,7 +687,7 @@ def _hover(widget: tk.Widget, normal: str, active: str, group: list | None = Non
 
 
 def _menu(parent: tk.Misc) -> tk.Menu:
-    # macOS draws its own menus and ignores the colours
+    # macOS draws its own menus and ignores the colors
     return tk.Menu(
         parent, tearoff=0, bg=CARD, fg=TEXT, activebackground=CARD_HOVER,
         activeforeground=TEXT, selectcolor=TEXT, bd=0,

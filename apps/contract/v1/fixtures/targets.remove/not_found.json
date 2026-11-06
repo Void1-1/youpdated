@@ -1,0 +1,18 @@
+{
+  "description": "Removing something not watched",
+  "request": {
+    "id": 40,
+    "op": "targets.remove",
+    "source": "npm",
+    "key": "left-pad"
+  },
+  "events": [],
+  "reply": {
+    "id": 40,
+    "ok": false,
+    "error": {
+      "code": "not_found",
+      "message": "not watching left-pad under npm"
+    }
+  }
+}

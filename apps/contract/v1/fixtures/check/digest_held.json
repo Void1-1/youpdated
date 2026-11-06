@@ -1,0 +1,61 @@
+{
+  "description": "Normal items held because a digest time is set",
+  "request": {
+    "id": 5,
+    "op": "check",
+    "notify": true
+  },
+  "events": [
+    {
+      "event": "progress",
+      "done": 0,
+      "of": 1
+    },
+    {
+      "event": "progress",
+      "done": 1,
+      "of": 1,
+      "target": {
+        "source": "steam",
+        "key": "440",
+        "display": "Team Fortress 2"
+      },
+      "failed": false
+    }
+  ],
+  "reply": {
+    "id": 5,
+    "ok": true,
+    "checked_at": "2026-10-29T14:00:02Z",
+    "new": 1,
+    "items": [
+      {
+        "id": "i_2b9e5d7f0c1a3e44",
+        "source": "steam",
+        "target": "440",
+        "display": "Team Fortress 2",
+        "title": "CLTF2 Halloween Cup",
+        "url": "https://store.steampowered.com/news/app/440/view/5001",
+        "version": null,
+        "published": "2026-10-28T19:30:00Z",
+        "tags": [
+          "news"
+        ],
+        "body": "Sign-ups for the Halloween cup are open until Friday.",
+        "found_at": "2026-10-29T08:00:05Z",
+        "read": false,
+        "baseline": false,
+        "priority": "normal",
+        "starred": false,
+        "snoozed_until": null
+      }
+    ],
+    "baselined": [],
+    "errors": [],
+    "warnings": [],
+    "notify_failures": [],
+    "alerts": [],
+    "held": 1,
+    "unread": 1
+  }
+}

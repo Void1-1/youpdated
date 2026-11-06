@@ -22,7 +22,7 @@ from youpdated.runner import ProgressReporter, run
 
 
 def _record_reservations(monkeypatch):
-    """Capture the slot each _pace call sleeps towards"""
+    """Capture the slot each _pace call sleeps toward"""
     reserved: list[float] = []
     lock = threading.Lock()
 

@@ -1,0 +1,17 @@
+{
+  "description": "Snooze from a notification",
+  "request": {
+    "id": 21,
+    "op": "inbox.snooze",
+    "ids": [
+      "i_2b9e5d7f0c1a3e44"
+    ],
+    "minutes": 60
+  },
+  "events": [],
+  "reply": {
+    "id": 21,
+    "ok": true,
+    "until": "2026-10-29T09:05:00Z"
+  }
+}

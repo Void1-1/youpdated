@@ -1,0 +1,59 @@
+{
+  "description": "Unread only",
+  "request": {
+    "id": 18,
+    "op": "inbox.list",
+    "unread": true,
+    "limit": 2
+  },
+  "events": [],
+  "reply": {
+    "id": 18,
+    "ok": true,
+    "items": [
+      {
+        "id": "i_5e7a9c1b3d2f4068",
+        "source": "git",
+        "target": "github.com/Void1-1/youpdated",
+        "display": "Void1-1/youpdated",
+        "title": "app-v1.1.0",
+        "url": "https://github.com/Void1-1/youpdated/releases/tag/app-v1.1.0",
+        "version": "app-v1.1.0",
+        "published": "2026-10-29T06:00:00Z",
+        "tags": [
+          "release"
+        ],
+        "body": null,
+        "found_at": "2026-10-29T08:00:04Z",
+        "read": false,
+        "baseline": false,
+        "priority": "normal",
+        "starred": true,
+        "snoozed_until": null
+      },
+      {
+        "id": "i_8f3a1c2e9b7d4a10",
+        "source": "git",
+        "target": "github.com/python/cpython",
+        "display": "python/cpython",
+        "title": "v3.14.7",
+        "url": "https://github.com/python/cpython/releases/tag/v3.14.7",
+        "version": "v3.14.7",
+        "published": "2026-10-28T14:02:11Z",
+        "tags": [
+          "release"
+        ],
+        "body": null,
+        "found_at": "2026-10-29T08:00:04Z",
+        "read": false,
+        "baseline": false,
+        "priority": "high",
+        "starred": false,
+        "snoozed_until": null
+      }
+    ],
+    "cursor": "c_2",
+    "total": 4,
+    "unread": 4
+  }
+}

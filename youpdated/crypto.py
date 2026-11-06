@@ -4,7 +4,7 @@ Encrypts whole files with AES-256-GCM. Nothing written in plaintext: the config 
 the SQLite database is deserialized into memory, so no readable copy on disk even mid-run.
 
 Container layout
-    b"YOUPDENC"   8   magic, also how `is_encrypted` recognises a file
+    b"YOUPDENC"   8   magic, also how `is_encrypted` recognizes a file
     version       1   container version, currently 1
     kdf           1   KDF id, currently 1 (scrypt)
     log2_n        1   scrypt cost, 2**log2_n
@@ -25,15 +25,19 @@ import hashlib
 import os
 import sys
 import tempfile
+import threading
 from contextlib import suppress
 from pathlib import Path
 
 __all__ = [
     "EncryptionError",
+    "KeyCache",
     "MAGIC",
     "PASSPHRASE_ENV",
     "VERSION",
+    "WrongPassphrase",
     "available",
+    "cache_keys",
     "decrypt",
     "encrypt",
     "is_encrypted",
@@ -69,6 +73,10 @@ _INSTALL_HINT = (
 
 class EncryptionError(Exception):
     """Raised with a message for the user."""
+
+
+class WrongPassphrase(EncryptionError):
+    """The passphrase doesn't open the file, or the file was modified"""
 
 
 def _aesgcm():
@@ -112,6 +120,60 @@ def _derive(passphrase: str, salt: bytes, log2_n: int, r: int, p: int) -> bytes:
         raise EncryptionError(f"cannot derive key: {exc}") from exc
 
 
+class KeyCache:
+    """Keys derived in a long-lived process"""
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._keys: dict[tuple[str, bytes, int, int, int], bytes] = {}
+        # salt to encrypt with, per passphrase
+        self._salts: dict[str, bytes] = {}
+
+    def key(self, passphrase: str, salt: bytes, log2_n: int, r: int, p: int) -> bytes:
+        entry = (passphrase, salt, log2_n, r, p)
+        with self._lock:
+            key = self._keys.get(entry)
+        if key is None:
+            key = _derive(passphrase, salt, log2_n, r, p)
+            with self._lock:
+                self._keys[entry] = key
+        return key
+
+    def salt(self, passphrase: str) -> bytes | None:
+        with self._lock:
+            return self._salts.get(passphrase)
+
+    def remember(self, passphrase: str, salt: bytes, log2_n: int, r: int, p: int) -> None:
+        """``salt`` worked for ``passphrase``. encrypt with it from now on"""
+        if (log2_n, r, p) == (_LOG2_N, _R, _P):
+            with self._lock:
+                self._salts.setdefault(passphrase, salt)
+
+    def clear(self) -> None:
+        with self._lock:
+            self._keys.clear()
+            self._salts.clear()
+
+
+# Off for CLI
+_cache: KeyCache | None = None
+
+
+def cache_keys(enabled: bool = True) -> None:
+    """Keep derived keys in memory for the rest of the process"""
+    global _cache
+    if _cache is not None:
+        _cache.clear()
+    _cache = KeyCache() if enabled else None
+
+
+def _key(passphrase: str, salt: bytes, log2_n: int, r: int, p: int) -> bytes:
+    cache = _cache
+    if cache is None:
+        return _derive(passphrase, salt, log2_n, r, p)
+    return cache.key(passphrase, salt, log2_n, r, p)
+
+
 def is_encrypted(blob: bytes) -> bool:
     return blob[: len(MAGIC)] == MAGIC
 
@@ -129,10 +191,13 @@ def encrypt(payload: bytes, passphrase: str) -> bytes:
     if not passphrase:
         raise EncryptionError("passphrase must not be empty")
     aesgcm = _aesgcm()
-    salt = os.urandom(_SALT_LEN)
+    cache = _cache
+    salt = (cache.salt(passphrase) if cache is not None else None) or os.urandom(_SALT_LEN)
     nonce = os.urandom(_NONCE_LEN)
     header = MAGIC + bytes([VERSION, KDF_SCRYPT, _LOG2_N, _R, _P]) + salt + nonce
-    key = _derive(passphrase, salt, _LOG2_N, _R, _P)
+    key = _key(passphrase, salt, _LOG2_N, _R, _P)
+    if cache is not None:
+        cache.remember(passphrase, salt, _LOG2_N, _R, _P)
     return header + aesgcm(key).encrypt(nonce, payload, header)
 
 
@@ -163,11 +228,15 @@ def decrypt(blob: bytes, passphrase: str) -> bytes:
     salt = blob[_HEADER_LEN - _NONCE_LEN - _SALT_LEN : _HEADER_LEN - _NONCE_LEN]
 
     aesgcm = _aesgcm()
-    key = _derive(passphrase, salt, log2_n, r, p)
+    key = _key(passphrase, salt, log2_n, r, p)
     try:
-        return aesgcm(key).decrypt(nonce, blob[_HEADER_LEN:], header)
+        payload = aesgcm(key).decrypt(nonce, blob[_HEADER_LEN:], header)
     except Exception as exc:  # InvalidTag, and anything else the backend raises
-        raise EncryptionError("wrong passphrase, or the file has been modified") from exc
+        raise WrongPassphrase("wrong passphrase, or the file has been modified") from exc
+    cache = _cache
+    if cache is not None:
+        cache.remember(passphrase, salt, log2_n, r, p)
+    return payload
 
 
 def write_private(path: str | Path, blob: bytes) -> None:
@@ -222,5 +291,5 @@ def prompt_passphrase(prompt: str = "Passphrase: ", *, confirm: bool = False) ->
         if confirm and getpass.getpass("Confirm passphrase: ") != passphrase:
             raise EncryptionError("passphrases did not match")
     except (EOFError, KeyboardInterrupt) as exc:
-        raise EncryptionError("cancelled") from exc
+        raise EncryptionError("canceled") from exc
     return passphrase

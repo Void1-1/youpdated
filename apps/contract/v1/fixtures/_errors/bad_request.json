@@ -1,0 +1,17 @@
+{
+  "description": "Params the op doesn't accept",
+  "request": {
+    "id": 1,
+    "op": "inbox.list",
+    "limit": 0
+  },
+  "events": [],
+  "reply": {
+    "id": 1,
+    "ok": false,
+    "error": {
+      "code": "bad_request",
+      "message": "limit must be between 1 and 500"
+    }
+  }
+}

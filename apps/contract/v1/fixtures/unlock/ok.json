@@ -1,0 +1,17 @@
+{
+  "description": "The correct passphrase",
+  "request": {
+    "id": 43,
+    "op": "unlock",
+    "passphrase": "correct horse"
+  },
+  "events": [],
+  "reply": {
+    "id": 43,
+    "ok": true,
+    "encrypted": {
+      "config": true,
+      "history": true
+    }
+  }
+}

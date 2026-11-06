@@ -288,7 +288,7 @@ def test_an_editor_that_returns_at_once_is_waited_for(config, tmp_path, monkeypa
     assert "left-pad" in load_config(config).sources["npm"]
 
 
-def test_waiting_for_a_window_editor_can_be_cancelled(config, tmp_path, monkeypatch, capsys):
+def test_waiting_for_a_window_editor_can_be_canceled(config, tmp_path, monkeypatch, capsys):
     monkeypatch.setattr(cli, "_QUICK_EDITOR", 60)
     log = use_editor(tmp_path, monkeypatch, "pass")
     edit_while_asked(monkeypatch, log, None)

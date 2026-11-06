@@ -72,7 +72,7 @@ TLDR: implement `targets()` and `fetch()` from the protocol in [youpdated/source
 
 ## Building a release
 
-Publishing is done by [.github/workflows/release.yml](.github/workflows/release.yml) when a GitHub Release is published. It runs the full test matrix, builds, checks the tag matches the version in `pyproject.toml`, installs the built wheel to make sure it runs, and uploads to PyPI through trusted publishing. No PyPI token is stored.
+Publishing is done by [.github/workflows/release.yml](.github/workflows/release.yml) when a GitHub Release tagged `v*` is published. It runs the full test matrix, builds, checks the tag matches the version in `pyproject.toml`, installs the built wheel to make sure it runs, and uploads to PyPI through trusted publishing. No PyPI token is stored.
 
 1. Bump `version` in `pyproject.toml` and add the matching `CHANGELOG.md` entry in the same commit.
    **A version is permanent:** PyPI refuses to replace an existing version even after a delete.

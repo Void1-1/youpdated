@@ -1,0 +1,618 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		5E1F00000000000000000113 /* YoupdatedUI in Frameworks */ = {isa = PBXBuildFile; productRef = 5E1F00000000000000000045 /* YoupdatedUI */; };
+		5E1F00000000000000000410 /* YoupdatedKit in Frameworks */ = {isa = PBXBuildFile; productRef = 5E1F00000000000000000044 /* YoupdatedKit */; };
+		5E1F00000000000000000110 /* YoupdatedKit in Frameworks */ = {isa = PBXBuildFile; productRef = 5E1F00000000000000000041 /* YoupdatedKit */; };
+		5E1F00000000000000000210 /* YoupdatedKit in Frameworks */ = {isa = PBXBuildFile; productRef = 5E1F00000000000000000042 /* YoupdatedKit */; };
+		5E1F00000000000000000310 /* YoupdatedKit in Frameworks */ = {isa = PBXBuildFile; productRef = 5E1F00000000000000000043 /* YoupdatedKit */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		5E1F00000000000000000023 /* YoupdatedKitTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = YoupdatedKitTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		5E1F00000000000000000010 /* Youpdated.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Youpdated.xcconfig; sourceTree = "<group>"; };
+		5E1F00000000000000000011 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		5E1F00000000000000000012 /* Widget-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Widget-Info.plist"; sourceTree = "<group>"; };
+		5E1F00000000000000000013 /* Share-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Share-Info.plist"; sourceTree = "<group>"; };
+		5E1F00000000000000000014 /* Youpdated.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Youpdated.entitlements; sourceTree = "<group>"; };
+		5E1F00000000000000000015 /* Extension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Extension.entitlements; sourceTree = "<group>"; };
+		5E1F00000000000000000020 /* Youpdated.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Youpdated.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		5E1F00000000000000000021 /* YoupdatedWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = YoupdatedWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		5E1F00000000000000000022 /* YoupdatedShare.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = YoupdatedShare.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		5E1F00000000000000000034 /* YoupdatedKitTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			name = YoupdatedKitTests;
+			path = Tests/YoupdatedKitTests;
+			sourceTree = "<group>";
+		};
+		5E1F00000000000000000030 /* Youpdated */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			name = Youpdated;
+			path = Sources/Youpdated;
+			sourceTree = "<group>";
+		};
+		5E1F00000000000000000031 /* Resources */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		5E1F00000000000000000032 /* Widget */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Extensions/Widget;
+			sourceTree = "<group>";
+		};
+		5E1F00000000000000000033 /* Share */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = Extensions/Share;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		5E1F00000000000000000402 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5E1F00000000000000000410 /* YoupdatedKit in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5E1F00000000000000000102 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5E1F00000000000000000110 /* YoupdatedKit in Frameworks */,
+				5E1F00000000000000000113 /* YoupdatedUI in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5E1F00000000000000000202 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5E1F00000000000000000210 /* YoupdatedKit in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5E1F00000000000000000302 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5E1F00000000000000000310 /* YoupdatedKit in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		5E1F00000000000000000002 = {
+			isa = PBXGroup;
+			children = (
+				5E1F00000000000000000030 /* Youpdated */,
+				5E1F00000000000000000031 /* Resources */,
+				5E1F00000000000000000032 /* Widget */,
+				5E1F00000000000000000033 /* Share */,
+				5E1F00000000000000000034 /* YoupdatedKitTests */,
+				5E1F00000000000000000004 /* Support */,
+				5E1F00000000000000000005 /* Config */,
+				5E1F00000000000000000003 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		5E1F00000000000000000003 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				5E1F00000000000000000020 /* Youpdated.app */,
+				5E1F00000000000000000021 /* YoupdatedWidget.appex */,
+				5E1F00000000000000000022 /* YoupdatedShare.appex */,
+				5E1F00000000000000000023 /* YoupdatedKitTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		5E1F00000000000000000004 /* Support */ = {
+			isa = PBXGroup;
+			children = (
+				5E1F00000000000000000011 /* Info.plist */,
+				5E1F00000000000000000012 /* Widget-Info.plist */,
+				5E1F00000000000000000013 /* Share-Info.plist */,
+				5E1F00000000000000000014 /* Youpdated.entitlements */,
+				5E1F00000000000000000015 /* Extension.entitlements */,
+			);
+			path = Support;
+			sourceTree = "<group>";
+		};
+		5E1F00000000000000000005 /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				5E1F00000000000000000010 /* Youpdated.xcconfig */,
+			);
+			path = Config;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		5E1F00000000000000000400 /* YoupdatedKitTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5E1F00000000000000000540 /* Build configuration list for PBXNativeTarget "YoupdatedKitTests" */;
+			buildPhases = (
+				5E1F00000000000000000401 /* Sources */,
+				5E1F00000000000000000402 /* Frameworks */,
+				5E1F00000000000000000403 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				5E1F00000000000000000034 /* YoupdatedKitTests */,
+			);
+			name = YoupdatedKitTests;
+			packageProductDependencies = (
+				5E1F00000000000000000044 /* YoupdatedKit */,
+			);
+			productName = YoupdatedKitTests;
+			productReference = 5E1F00000000000000000023 /* YoupdatedKitTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		5E1F00000000000000000100 /* Youpdated */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5E1F00000000000000000510 /* Build configuration list for PBXNativeTarget "Youpdated" */;
+			buildPhases = (
+				5E1F00000000000000000101 /* Sources */,
+				5E1F00000000000000000102 /* Frameworks */,
+				5E1F00000000000000000103 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				5E1F00000000000000000030 /* Youpdated */,
+				5E1F00000000000000000031 /* Resources */,
+			);
+			name = Youpdated;
+			packageProductDependencies = (
+				5E1F00000000000000000041 /* YoupdatedKit */,
+				5E1F00000000000000000045 /* YoupdatedUI */,
+			);
+			productName = Youpdated;
+			productReference = 5E1F00000000000000000020 /* Youpdated.app */;
+			productType = "com.apple.product-type.application";
+		};
+		5E1F00000000000000000200 /* YoupdatedWidget */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5E1F00000000000000000520 /* Build configuration list for PBXNativeTarget "YoupdatedWidget" */;
+			buildPhases = (
+				5E1F00000000000000000201 /* Sources */,
+				5E1F00000000000000000202 /* Frameworks */,
+				5E1F00000000000000000203 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				5E1F00000000000000000032 /* Widget */,
+			);
+			name = YoupdatedWidget;
+			packageProductDependencies = (
+				5E1F00000000000000000042 /* YoupdatedKit */,
+			);
+			productName = YoupdatedWidget;
+			productReference = 5E1F00000000000000000021 /* YoupdatedWidget.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		5E1F00000000000000000300 /* YoupdatedShare */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5E1F00000000000000000530 /* Build configuration list for PBXNativeTarget "YoupdatedShare" */;
+			buildPhases = (
+				5E1F00000000000000000301 /* Sources */,
+				5E1F00000000000000000302 /* Frameworks */,
+				5E1F00000000000000000303 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				5E1F00000000000000000033 /* Share */,
+			);
+			name = YoupdatedShare;
+			packageProductDependencies = (
+				5E1F00000000000000000043 /* YoupdatedKit */,
+			);
+			productName = YoupdatedShare;
+			productReference = 5E1F00000000000000000022 /* YoupdatedShare.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		5E1F00000000000000000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2710;
+				LastUpgradeCheck = 2710;
+				TargetAttributes = {
+					5E1F00000000000000000100 = {
+						CreatedOnToolsVersion = 27.1;
+					};
+					5E1F00000000000000000200 = {
+						CreatedOnToolsVersion = 27.1;
+					};
+					5E1F00000000000000000300 = {
+						CreatedOnToolsVersion = 27.1;
+					};
+					5E1F00000000000000000400 = {
+						CreatedOnToolsVersion = 27.1;
+					};
+				};
+			};
+			buildConfigurationList = 5E1F00000000000000000500 /* Build configuration list for PBXProject "Youpdated" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 5E1F00000000000000000002;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				5E1F00000000000000000040 /* XCLocalSwiftPackageReference "." */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 5E1F00000000000000000003 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				5E1F00000000000000000100 /* Youpdated */,
+				5E1F00000000000000000200 /* YoupdatedWidget */,
+				5E1F00000000000000000300 /* YoupdatedShare */,
+				5E1F00000000000000000400 /* YoupdatedKitTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		5E1F00000000000000000403 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5E1F00000000000000000103 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5E1F00000000000000000203 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5E1F00000000000000000303 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		5E1F00000000000000000401 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5E1F00000000000000000101 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5E1F00000000000000000201 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5E1F00000000000000000301 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		5E1F00000000000000000541 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				GENERATE_INFOPLIST_FILE = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(YOUPDATED_BUNDLE_ID).Tests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+			};
+			name = Debug;
+		};
+		5E1F00000000000000000542 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				GENERATE_INFOPLIST_FILE = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(YOUPDATED_BUNDLE_ID).Tests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+			};
+			name = Release;
+		};
+		5E1F00000000000000000501 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 5E1F00000000000000000010 /* Youpdated.xcconfig */;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		5E1F00000000000000000502 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 5E1F00000000000000000010 /* Youpdated.xcconfig */;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+			};
+			name = Release;
+		};
+		5E1F00000000000000000511 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Support/Youpdated.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Support/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "$(YOUPDATED_BUNDLE_ID)";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		5E1F00000000000000000512 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Support/Youpdated.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Support/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "$(YOUPDATED_BUNDLE_ID)";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
+		5E1F00000000000000000521 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Support/Extension.entitlements;
+				ENABLE_APP_SANDBOX = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "Support/Widget-Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "$(YOUPDATED_BUNDLE_ID).Widget";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+			};
+			name = Debug;
+		};
+		5E1F00000000000000000522 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Support/Extension.entitlements;
+				ENABLE_APP_SANDBOX = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "Support/Widget-Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "$(YOUPDATED_BUNDLE_ID).Widget";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+			};
+			name = Release;
+		};
+		5E1F00000000000000000531 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Support/Extension.entitlements;
+				ENABLE_APP_SANDBOX = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "Support/Share-Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "$(YOUPDATED_BUNDLE_ID).Share";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+			};
+			name = Debug;
+		};
+		5E1F00000000000000000532 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Support/Extension.entitlements;
+				ENABLE_APP_SANDBOX = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "Support/Share-Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@executable_path/../../../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "$(YOUPDATED_BUNDLE_ID).Share";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		5E1F00000000000000000540 /* Build configuration list for PBXNativeTarget "YoupdatedKitTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5E1F00000000000000000541 /* Debug */,
+				5E1F00000000000000000542 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		5E1F00000000000000000500 /* Build configuration list for PBXProject "Youpdated" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5E1F00000000000000000501 /* Debug */,
+				5E1F00000000000000000502 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		5E1F00000000000000000510 /* Build configuration list for PBXNativeTarget "Youpdated" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5E1F00000000000000000511 /* Debug */,
+				5E1F00000000000000000512 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		5E1F00000000000000000520 /* Build configuration list for PBXNativeTarget "YoupdatedWidget" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5E1F00000000000000000521 /* Debug */,
+				5E1F00000000000000000522 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		5E1F00000000000000000530 /* Build configuration list for PBXNativeTarget "YoupdatedShare" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5E1F00000000000000000531 /* Debug */,
+				5E1F00000000000000000532 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		5E1F00000000000000000040 /* XCLocalSwiftPackageReference "." */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = .;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		5E1F00000000000000000045 /* YoupdatedUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5E1F00000000000000000040 /* XCLocalSwiftPackageReference "." */;
+			productName = YoupdatedUI;
+		};
+		5E1F00000000000000000044 /* YoupdatedKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5E1F00000000000000000040 /* XCLocalSwiftPackageReference "." */;
+			productName = YoupdatedKit;
+		};
+		5E1F00000000000000000041 /* YoupdatedKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5E1F00000000000000000040 /* XCLocalSwiftPackageReference "." */;
+			productName = YoupdatedKit;
+		};
+		5E1F00000000000000000042 /* YoupdatedKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5E1F00000000000000000040 /* XCLocalSwiftPackageReference "." */;
+			productName = YoupdatedKit;
+		};
+		5E1F00000000000000000043 /* YoupdatedKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5E1F00000000000000000040 /* XCLocalSwiftPackageReference "." */;
+			productName = YoupdatedKit;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 5E1F00000000000000000001 /* Project object */;
+}

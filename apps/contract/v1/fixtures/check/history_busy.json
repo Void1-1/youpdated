@@ -1,0 +1,16 @@
+{
+  "description": "The CLI holds the history",
+  "request": {
+    "id": 6,
+    "op": "check"
+  },
+  "events": [],
+  "reply": {
+    "id": 6,
+    "ok": false,
+    "error": {
+      "code": "history_busy",
+      "message": "/Users/me/Library/Application Support/youpdated/state.sqlite3 is in use by another youpdated run; try again once it finishes"
+    }
+  }
+}

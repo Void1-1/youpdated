@@ -1,0 +1,100 @@
+{
+  "description": "Every watched target",
+  "request": {
+    "id": 34,
+    "op": "targets.list"
+  },
+  "events": [],
+  "reply": {
+    "id": 34,
+    "ok": true,
+    "targets": [
+      {
+        "source": "git",
+        "key": "github.com/Void1-1/youpdated",
+        "display": "Void1-1/youpdated",
+        "priority": "normal",
+        "starred": true,
+        "last_checked": "2026-10-29T08:00:05Z",
+        "last_error": null,
+        "unread": 0,
+        "latest": {
+          "version": "app-v1.1.0",
+          "title": "app-v1.1.0",
+          "published": "2026-10-29T06:00:00Z"
+        }
+      },
+      {
+        "source": "git",
+        "key": "github.com/python/cpython",
+        "display": "python/cpython",
+        "priority": "high",
+        "starred": false,
+        "last_checked": "2026-10-29T08:00:05Z",
+        "last_error": null,
+        "unread": 1,
+        "latest": {
+          "version": "v3.14.7",
+          "title": "v3.14.7",
+          "published": "2026-10-28T14:02:11Z"
+        }
+      },
+      {
+        "source": "steam",
+        "key": "440",
+        "display": "Team Fortress 2",
+        "priority": "normal",
+        "starred": false,
+        "last_checked": "2026-10-29T08:00:05Z",
+        "last_error": null,
+        "unread": 1,
+        "latest": {
+          "version": null,
+          "title": "CLTF2 Halloween Cup",
+          "published": "2026-10-28T19:30:00Z"
+        }
+      },
+      {
+        "source": "npm",
+        "key": "react",
+        "display": "react",
+        "priority": "low",
+        "starred": false,
+        "last_checked": "2026-10-29T08:00:05Z",
+        "last_error": null,
+        "unread": 1,
+        "latest": {
+          "version": "19.3.0",
+          "title": "19.3.0",
+          "published": "2026-10-27T21:15:40Z"
+        }
+      },
+      {
+        "source": "itch",
+        "key": "https://foo.itch.io/bar",
+        "display": "Bar",
+        "priority": "normal",
+        "starred": false,
+        "last_checked": "2026-10-29T08:00:05Z",
+        "last_error": null,
+        "unread": 0,
+        "latest": {
+          "version": "0.9",
+          "title": "Bar 0.9 is out",
+          "published": "2026-10-25T10:00:00Z"
+        }
+      },
+      {
+        "source": "youtube",
+        "key": "UC123",
+        "display": "@SomeChannel",
+        "priority": "normal",
+        "starred": false,
+        "last_checked": null,
+        "last_error": "FetchError: https://www.youtube.com/feeds/videos.xml?channel_id=UC123: HTTP 404",
+        "unread": 0,
+        "latest": null
+      }
+    ]
+  }
+}

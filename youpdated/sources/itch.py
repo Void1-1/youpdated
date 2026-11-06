@@ -15,6 +15,7 @@ import re
 from datetime import datetime, timezone
 from typing import Any, ClassVar, Iterable
 
+from ..icons import page_image
 from ..http import Client
 from ..models import Target, Update
 from ..registry import register
@@ -109,6 +110,12 @@ class ItchSource:
         if "releases" in watch:
             updates.extend(self._release(target, client))
         return updates
+
+    def icon(self, target: Target, client: Client) -> str | None:
+        """Game cover, from ``og:image``"""
+        page = target.params["page"]
+        fetched = client.get(page)
+        return page_image(fetched.text, page) if fetched is not None else None
 
     # devlog feed
 

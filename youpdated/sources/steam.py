@@ -112,6 +112,19 @@ class SteamSource:
             tags=("news",),
         )
 
+    def icon(self, target: Target, client: Client) -> str | None:
+        """Store's header image. Newer apps keep it at a hashed path for appdetails"""
+        fetched = client.get(
+            f"https://store.steampowered.com/api/appdetails?appids={target.key}&l=english"
+        )
+        if fetched is None:
+            return None
+        try:
+            data = (fetched.json().get(target.key) or {}).get("data") or {}
+        except (ValueError, AttributeError):
+            return None
+        return data.get("header_image") or data.get("capsule_image")
+
     def _app_name(self, appid: str, client: Client) -> str | None:
         """Resolve store name once then cache"""
         state = client.state

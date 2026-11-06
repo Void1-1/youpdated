@@ -1,0 +1,44 @@
+{
+  "description": "Digest at 18:00",
+  "request": {
+    "id": 12,
+    "op": "digest.send"
+  },
+  "events": [],
+  "reply": {
+    "id": 12,
+    "ok": true,
+    "items": [
+      {
+        "id": "i_2b9e5d7f0c1a3e44",
+        "source": "steam",
+        "target": "440",
+        "display": "Team Fortress 2",
+        "title": "CLTF2 Halloween Cup",
+        "url": "https://store.steampowered.com/news/app/440/view/5001",
+        "version": null,
+        "published": "2026-10-28T19:30:00Z",
+        "tags": [
+          "news"
+        ],
+        "body": "Sign-ups for the Halloween cup are open until Friday.",
+        "found_at": "2026-10-29T08:00:05Z",
+        "read": false,
+        "baseline": false,
+        "priority": "normal",
+        "starred": false,
+        "snoozed_until": null
+      }
+    ],
+    "alerts": [
+      {
+        "priority": "normal",
+        "target": null,
+        "item_ids": [
+          "i_2b9e5d7f0c1a3e44"
+        ]
+      }
+    ],
+    "notify_failures": []
+  }
+}

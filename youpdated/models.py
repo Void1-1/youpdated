@@ -106,6 +106,7 @@ class RunError:
     source: str
     target: str
     message: str
+    key: str | None = None
 
     def __post_init__(self) -> None:
         self.target = clean_text(self.target)

@@ -1,0 +1,16 @@
+{
+  "description": "Mark all read",
+  "request": {
+    "id": 19,
+    "op": "inbox.mark",
+    "read": true,
+    "all": true
+  },
+  "events": [],
+  "reply": {
+    "id": 19,
+    "ok": true,
+    "changed": 3,
+    "unread": 0
+  }
+}

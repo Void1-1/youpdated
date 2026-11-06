@@ -1,0 +1,16 @@
+{
+  "description": "From the inbox's context menu",
+  "request": {
+    "id": 22,
+    "op": "priority.set",
+    "source": "steam",
+    "key": "440",
+    "priority": "high"
+  },
+  "events": [],
+  "reply": {
+    "id": 22,
+    "ok": true,
+    "priority": "high"
+  }
+}

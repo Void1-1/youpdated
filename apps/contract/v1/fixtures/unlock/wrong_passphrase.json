@@ -1,0 +1,17 @@
+{
+  "description": "A wrong passphrase",
+  "request": {
+    "id": 44,
+    "op": "unlock",
+    "passphrase": "wrong"
+  },
+  "events": [],
+  "reply": {
+    "id": 44,
+    "ok": false,
+    "error": {
+      "code": "wrong_passphrase",
+      "message": "wrong passphrase, or the file has been modified"
+    }
+  }
+}

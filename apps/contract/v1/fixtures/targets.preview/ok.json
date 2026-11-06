@@ -1,0 +1,25 @@
+{
+  "description": "A pasted GitHub link",
+  "request": {
+    "id": 37,
+    "op": "targets.preview",
+    "value": "https://github.com/python/cpython"
+  },
+  "events": [],
+  "reply": {
+    "id": 37,
+    "ok": true,
+    "source": "git",
+    "entry": "python/cpython",
+    "key": "github.com/python/cpython",
+    "display": "python/cpython",
+    "already_watching": false,
+    "newest": {
+      "title": "v3.14.7",
+      "url": "https://github.com/python/cpython/releases/tag/v3.14.7",
+      "version": "v3.14.7",
+      "published": "2026-10-28T14:02:11Z"
+    },
+    "fetch_error": null
+  }
+}

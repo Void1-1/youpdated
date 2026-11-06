@@ -1,0 +1,25 @@
+{
+  "description": "An encrypted setup before `unlock`",
+  "request": {
+    "id": 31,
+    "op": "status"
+  },
+  "events": [],
+  "reply": {
+    "id": 31,
+    "ok": true,
+    "locked": true,
+    "encrypted": {
+      "config": true,
+      "history": true
+    },
+    "config_path": "/Users/me/Library/Application Support/youpdated/config.yaml",
+    "config_exists": true,
+    "config_error": null,
+    "history_path": "/Users/me/Library/Application Support/youpdated/state.sqlite3",
+    "last_run": null,
+    "last_run_by": null,
+    "self_watch": null,
+    "counts": null
+  }
+}

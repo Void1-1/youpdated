@@ -1,0 +1,45 @@
+{
+  "description": "Initial app handshakeß",
+  "request": {
+    "id": 13,
+    "op": "hello",
+    "client": {
+      "name": "Youpdated",
+      "version": "1.0.0",
+      "platform": "macos"
+    }
+  },
+  "events": [],
+  "reply": {
+    "id": 13,
+    "ok": true,
+    "engine": "1.0.0",
+    "contract": 1,
+    "ops": [
+      "hello",
+      "unlock",
+      "status",
+      "check",
+      "inbox.list",
+      "inbox.mark",
+      "inbox.snooze",
+      "targets.list",
+      "targets.preview",
+      "targets.add",
+      "targets.remove",
+      "import.preview",
+      "import.apply",
+      "settings.get",
+      "settings.set",
+      "priority.set",
+      "problems.list",
+      "icon.get",
+      "digest.send",
+      "snapshot.write",
+      "config.init",
+      "shutdown"
+    ],
+    "commit": null,
+    "encryption": true
+  }
+}

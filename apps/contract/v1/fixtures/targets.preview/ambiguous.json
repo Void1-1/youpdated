@@ -1,0 +1,22 @@
+{
+  "description": "An entry that could fit into multiple source types",
+  "request": {
+    "id": 35,
+    "op": "targets.preview",
+    "value": "express"
+  },
+  "events": [],
+  "reply": {
+    "id": 35,
+    "ok": false,
+    "error": {
+      "code": "ambiguous",
+      "message": "`express` could be homebrew or npm or pypi",
+      "choices": [
+        "homebrew",
+        "npm",
+        "pypi"
+      ]
+    }
+  }
+}

@@ -167,7 +167,7 @@ The `webpage` source watches a page that has no feed or registry and reports its
 1. **Structured data:** JSON-LD or microdata `softwareVersion`, which many product pages publish for search engines.
 2. **Download links** with a version in the file name, like `App-2.4.1.dmg` or `app_2.4.1_amd64.deb`. All of them must agree.
 3. **Text naming the latest version:** "Latest version: 2.4.1", "Current version is 2.4.1", "Stable 2.4.1".
-4. **Text labelling a version:** "Version 2.4.1", "Release 2.4.1".
+4. **Text labeling a version:** "Version 2.4.1", "Release 2.4.1".
 
 The first place with a version decides, and it has to name only one. **A check will try to fail over reporting the wrong version**, so it fails when:
 

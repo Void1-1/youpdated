@@ -1,0 +1,29 @@
+{
+  "description": "A scheduled CLI check ran since the last app check",
+  "request": {
+    "id": 29,
+    "op": "status"
+  },
+  "events": [],
+  "reply": {
+    "id": 29,
+    "ok": true,
+    "locked": false,
+    "encrypted": {
+      "config": false,
+      "history": false
+    },
+    "config_path": "/Users/me/Library/Application Support/youpdated/config.yaml",
+    "config_exists": true,
+    "config_error": null,
+    "history_path": "/Users/me/Library/Application Support/youpdated/state.sqlite3",
+    "last_run": "2026-10-29T12:00:01Z",
+    "last_run_by": "cli",
+    "self_watch": "watching",
+    "counts": {
+      "targets": 5,
+      "unread": 3,
+      "problems": 1
+    }
+  }
+}

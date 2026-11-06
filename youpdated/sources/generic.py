@@ -11,9 +11,10 @@ from __future__ import annotations
 
 import re
 from typing import Any, ClassVar, Iterable
-from urllib.parse import urlsplit
+from urllib.parse import urljoin, urlsplit
 
-from ..http import Client
+from ..icons import site_icon
+from ..http import Client, FetchError
 from ..models import Target, Update
 from ..registry import register
 from .base import ConfigEntryError, entry_fields, require
@@ -73,6 +74,23 @@ class FeedSource:
             version_of=_version_from_title,
             tags=("item",),
         )
+
+    def icon(self, target: Target, client: Client) -> list[str]:
+        """Feed's image, else site icon"""
+        fetched = client.get(target.key)
+        if fetched is None:
+            return []
+        feed = parse_document(fetched.content).get("feed", {})
+        site = urljoin(target.key, feed.get("link") or "/")
+        image = (feed.get("image") or {}).get("href") or feed.get("logo") or feed.get("icon")
+        if isinstance(image, str) and image:
+            return [urljoin(target.key, image), urljoin(site, "/favicon.ico")]
+        try:
+            home = client.get(site)
+        except FetchError:
+            home = None
+        icon = site_icon(home.text if home is not None else "", site)
+        return [icon] if icon else []
 
 
 def _version_from_title(entry: Any) -> str | None:

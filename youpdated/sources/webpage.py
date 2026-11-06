@@ -11,7 +11,7 @@ Without ``regex:`` the page is read for its version, best guess first:
 1. structured data: JSON-LD or microdata ``softwareVersion``
 2. download links with a version in the file name (``App-2.4.1.dmg``)
 3. text naming latest version: "Latest version: 2.4.1"
-4. text labelling a version: "Version 2.4.1"
+4. text labeling a version: "Version 2.4.1"
 """
 
 from __future__ import annotations
@@ -386,7 +386,7 @@ def _download_stem(name: str) -> str | None:
     return None
 
 
-def _labelled(text: str, label: re.Pattern[str]) -> list[Found]:
+def _labeled(text: str, label: re.Pattern[str]) -> list[Found]:
     found = []
     for match in label.finditer(text):
         version = VERSION_RE.match(text, match.end())
@@ -409,8 +409,8 @@ def signals(page: Page, structured: list[Found]) -> dict[str, list[Found]]:
     return {
         "structured": structured,
         "downloads": _downloads(page),
-        "latest": _labelled(page.text, LATEST_RE),
-        "label": _labelled(page.text, LABEL_RE),
+        "latest": _labeled(page.text, LATEST_RE),
+        "label": _labeled(page.text, LABEL_RE),
     }
 
 

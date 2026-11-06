@@ -1,0 +1,16 @@
+{
+  "description": "An existing CLI config, after \"Watch Youpdated for app updates?\" and Add",
+  "request": {
+    "id": 11,
+    "op": "config.init",
+    "self_watch": true
+  },
+  "events": [],
+  "reply": {
+    "id": 11,
+    "ok": true,
+    "config_path": "/Users/me/Library/Application Support/youpdated/config.yaml",
+    "created": false,
+    "self_watch_added": true
+  }
+}

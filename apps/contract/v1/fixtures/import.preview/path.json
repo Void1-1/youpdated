@@ -1,0 +1,37 @@
+{
+  "description": "A dropped package.json",
+  "request": {
+    "id": 16,
+    "op": "import.preview",
+    "path": "/Users/me/project/package.json"
+  },
+  "events": [],
+  "reply": {
+    "id": 16,
+    "ok": true,
+    "add": [
+      {
+        "source": "npm",
+        "entries": [
+          "react-dom",
+          "vite"
+        ]
+      }
+    ],
+    "already": [
+      {
+        "source": "npm",
+        "entries": [
+          "react"
+        ]
+      }
+    ],
+    "skipped": [
+      {
+        "what": "my-lib",
+        "why": "a local path, not a registry version"
+      }
+    ],
+    "warnings": []
+  }
+}

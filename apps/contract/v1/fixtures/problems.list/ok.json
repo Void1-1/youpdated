@@ -1,0 +1,29 @@
+{
+  "description": "Problems from the last check",
+  "request": {
+    "id": 23,
+    "op": "problems.list"
+  },
+  "events": [],
+  "reply": {
+    "id": 23,
+    "ok": true,
+    "problems": [
+      {
+        "kind": "source",
+        "source": "youtube",
+        "target": "@SomeChannel",
+        "key": "UC123",
+        "message": "FetchError: https://www.youtube.com/feeds/videos.xml?channel_id=UC123: HTTP 404"
+      },
+      {
+        "kind": "notify",
+        "source": "notify",
+        "target": "https://ntfy.sh/…",
+        "key": null,
+        "message": "HTTP 502"
+      }
+    ],
+    "checked_at": "2026-10-29T08:00:06Z"
+  }
+}

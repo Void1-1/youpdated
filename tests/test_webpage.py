@@ -153,7 +153,7 @@ def test_latest_version_text_wins_over_a_changelog_on_the_same_page(client):
     ],
 )
 @respx.mock
-def test_labelled_text_names_the_version(client, body, version):
+def test_labeled_text_names_the_version(client, body, version):
     assert _version(client, _page(body)) == version
 
 

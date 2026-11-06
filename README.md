@@ -36,6 +36,8 @@ It is built to be **privacy-preserving, anonymous, and customizable**: no accoun
 
 ## Get started
 
+On a Mac and want an app version? [Youpdated for Mac](https://github.com/Void1-1/youpdated/blob/main/docs/macos-app.md) is in beta.
+
 ### 1. Install
 
 Works on macOS, Linux, and Windows. Needs **Python 3.11 or newer** (`python3 --version` to check). Then:
@@ -137,6 +139,7 @@ youpdated uninstall          # remove Youpdated and its files
 
 ## Learn more
 
+- [Youpdated for Mac](https://github.com/Void1-1/youpdated/blob/main/docs/macos-app.md): the menu bar app, in beta
 - [Configuration](https://github.com/Void1-1/youpdated/blob/main/docs/configuration.md): all options, ignoring update types, and how long history is kept
 - [Usage](https://github.com/Void1-1/youpdated/blob/main/docs/usage.md): all commands, JSON and RSS output, and running on a schedule
 - [Notifications](https://github.com/Void1-1/youpdated/blob/main/docs/notifications.md): get updates on your phone, Discord, Slack, or to a script
