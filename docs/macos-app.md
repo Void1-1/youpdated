@@ -41,7 +41,7 @@ Releases of the command-line tool also show up in your feed.
 
 The app and the `youpdated` command share a config and history, so what you follow in one should appear in the other.
 
-The current command-line release (0.4.0) doesn't include the `priority:` and `digest:` options under `notify:`, and stops with an error if your config has them. Leave those out until a newer one is released. (Priorities are coming to CLI soon!) Everything the app writes itself is safe.
+Use version 0.5.0 or newer of the command-line tool (`youpdated --version` to check). It sends a webhook or command only the updates at its `priority:` and above, using the priorities you set in the app. It has no digest, so it ignores `digest:` and sends updates as it finds them. Older versions stop with an error if your config has either option under `notify:`. Everything the app writes itself is safe.
 
 ## Privacy
 
