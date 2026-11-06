@@ -1,10 +1,27 @@
-# Youpdated
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/Void1-1/youpdated/main/.github/assets/logo-dark.png">
+    <img src="https://raw.githubusercontent.com/Void1-1/youpdated/main/.github/assets/logo-light.png" alt="Youpdated" width="340">
+  </picture>
+</p>
 
-[![tests](https://github.com/Void1-1/youpdated/actions/workflows/tests.yml/badge.svg)](https://github.com/Void1-1/youpdated/actions/workflows/tests.yml)
+<p align="center">
+  Youpdated keeps track of the games, apps, and packages you follow, and lets you know about updates or changes.
+</p>
 
-Youpdated keeps track of the games, apps, and packages you follow, and tells you what changed since you last checked in.
+<p align="center">
+  <a href="https://pypi.org/project/youpdated/"><img src="https://img.shields.io/pypi/v/youpdated?color=006C7D&label=PyPI" alt="PyPI version"></a>
+  <a href="https://pypi.org/project/youpdated/"><img src="https://img.shields.io/pypi/pyversions/youpdated?color=006C7D&label=Python" alt="Supported Python versions"></a>
+  <a href="https://github.com/Void1-1/youpdated/actions/workflows/tests.yml"><img src="https://img.shields.io/github/actions/workflow/status/Void1-1/youpdated/tests.yml?branch=main&label=Tests" alt="Test status"></a>
+  <a href="https://github.com/Void1-1/youpdated/blob/main/LICENSE"><img src="https://img.shields.io/github/license/Void1-1/youpdated?color=006C7D&label=License" alt="MIT license"></a>
+</p>
 
-It is built to be **privacy-preserving, anonymous, and customizable**: no accounts, no API keys required, everything only stored locally.
+<p align="center">
+  <a href="#get-started">Get started</a> ·
+  <a href="#sources">Sources</a> ·
+  <a href="https://github.com/Void1-1/youpdated/blob/main/docs/macos-app.md">Youpdated MacOS App (beta)</a> ·
+  <a href="#learn-more">Docs</a>
+</p>
 
 ```text
 ╭─ steam ──────────────────────────────────────────────────────────╮
