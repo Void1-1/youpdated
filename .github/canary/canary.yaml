@@ -4,11 +4,12 @@
 #   youpdated check -c .github/canary/canary.yaml --state /tmp/canary.sqlite3 \
 #     --all --no-save --no-notify --json | python .github/canary/verify.py
 
-privacy:
-  # A bot on shared datacenter IPs announces itself, unlike how user runs work
-  # also makes a block easy to find
-  user_agent: "youpdated-canary (+https://github.com/Void1-1/youpdated)"
-  concurrency: 2
+settings:
+  privacy:
+    # A bot on shared datacenter IPs announces itself, unlike how user runs work
+    # also makes a block easy to find
+    user_agent: "youpdated-canary (+https://github.com/Void1-1/youpdated)"
+    concurrency: 2
 
 sources:
   git:

@@ -121,9 +121,9 @@ def build_targets(config: Config) -> tuple[list[Target], list[RunError]]:
 
 
 def rule_warnings(config: Config) -> list[str]:
-    """`ignore:` and `versions:` keys with no source in config"""
+    """The config's own warnings, then `ignore:` and `versions:` keys with no source in config"""
     listed = set(config.sources) | {canonical_name(name) for name in config.sources}
-    warnings = []
+    warnings = list(config.warnings)
     for section, names in (("ignore", config.ignore), ("versions", config.versions)):
         for name in names:
             if name == IGNORE_ALL or name in listed:

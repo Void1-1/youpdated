@@ -8,7 +8,7 @@ Every fetch goes through a list:
     2. an Invidious instance (privacy-friendly, but flaky sometimes)
     3. the Data API, if YOUTUBE_API_KEY is set
 
-Set ``privacy.proxy`` and step 1 generally works
+Set ``settings.privacy.proxy`` and step 1 generally works
 """
 
 from __future__ import annotations

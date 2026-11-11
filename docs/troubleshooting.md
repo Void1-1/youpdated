@@ -10,7 +10,7 @@
 | `unknown source 'X'` | Check spelling against `youpdated sources`. |
 | `can't tell which forge X runs` | A self-hosted `git` host with no hint in its name. Add `forge: github`, `gitlab`, or `forgejo`. |
 | `notify` in the `problems` panel | A webhook or command failed. The updates were still recorded, so they won't be sent again. Check the URL, or run the command by hand. |
-| YouTube fails every path | Its feed throttles intermittently. Retry, or set `privacy.proxy`, or export `YOUTUBE_API_KEY`. |
+| YouTube fails every path | Its feed throttles intermittently. Retry, or set `settings.privacy.proxy`, or export `YOUTUBE_API_KEY`. |
 | An itch game reports nothing | It has neither a devlog nor a file listing. Confirm with `youpdated check -s itch --all -v`. |
 | A `webpage` fails with `more than one version`, `no version found`, or `found X in … but Y in …` | The page doesn't say clearly which version is current, so it isn't guessed. Add `regex:` that matches it; see [Web pages](configuration.md#web-pages). |
 | A `webpage` fails with `earlier checks found the version in …` | The page changed, and the version is now somewhere else. Check the page, then add a `regex:`, or `youpdated rm --wipe webpage URL` and `add` it again. |
@@ -21,7 +21,7 @@
 | `Encryption error: ... no terminal to ask on` | A cron or piped run can't prompt. Set `YOUPDATED_PASSPHRASE`. |
 | `encryption needs the cryptography package` | `pipx install 'youpdated[encryption]'` (or `pip install`). |
 | `... is not encrypted, but a passphrase was given` | A half-converted setup. Re-run `youpdated encrypt` to finish it. |
-| `Proxy error: cannot reach the proxy at ...` | `privacy.proxy` is set but nothing is listening. Start Tor (or your proxy), or remove the line. Nothing was fetched or recorded. |
+| `Proxy error: cannot reach the proxy at ...` | `settings.privacy.proxy` is set but nothing is listening. Start Tor (or your proxy), or remove the line. Nothing was fetched or recorded. |
 | Every source fails with `ProtocolError: Malformed reply` | Something is listening on the proxy port but isn't a SOCKS5 proxy. Check the port and scheme. |
 
 To start over, delete the history database (the path is [findable here](configuration.md#where-is-the-config)); your config isn't affected.

@@ -35,7 +35,7 @@ class Target:
     ignore: frozenset[str] = frozenset()
     # Which versions are reported
     versions: VersionRules = VersionRules()
-    # `track_latest:`, also ask for the latest release (if it takes another request)
+    # `settings.track_latest`, also ask for the latest release (if it takes another request)
     track_latest: bool = False
 
     @property

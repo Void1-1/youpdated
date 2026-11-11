@@ -78,7 +78,9 @@ def test_per_user_config_is_the_fallback(config_places):
 def test_privacy_settings_parse():
     config = parse_config(
         {
-            "privacy": {"proxy": "socks5://127.0.0.1:9050", "jitter": [1, 2], "concurrency": 8},
+            "settings": {
+                "privacy": {"proxy": "socks5://127.0.0.1:9050", "jitter": [1, 2], "concurrency": 8}
+            },
             "sources": {"npm": ["express"]},
         }
     )
@@ -94,14 +96,73 @@ def test_privacy_settings_parse():
         {},                                             # no sources
         {"sources": {}},                                # empty sources
         {"sources": {"npm": "express"}},                # not a list
-        {"sources": {"npm": ["e"]}, "privacy": {"proxy": "localhost:9050"}},
-        {"sources": {"npm": ["e"]}, "privacy": {"jitter": [5, 1]}},
-        {"sources": {"npm": ["e"]}, "privacy": {"concurrency": 0}},
+        {"sources": {"npm": ["e"]}, "settings": {"privacy": {"proxy": "localhost:9050"}}},
+        {"sources": {"npm": ["e"]}, "settings": {"privacy": {"jitter": [5, 1]}}},
+        {"sources": {"npm": ["e"]}, "settings": {"privacy": {"concurrency": 0}}},
     ],
 )
 def test_invalid_configs_are_rejected(raw):
     with pytest.raises(ConfigError):
         parse_config(raw)
+
+
+def test_settings_are_read_from_the_settings_section():
+    config = parse_config(
+        {
+            "settings": {
+                "privacy": {"timeout": 5},
+                "notify": {"webhooks": ["https://ntfy.sh/topic"]},
+                "expiry": "30d",
+                "track_latest": True,
+                "editor": "vim",
+            },
+            "sources": {"npm": ["express"]},
+        }
+    )
+    assert config.privacy.timeout == 5.0
+    assert config.notify.webhooks[0].url == "https://ntfy.sh/topic"
+    assert config.expiry == timedelta(days=30)
+    assert config.track_latest is True
+    assert config.editor == "vim"
+    assert config.warnings == []
+
+
+def test_settings_at_the_top_level_still_work_with_a_warning():
+    config = parse_config(
+        {
+            "privacy": {"timeout": 5},
+            "settings": {"editor": "vim"},
+            "expiry": "30d",
+            "sources": {"npm": ["express"]},
+        }
+    )
+    assert (config.privacy.timeout, config.expiry, config.editor) == (5.0, timedelta(days=30), "vim")
+    (warning,) = config.warnings
+    assert warning.startswith("`privacy`, `expiry` belong under `settings:`")
+    assert "`youpdated edit` moves them" in warning
+
+
+@pytest.mark.parametrize(
+    "settings, match",
+    [
+        ([], "`settings` must be a mapping"),
+        ({"proxy": "socks5://x:1"}, "unknown `settings` option"),
+        ({"ignore": ["commit"]}, "`ignore` go at the top level"),
+        ({"sources": {}}, "`sources` go at the top level"),
+    ],
+)
+def test_a_bad_settings_section_is_rejected(settings, match):
+    with pytest.raises(ConfigError, match=match):
+        parse_config({"settings": settings, "sources": {"npm": ["e"]}})
+
+
+def test_a_setting_in_both_places_is_rejected():
+    with pytest.raises(ConfigError, match="`editor` set both at the top level and under"):
+        parse_config({"settings": {"editor": "a"}, "editor": "b", "sources": {"npm": ["e"]}})
+
+
+def test_an_empty_settings_section_is_fine():
+    assert parse_config({"settings": None, "sources": {"npm": ["e"]}}).warnings == []
 
 
 @pytest.mark.parametrize(
@@ -890,7 +951,7 @@ def test_durations_past_a_century_are_refused(raw):
     with pytest.raises(ValueError, match="longer than 100y"):
         parse_since(raw)
     with pytest.raises(ConfigError, match=r"\(100y max\)"):
-        parse_config({"sources": {"npm": ["e"]}, "expiry": raw})
+        parse_config({"sources": {"npm": ["e"]}, "settings": {"expiry": raw}})
 
 
 def test_a_century_is_still_a_duration():
@@ -1100,7 +1161,7 @@ def test_a_test_run_reports_config_problems_but_not_unanswered_fetches(state):
 
 def _check_setup(tmp_path) -> list[str]:
     config = tmp_path / "youpdated.yaml"
-    config.write_text("privacy:\n  jitter: [0, 0]\nsources:\n  npm: [express]\n")
+    config.write_text("settings:\n  privacy:\n    jitter: [0, 0]\nsources:\n  npm: [express]\n")
     return ["check", "-c", str(config), "--state", str(tmp_path / "state.sqlite3")]
 
 

@@ -12,7 +12,13 @@ import yaml
 from youpdated import crypto
 from youpdated.cli import main
 from youpdated.config import EXAMPLE_CONFIG, ConfigError, load_config, parse_config
-from youpdated.edit import add_to_config, guess_source, remove_from_config, yaml_scalar
+from youpdated.edit import (
+    add_to_config,
+    guess_source,
+    move_to_settings,
+    remove_from_config,
+    yaml_scalar,
+)
 from youpdated.models import Update
 from youpdated.registry import all_sources
 from youpdated.state import State
@@ -175,9 +181,9 @@ def test_a_flow_list_stays_a_flow_list():
 
 
 def test_a_file_without_sources_gets_them_at_the_end():
-    text = "privacy:\n  concurrency: 2\n"
+    text = "settings:\n  editor: vim\n"
     assert add(text, "npm", "express") == (
-        "privacy:\n  concurrency: 2\n\nsources:\n  npm:\n    - express\n"
+        "settings:\n  editor: vim\n\nsources:\n  npm:\n    - express\n"
     )
 
 
@@ -600,3 +606,97 @@ def test_remove_wipe_on_an_encrypted_state_keeps_it_encrypted(config, tmp_path, 
     assert crypto.is_encrypted_file(state)
     assert not crypto.is_encrypted_file(config), "a plain config stays plain"
     assert ("steam", "440") not in _rows(state, PASSPHRASE)[0]
+
+
+# moving settings under `settings:`
+
+
+OLD_LAYOUT = """\
+# header
+
+privacy:
+  # every request through Tor
+  proxy: socks5://127.0.0.1:9050
+  timeout: 20
+
+ignore:
+  '*': [prerelease]
+
+# forget sooner
+expiry: 30d
+track_latest: true   # one more request
+editor: code
+
+sources:
+  npm: [express]
+"""
+
+
+def test_settings_move_with_their_comments_and_spacing():
+    text, moved = move_to_settings(OLD_LAYOUT)
+    assert moved == ["privacy", "expiry", "track_latest", "editor"]
+    assert text == """\
+# header
+
+settings:
+  privacy:
+    # every request through Tor
+    proxy: socks5://127.0.0.1:9050
+    timeout: 20
+
+  # forget sooner
+  expiry: 30d
+  track_latest: true   # one more request
+  editor: code
+
+ignore:
+  '*': [prerelease]
+
+sources:
+  npm: [express]
+"""
+    config = parse_config(yaml.safe_load(text))
+    assert config.warnings == []
+    assert config.privacy.proxy == "socks5://127.0.0.1:9050"
+
+
+def test_settings_join_an_existing_section_at_its_indent():
+    text = "settings:\n    expiry: 30d\nnotify:\n  command: echo\nsources:\n  npm: [x]\n"
+    assert move_to_settings(text) == (
+        "settings:\n    expiry: 30d\n    notify:\n      command: echo\nsources:\n  npm: [x]\n",
+        ["notify"],
+    )
+
+
+@pytest.mark.parametrize("empty", ["settings:", "settings: {}", "settings: ~  # later"])
+def test_settings_fill_an_empty_section(empty):
+    text = f"editor: vim\nsources:\n  npm: [x]\n{empty}\n"
+    moved, _ = move_to_settings(text)
+    assert yaml.safe_load(moved) == {"settings": {"editor": "vim"}, "sources": {"npm": ["x"]}}
+
+
+def test_a_setting_at_the_end_leaves_no_trailing_gap():
+    text = "sources:\n  npm: [x]\n\neditor: vim\n"
+    assert move_to_settings(text)[0] == "sources:\n  npm: [x]\n\nsettings:\n  editor: vim\n"
+
+
+def test_moving_keeps_windows_line_ends():
+    assert move_to_settings("editor: vim\r\nsources: {npm: [x]}\r\n") == (
+        "settings:\r\n  editor: vim\r\nsources: {npm: [x]}\r\n",
+        ["editor"],
+    )
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "sources:\n  npm: [x]\n",                                      # nothing to move
+        "settings:\n  editor: a\neditor: b\nsources: {npm: [x]}\n",   # in both: the user picks
+        "settings: {expiry: 1y}\neditor: b\n",                        # not a block to add to
+        "editor: vim\nsources: [\n",                                  # broken YAML
+        "{editor: vim, sources: {npm: [x]}}\n",                       # a flow mapping
+        "editor: &e vim\nsources:\n  npm: [*e]\nsettings: {}\n",      # an alias before its anchor
+    ],
+)
+def test_settings_are_left_alone_when_they_cannot_move_safely(text):
+    assert move_to_settings(text) == (text, [])

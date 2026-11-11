@@ -49,6 +49,7 @@ from .config import (
 from .edit import (
     add_to_config,
     guess_source,
+    move_to_settings,
     remove_from_config,
     requested_urls,
     tidy_config,
@@ -331,11 +332,11 @@ def cmd_import(args: argparse.Namespace, console: Console) -> int:
 _QUICK_EDITOR = 2.0
 _DISCARDED = "[dim]Discarded. Nothing was written.[/]"
 _WHEN_SAVED = "Press Enter once you've saved, or Ctrl-C to discard: "
-_SET_EDITOR = "Set `editor:` in the config, or $VISUAL or $EDITOR, to the one you use."
+_SET_EDITOR = "Set `settings.editor` in the config, or $VISUAL or $EDITOR, to the one you use."
 
 
 def _editor_command(configured: str | None = None) -> tuple[list[str], bool]:
-    """`editor:`, $VISUAL, $EDITOR, then system default"""
+    """`settings.editor`, $VISUAL, $EDITOR, then system default"""
     if configured:
         return _configured_editor(configured)
     for name in ("VISUAL", "EDITOR"):
@@ -361,7 +362,7 @@ def _configured_editor(value: str) -> tuple[list[str], bool]:
         return ["open", "-a", os.path.expanduser(value)], True
     if path.is_file():
         return [str(path)], False
-    command = split_command(value, name="`editor`")
+    command = split_command(value, name="`settings.editor`")
     if sys.platform == "darwin" and shutil.which(command[0]) is None:
         # like TextEdit or Visual Studio Code
         return ["open", "-a", os.path.expanduser(value)], True
@@ -467,7 +468,14 @@ def cmd_editor(args: argparse.Namespace, console: Console) -> int:
     ) as folder:
         # config's name, so its highlighted as YAML
         draft = Path(folder) / path.name
-        crypto.write_private(draft, original.encode("utf-8"))
+        # saving keeps the move, even if nothing else changed
+        opened, moved = move_to_settings(original)
+        if moved:
+            console.print(
+                f"[dim]Moved {escape(', '.join(f'`{key}`' for key in moved))} under "
+                "`settings:`, where they go now. Saving keeps the move.[/]"
+            )
+        crypto.write_private(draft, opened.encode("utf-8"))
         while True:
             shown = _read(draft)
             if not opens:

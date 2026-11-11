@@ -109,7 +109,7 @@ def main() -> int:
             engine.close()
 
         # socksio: nothing listens there
-        config.write_text("privacy:\n  proxy: socks5://127.0.0.1:9\nsources:\n  pypi:\n    - packaging\n", encoding="utf-8")
+        config.write_text("settings:\n  privacy:\n    proxy: socks5://127.0.0.1:9\nsources:\n  pypi:\n    - packaging\n", encoding="utf-8")
         proxied = cli("check", "--no-save")
         output = proxied.stdout + proxied.stderr
         check("SOCKS support is bundled", "proxy" in output and "socksio" not in output and "ModuleNotFound" not in output, output)

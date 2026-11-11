@@ -94,10 +94,13 @@ def test_the_fixtures_cover_every_op():
 
 
 def make_config(tmp_path: Path, body: str = "", entries: tuple[str, ...] = ("alpha",)) -> Path:
+    """``body`` goes under `settings:`, beside `privacy:`"""
     config = tmp_path / "config.yaml"
     listed = "".join(f"    - {e}\n" for e in entries)
+    nested = "".join(f"  {line}" if line.strip() else line for line in body.splitlines(True))
     config.write_text(
-        f"privacy:\n  jitter: [0, 0]\n{body}sources:\n  fake:\n{listed}", encoding="utf-8"
+        f"settings:\n  privacy:\n    jitter: [0, 0]\n{nested}sources:\n  fake:\n{listed}",
+        encoding="utf-8",
     )
     return config
 
@@ -483,7 +486,7 @@ def test_preview_reports_a_failed_fetch(engine, fake):
 
 def test_import_preview_and_apply(engine, tmp_path):
     engine.config_override.write_text(
-        "privacy:\n  jitter: [0, 0]\nsources:\n  pypi:\n    - httpx\n", encoding="utf-8"
+        "settings:\n  privacy:\n    jitter: [0, 0]\nsources:\n  pypi:\n    - httpx\n", encoding="utf-8"
     )
     content = "httpx>=0.27\nrich\n-e ./local\n"
 

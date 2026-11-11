@@ -8,6 +8,10 @@ All notable changes to this project are documented here. The format follows [Kee
 
 - **Youpdated for Windows (beta).** A notification area app for Windows 10 22H2 and 11, x64, with its own copy of the engine (no Python needed). It shares a config and history with the CLI. See [docs/windows-app.md](docs/windows-app.md). Released on `app-windows-v*` tags. And the Mac app's releases move from `app-v*` to `app-macos-v*`!
 
+### Changed
+
+- **Run-wide options move under `settings:`** (#37). `privacy`, `notify`, `expiry`, `track_latest`, and `editor` now go under a `settings:` section. `ignore:`, `versions:`, and `sources:` stay at the top level. The old top-level keys still work until v1.0.0, with warnings. `youpdated edit` reformats them for you, comments included. A duplicate key is an error, and error messages name the new intended location (`settings.privacy.proxy`). Older versions skip `settings:` automatically, so a desktop app with an older engine may run a moved config with no proxy and no notifications: update your app download!
+
 ## [0.5.0] — 2026-11-06
 
 ### Added

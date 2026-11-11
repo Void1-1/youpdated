@@ -16,7 +16,7 @@ from typing import Any, Callable, Generator, Sequence
 import yaml
 
 from . import crypto
-from .config import ConfigError, PrivacyConfig
+from .config import SETTINGS_KEYS, ConfigError, PrivacyConfig
 from .http import Client
 from .models import Target
 from .registry import all_aliases, all_sources, canonical_name
@@ -95,7 +95,124 @@ def tidy_config(text: str) -> tuple[str, list[str]]:
         where = "line" if len(lines) == 1 else "lines"
         fixes.append(f"{where} {', '.join(map(str, lines))}: no-break or invisible spaces")
     text = _quote_bare(text, fixes)
-    return _straighten(text, fixes), fixes
+    text = _straighten(text, fixes)
+    text, moved = move_to_settings(text)
+    if moved:
+        fixes.append(f"top-level {_named(moved)} --> under `settings:`")
+    return text, fixes
+
+
+def _named(keys: list[str]) -> str:
+    return ", ".join(f"`{key}`" for key in keys)
+
+
+def move_to_settings(text: str) -> tuple[str, list[str]]:
+    """``text`` with any settings still at the top level moved under `settings:`"""
+    body = text.replace("\r\n", "\n")
+    try:
+        root = yaml.compose(body, Loader=yaml.SafeLoader)
+        data = yaml.safe_load(body)
+    except yaml.YAMLError:
+        return text, []
+    if not isinstance(root, yaml.MappingNode) or root.flow_style or not isinstance(data, dict):
+        return text, []
+    try:
+        moved = _move_settings(body, root, data)
+    except _Unsupported:
+        return text, []
+    if moved is None:
+        return text, []
+    return _line_ends(moved[0], text), moved[1]
+
+
+def _move_settings(
+    body: str, root: yaml.MappingNode, data: dict[Any, Any]
+) -> tuple[str, list[str]] | None:
+    section = data.get("settings")
+    already = set(section) if isinstance(section, dict) else set()
+    # (first row, last row, key) of each top-level setting
+    blocks: list[tuple[int, int, str]] = []
+    lines = body.split("\n")
+    col = root.start_mark.column
+    previous_end = -1
+    for key, value in root.value:
+        end = _last_line(value, lines)
+        if isinstance(key, yaml.ScalarNode) and key.value in SETTINGS_KEYS:
+            if key.value in already:
+                # config refuses a setting in both places; let the user pick
+                raise _Unsupported(f"`{key.value}` is also under `settings:`")
+            first = key.start_mark.line
+            while first - 1 > previous_end and _is_comment(lines[first - 1], col, col):
+                first -= 1
+            while end + 1 < len(lines) and _is_comment(lines[end + 1], col + 1, None):
+                end += 1
+            blocks.append((first, end, key.value))
+        previous_end = end
+    if not blocks:
+        return None
+
+    found = _pair(root, "settings")
+    if found is not None:
+        key, node = found
+        if _is_empty(node):
+            _clear(lines, key, node)
+            after, shift = key.start_mark.line, key.start_mark.column + _STEP - col
+        elif isinstance(node, yaml.MappingNode) and not node.flow_style:
+            after, shift = _last_line(node, lines), node.start_mark.column - col
+        else:
+            raise _Unsupported("`settings` is not written as an indented block")
+        header: list[str] = []
+        insert_at = None
+    else:
+        after, shift, header = None, _STEP, [" " * col + "settings:"]
+        insert_at = blocks[0][0]
+
+    moved: list[str] = []
+    for index, (first, last, _) in enumerate(blocks):
+        moved += [" " * shift + line if line.strip() else line for line in lines[first : last + 1]]
+        spaced = last + 1 < len(lines) and not lines[last + 1].strip()
+        if spaced and index < len(blocks) - 1:
+            moved.append("")
+
+    removed = {row for first, last, _ in blocks for row in range(first, last + 1)}
+    for first, last, _ in blocks:
+        if last + 1 in removed:  # not the end of a run of blocks
+            continue
+        run_start = first
+        while run_start - 1 in removed:
+            run_start -= 1
+        if insert_at is not None and run_start <= insert_at <= last:
+            continue  # replaced by `settings:`, not removed
+        gap_after = last + 1 < len(lines) and not lines[last + 1].strip()
+        gap_before = run_start == 0 or not lines[run_start - 1].strip()
+        if gap_after and gap_before:
+            removed.add(last + 1)
+
+    out: list[str] = []
+    for row, line in enumerate(lines):
+        if row == insert_at:
+            out += header + moved
+        if row not in removed:
+            out.append(line)
+        if row == after:
+            out += moved
+    edited = "\n".join(out)
+
+    names = [name for _, _, name in blocks]
+    expected = {k: v for k, v in data.items() if k not in names}
+    expected["settings"] = {**(section or {}), **{name: data[name] for name in names}}
+    _verify(edited, expected)
+    return edited, names
+
+
+def _is_comment(line: str, at_least: int, at_most: int | None) -> bool:
+    """``line`` is a comment indented ``at_least`` up to ``at_most`` columns"""
+    indent = len(line) - len(line.lstrip(" "))
+    return (
+        line.lstrip(" ").startswith("#")
+        and indent >= at_least
+        and (at_most is None or indent <= at_most)
+    )
 
 
 def _quote_bare(text: str, fixes: list[str]) -> str:

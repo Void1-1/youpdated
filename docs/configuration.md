@@ -32,7 +32,7 @@ Four locations are checked when running, in the following order, and the first o
 
 Use `youpdated init -c ./youpdated.yaml` if you'd rather keep the config in a project folder. Add `--force` to overwrite an existing file.
 
-`youpdated edit` opens whichever one is used in your editor, so you don't need its path. See [`edit`](usage.md). To choose the editor, set `editor:` to a command (`code`, `vim -n`), a program's path, or (on macOS) an app's name or path (`TextEdit`, `/Applications/Zed.app`). It's used over `$VISUAL` and `$EDITOR`.
+`youpdated edit` opens whichever one is used in your editor, so you don't need its path. See [`edit`](usage.md). To choose the editor, set `settings.editor` to a command (`code`, `vim -n`), a program's path, or (on macOS) an app's name or path (`TextEdit`, `/Applications/Zed.app`). It's used over `$VISUAL` and `$EDITOR`.
 
 ## Identifier details
 
@@ -51,12 +51,20 @@ More details and options beyond the [basics](../README.md#where-to-find-identifi
 Every source entry takes **a bare value** or **a mapping**. The bare value is the simplest form; mappings can add more options.
 
 ```yaml
-privacy:
-  # proxy: socks5://127.0.0.1:9050   # Tor's default SOCKS port
-  user_agent: rotate                 # 'rotate', or a fixed UA string
-  jitter: [0.5, 3.0]                 # random gap between hits on one host
-  concurrency: 4
-  timeout: 20
+settings:                            # run-wide options
+  privacy:
+    # proxy: socks5://127.0.0.1:9050 # Tor's default SOCKS port
+    user_agent: rotate               # 'rotate', or a fixed UA string
+    jitter: [0.5, 3.0]               # random gap between hits on one host
+    concurrency: 4
+    timeout: 20
+  expiry: 1y                         # forget items missing from every fetch this long
+  track_latest: true                 # also ask forges and Steam for the latest release
+  editor: code                       # what `youpdated edit` opens
+  notify:                            # optional: push new updates somewhere
+    webhooks:
+      - https://ntfy.sh/my-private-topic
+    command: notify-send "{label}" "{title}"
 
 ignore:                              # update types you never want reported
   '*': [prerelease]                  # '*' is every source
@@ -64,10 +72,6 @@ ignore:                              # update types you never want reported
 
 versions:                            # which versions are reported
   npm: {bump: major}                 # only new major versions, like 19.0.0
-
-expiry: 1y                           # forget items missing from every fetch this long
-track_latest: true                   # also ask forges and Steam for the latest release
-editor: code                         # what `youpdated edit` opens
 
 sources:
   git:                               # GitHub, GitLab, Codeberg, Forgejo/Gitea
@@ -138,15 +142,9 @@ sources:
     - url: https://www.7-zip.org/
       name: 7-Zip
       regex: 'Download 7-Zip ([\d.]+)' # define the version information location
-
-notify:                              # optional: push new updates somewhere
-  webhooks:
-    - https://ntfy.sh/my-private-topic
-  command: notify-send "{label}" "{title}"
 ```
 
-The `privacy:` block is explained in [Privacy](privacy.md), and `notify:` in
-[Notifications](notifications.md).
+The top level has three parts: `settings:` for options that apply to the whole run/tool, `ignore:` and `versions:` rules for which updates are reported, and `sources:` (required). `settings.privacy` is explained in [Privacy](privacy.md), and `settings.notify` in [Notifications](notifications.md).
 
 ## Git forges
 
@@ -291,18 +289,20 @@ Each check reads only the newest items a source lists, ex: 10 releases for a Git
 `npm` and `pypi` also list the 10 newest final releases and the `latest` version, from the same request, so they always do this. So does Brave's stable channel when the GitHub API is rate-limited and the feed it falls back to is all nightlies. For `git` and `steam` it takes a request of its own per entry, so it's opt-in:
 
 ```yaml
-track_latest: true
+settings:
+  track_latest: true
 ```
 
 With it, a `git` entry watching releases also asks the forge for its latest release: where `/releases/latest` points on GitHub (the API, with a token), GitLab's latest permalink, or Forgejo's latest release. A `steam` entry asks for the newest post the developer marked as an update. It's added only when the list doesn't have it already, so nothing is reported twice. Without a GitHub token, that release has no date. `check --test -v` lists the extra requests.
 
 ## How long history is kept
 
-The history database remembers every item it has reported so nothing repeats. To bound its growth, an item that hasn't appeared in any fetch for a year is forgotten, along with everything from targets you've removed from the config. Change the window with `expiry:`, or turn pruning off:
+The history database remembers every item it has reported so nothing repeats. To bound its growth, an item that hasn't appeared in any fetch for a year is forgotten, along with everything from targets you've removed from the config. Change the window with `settings.expiry`, or turn pruning off:
 
 ```yaml
-expiry: 180d      # 30d, 52w, 2y, ... (at least 1d, max 100y)
-# expiry: never   # keep everything
+settings:
+  expiry: 180d      # 30d, 52w, 2y, ... (at least 1d, max 100y)
+  # expiry: never   # keep everything
 ```
 
 Pruning is safe: an item still listed by its source is never forgotten, however old, so nothing is reported a second time. Targets that failed this run, or were left out with `--source`, keep their history until they next fetch cleanly.
