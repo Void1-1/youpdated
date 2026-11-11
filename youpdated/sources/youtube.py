@@ -16,7 +16,7 @@ import random
 import re
 from datetime import datetime, timedelta, timezone
 from typing import Any, ClassVar, Iterable
-from urllib.parse import urlsplit
+from urllib.parse import quote, urlsplit
 
 from ..icons import page_image
 from ..http import Client, FetchError
@@ -27,6 +27,9 @@ from .feed import feed_title, parse_document, parse_entries
 
 CHANNEL_ID_RE = re.compile(r"^UC[A-Za-z0-9_-]{22}$")
 PLAYLIST_ID_RE = re.compile(r"^(?:PL|UU|LL|FL|OL)[A-Za-z0-9_-]{10,}$")
+PLAYLIST_URL_RE = re.compile(
+    r"^\s*(?:https?://)?(?:www\.|m\.)?youtube\.com/playlist/?\?(?:[^#]*&)?list=", re.IGNORECASE
+)
 EXTERNAL_ID_RE = re.compile(r'"externalId"\s*:\s*"(UC[A-Za-z0-9_-]{22})"')
 # A channel picture's size, in its URL: `=s900-c-k-…`
 PICTURE_SIZE_RE = re.compile(r"=s\d+(?=-|$)")
@@ -37,7 +40,17 @@ CHANNEL_CACHE = "youtube_channel_ids"
 PATH_CACHE = "youtube_path"
 PATH_SWITCH_SLACK = timedelta(days=1)
 INSTANCE_CACHE = "youtube_invidious"
+# Where a playlist's last Data API pages start, so the next check needn't walk to them
+PAGE_CACHE = "youtube_playlist_pages"
+# Videos kept from a channel, and from each end of a playlist: new ones can go at either
 MAX_ITEMS = 15
+# The official feed lists a playlist's first 15 videos, and no more
+FEED_LENGTH = 15
+# Invidious's playlist pages start 100 videos apart (and overlap)
+INVIDIOUS_PAGE = 100
+DATA_API_PAGE = 50
+# 5,000 videos, max YouTube has in a playlist
+MAX_DATA_API_PAGES = 100
 # Instances asked per fetch, picked at random
 MAX_INSTANCES = 4
 KEPT_INSTANCES = 8
@@ -48,12 +61,12 @@ INSTANCE_LIST_AGE = timedelta(days=1)
 class YouTubeSource:
     name: ClassVar[str] = "youtube"
     summary: ClassVar[str] = "New videos on a channel or playlist"
-    caches: ClassVar[tuple[str, ...]] = (CHANNEL_CACHE, PATH_CACHE)
+    caches: ClassVar[tuple[str, ...]] = (CHANNEL_CACHE, PATH_CACHE, PAGE_CACHE)
     # Not keyed by a target
     shared_caches: ClassVar[tuple[str, ...]] = (INSTANCE_CACHE,)
 
     def claim(self, value: str) -> str | None:
-        """@handle, channel id, or channel's URL"""
+        """@handle, channel id, channel's URL, or playlist URL"""
         url = url_parts(value)
         if (
             (value.startswith("@") and "/" not in value)
@@ -66,7 +79,9 @@ class YouTubeSource:
     def targets(self, entries: list[Any]) -> list[Target]:
         targets = []
         for entry in entries:
-            fields = entry_fields(entry, "channel", self.name)
+            # A playlist's URL is a playlist without `playlist:`
+            is_playlist_url = isinstance(entry, str) and PLAYLIST_URL_RE.match(entry)
+            fields = entry_fields(entry, "playlist" if is_playlist_url else "channel", self.name)
 
             if fields.get("playlist"):
                 playlist = str(fields["playlist"]).strip()
@@ -79,7 +94,8 @@ class YouTubeSource:
                     Target(
                         source=self.name,
                         key=f"playlist:{playlist}",
-                        label=fields.get("name") or f"playlist {playlist}",
+                        # The playlist's title, once fetched
+                        label=fields.get("name"),
                         params={"kind": "playlist", "id": playlist},
                     )
                 )
@@ -165,13 +181,19 @@ class YouTubeSource:
     def _official_feed(
         self, target: Target, client: Client, feed_id: str, api_id: str
     ) -> list[Update] | None:
+        playlist = feed_id == "playlist_id"
         url = f"https://www.youtube.com/feeds/videos.xml?{feed_id}={api_id}"
-        fetched = client.get(url, conditional=True, soft_statuses=(404, 403))
+        # A playlist's feed is read in full every time
+        fetched = client.get(url, conditional=not playlist, soft_statuses=(404, 403))
         if fetched is None:
             return []
         if fetched.status in (403, 404):
             raise FetchError(f"official feed returned {fetched.status}")
-        return self._label_and_parse(target, fetched.content)
+        updates = self._label_and_parse(target, fetched.content)
+        if playlist and len(updates) >= FEED_LENGTH:
+            # New videos usually go at the end, past what the feed shows
+            raise FetchError(f"official feed shows only a playlist's first {FEED_LENGTH} videos")
+        return updates
 
     # invidious
 
@@ -185,21 +207,13 @@ class YouTubeSource:
             else:
                 url = f"{base}/api/v1/playlists/{api_id}"
             try:
-                fetched = client.get(url, soft_statuses=(403, 404, 429), retries=0)
+                payload, videos = self._invidious_videos(client, url)
+                if feed_id == "channel_id":
+                    videos = videos[:MAX_ITEMS]
+                else:
+                    videos = self._invidious_playlist_ends(client, url, payload, videos)
             except FetchError as exc:
-                errors.append(str(exc))
-                continue
-            if fetched is None or fetched.status != 200:
-                errors.append(f"{base}: HTTP {fetched.status if fetched else 'none'}")
-                continue
-            try:
-                payload = fetched.json()
-            except ValueError:
-                errors.append(f"{base}: non-JSON response")
-                continue
-            videos = payload.get("videos") if isinstance(payload, dict) else payload
-            if not isinstance(videos, list):
-                errors.append(f"{base}: unexpected payload shape")
+                errors.append(f"{base}: {exc}")
                 continue
             try:
                 updates = self._from_invidious(target, videos)
@@ -209,9 +223,38 @@ class YouTubeSource:
             if videos and not updates:
                 errors.append(f"{base}: no readable videos in the reply")
                 continue
+            if not target.label and feed_id == "playlist_id" and isinstance(payload, dict):
+                target.label = _title(payload.get("title"))
             client.note(f"youtube: by Invidious instance {base}")
             return updates
         raise FetchError("no Invidious instance answered (" + "; ".join(errors[:3]) + ")")
+
+    def _invidious_videos(self, client: Client, url: str) -> tuple[Any, list[Any]]:
+        """An instance's reply, and the videos in it"""
+        fetched = client.get(url, soft_statuses=(403, 404, 429), retries=0)
+        if fetched is None or fetched.status != 200:
+            raise FetchError(f"HTTP {fetched.status if fetched else 'none'}")
+        try:
+            payload = fetched.json()
+        except ValueError:
+            raise FetchError("non-JSON response") from None
+        videos = payload.get("videos") if isinstance(payload, dict) else payload
+        if not isinstance(videos, list):
+            raise FetchError("unexpected payload shape")
+        return payload, videos
+
+    def _invidious_playlist_ends(
+        self, client: Client, url: str, payload: Any, videos: list[Any]
+    ) -> list[Any]:
+        """A playlist's first and last videos; its first page may not reach the end"""
+        count = payload.get("videoCount") if isinstance(payload, dict) else None
+        if isinstance(count, int) and not isinstance(count, bool) and count > len(videos):
+            page = max(2, -(-count // INVIDIOUS_PAGE))
+            _, tail = self._invidious_videos(client, f"{url}?page={page}")
+            if not tail:
+                raise FetchError(f"no videos on page {page} of {count} videos")
+            return videos[:MAX_ITEMS] + tail[-MAX_ITEMS:]
+        return videos[:MAX_ITEMS] + videos[MAX_ITEMS:][-MAX_ITEMS:]
 
     def _instances(self, client: Client) -> list[str]:
         """A random few of the kept instances, so each of them gets a turn"""
@@ -255,12 +298,15 @@ class YouTubeSource:
 
     def _from_invidious(self, target: Target, videos: list[Any]) -> list[Update]:
         updates = []
-        for video in videos[:MAX_ITEMS]:
+        found = set()
+        for video in videos:
             if not isinstance(video, dict):
                 continue
             vid = video.get("videoId")
-            if not isinstance(vid, str) or not VIDEO_ID_RE.match(vid):
+            # A playlist's two ends can overlap, and a video can be in it twice
+            if not isinstance(vid, str) or not VIDEO_ID_RE.match(vid) or vid in found:
                 continue
+            found.add(vid)
             updates.append(
                 Update(
                     source=self.name,
@@ -273,8 +319,9 @@ class YouTubeSource:
                     tags=("video",),
                 )
             )
-            if not target.label and isinstance(video.get("author"), str):
-                target.label = video["author"]
+            # A playlist's videos can be by anyone; its title is in the reply around them
+            if not target.label and target.params["kind"] == "channel":
+                target.label = _title(video.get("author"))
         return updates
 
     # Data API
@@ -286,34 +333,38 @@ class YouTubeSource:
         if not key:
             raise FetchError("YOUTUBE_API_KEY not set")
 
-        # channel's uploads playlist is id with UC swapped for UU
-        playlist_id = api_id if feed_id == "playlist_id" else "UU" + api_id[2:]
+        playlist = feed_id == "playlist_id"
+        # channel's uploads playlist is id with UC swapped for UU, newest first
+        playlist_id = api_id if playlist else "UU" + api_id[2:]
         url = (
             "https://www.googleapis.com/youtube/v3/playlistItems"
-            f"?part=snippet&maxResults={MAX_ITEMS}&playlistId={playlist_id}"
+            f"?part=snippet&maxResults={DATA_API_PAGE if playlist else MAX_ITEMS}"
+            f"&playlistId={playlist_id}"
         )
-        # In a header, the key stays out of the URL that -v, --test, and errors print, and
-        # a redirect off Google's host drops it
-        fetched = client.get(url, headers={"X-Goog-Api-Key": key})
-        if fetched is None:
+        page = self._data_api_page(client, url, key, None)
+        if page is None:
             return []
         client.note("youtube: by Data API")
+        items, following = page
+        items = items[:MAX_ITEMS]
+        if playlist and following:
+            items += self._data_api_playlist_end(target, client, url, key, following)
 
-        payload = fetched.json()
-        items = payload.get("items", []) if isinstance(payload, dict) else None
-        if not isinstance(items, list):
-            raise FetchError("Data API: unexpected payload shape")
         updates = []
+        found = set()
         for item in items:
             snippet = item.get("snippet") if isinstance(item, dict) else None
             if not isinstance(snippet, dict):
                 continue
             resource = snippet.get("resourceId")
             vid = resource.get("videoId") if isinstance(resource, dict) else None
-            if not isinstance(vid, str) or not VIDEO_ID_RE.match(vid):
+            # A playlist's two ends can overlap, and a video can be in it twice
+            if not isinstance(vid, str) or not VIDEO_ID_RE.match(vid) or vid in found:
                 continue
-            if not target.label and isinstance(snippet.get("channelTitle"), str):
-                target.label = snippet["channelTitle"]
+            found.add(vid)
+            # On a playlist's items, the channel is the playlist owner's
+            if not target.label and target.params["kind"] == "channel":
+                target.label = _title(snippet.get("channelTitle"))
             updates.append(
                 Update(
                     source=self.name,
@@ -326,14 +377,76 @@ class YouTubeSource:
                     tags=("video",),
                 )
             )
+        if not target.label and playlist:
+            target.label = self._playlist_title(client, api_id, key)
         return updates
+
+    def _data_api_page(
+        self, client: Client, url: str, key: str, token: str | None
+    ) -> tuple[list[Any], str | None] | None:
+        """A page's items and the next page's token; None with ``--test``"""
+        if token:
+            url += f"&pageToken={quote(token, safe='')}"
+        fetched = client.get(url, headers={"X-Goog-Api-Key": key})
+        if fetched is None:
+            return None
+        payload = fetched.json()
+        items = payload.get("items", []) if isinstance(payload, dict) else None
+        if not isinstance(items, list):
+            raise FetchError("Data API: unexpected payload shape")
+        following = payload.get("nextPageToken")
+        return items, following if isinstance(following, str) and following else None
+
+    def _data_api_playlist_end(
+        self, target: Target, client: Client, url: str, key: str, second: str
+    ) -> list[Any]:
+        """A long playlist's last items. Pages can only be read in order, so this starts
+        from where the last check found the end, or else the second page"""
+        state = client.state
+        saved = state.cache_get(PAGE_CACHE, target.key) if state else None
+        starts = [saved, second] if saved and saved != second else [second]
+        for start in starts:
+            # (token, items) of the last two pages read
+            read: list[tuple[str, list[Any]]] = []
+            token: str | None = start
+            try:
+                for _ in range(MAX_DATA_API_PAGES):
+                    page = self._data_api_page(client, url, key, token)
+                    if page is None or not page[0]:
+                        break
+                    read = [*read[-1:], (token, page[0])]
+                    token = page[1]
+                    if token is None:
+                        break
+                else:
+                    raise FetchError(f"Data API: playlist longer than {MAX_DATA_API_PAGES} pages")
+            except FetchError:
+                if start == second:
+                    raise
+                continue  # the saved place is no longer valid; walk from the start
+            if not read:
+                continue  # past the end of a playlist that got shorter
+            if state is not None:
+                state.cache_set(PAGE_CACHE, target.key, read[0][0])
+            return [item for _, items in read for item in items][-MAX_ITEMS:]
+        return []
+
+    def _playlist_title(self, client: Client, playlist_id: str, key: str) -> str | None:
+        """A playlist's title from the Data API; None if it can't say"""
+        url = f"https://www.googleapis.com/youtube/v3/playlists?part=snippet&id={playlist_id}"
+        try:
+            fetched = client.get(url, headers={"X-Goog-Api-Key": key}, retries=0)
+            items = fetched.json().get("items") if fetched else None
+            return _title(items[0]["snippet"]["title"])
+        except Exception:  # the videos matter, the name is a nicety
+            return None
 
     # helpers
 
     def _label_and_parse(self, target: Target, content: bytes) -> list[Update]:
         parsed = parse_document(content)
-        # The Invidious and Data API paths both name the channel; take it from
-        # feed so the label does not depend on which path answered.
+        # The Invidious and Data API paths both name the channel or playlist; take it
+        # from feed so the label does not depend on which path answered.
         if not target.label:
             target.label = feed_title(parsed)
         updates = parse_entries(
@@ -422,6 +535,11 @@ def _extract_channel_ref(raw: str) -> str | None:
 def _extract_playlist_id(raw: str) -> str:
     match = re.search(r"[?&]list=([A-Za-z0-9_-]+)", raw)
     return match.group(1) if match else raw
+
+
+def _title(value: Any) -> str | None:
+    """A channel or playlist name from a reply, or None"""
+    return value.strip() or None if isinstance(value, str) else None
 
 
 def _video_id(url: str) -> str | None:
