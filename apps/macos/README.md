@@ -39,19 +39,20 @@ python3 apps/engine/build.py --python /path/to/python3 # records this commit
 apps/macos/scripts/make-release.sh
 shasum -a 256 build/Youpdated-<version>-macOS.dmg # goes in the release notes
 
-git tag -s app-v<version> -m "app-v<version>"
-git verify-tag app-v<version>
-git push origin app-v<version>
+git tag -s app-macos-v<version> -m "app-macos-v<version>"
+git verify-tag app-macos-v<version>
+git push origin app-macos-v<version>
 
-gh release create app-v<version> --verify-tag --draft --latest=false --title "Youpdated for Mac <version>" --notes-file <notes>
-gh release upload app-v<version> build/Youpdated-<version>-macOS.dmg
-gh release edit app-v<version> --draft=false --latest=false
+gh release create app-macos-v<version> --verify-tag --draft --latest=false --title "Youpdated for Mac <version>" --notes-file <notes>
+gh release upload app-macos-v<version> build/Youpdated-<version>-macOS.dmg
+gh release edit app-macos-v<version> --draft=false --latest=false
 ```
 
 - **Upload while it's a draft: publishing makes a release's files permanent.**
 - `--latest=false` keeps the CLI's release as the repo's latest.
 - Use a plain version number, with no `-beta` and without marking the release as a prerelease. The app follows its own repo with `ignore: [prerelease]`, so testers wouldn't hear about one.
-- `release.yml` skips `app-v*` releases, so this doesn't publish to PyPI.
+- `release.yml` only publishes releases whose tag starts with `v` to PyPI, so app releases are skipped.
+- Tag with `app-macos-v`: each app only takes its own tags as updates.
 
 Link [docs/macos-app.md](../../docs/macos-app.md) in the notes.
 

@@ -8,7 +8,7 @@ DEVELOPMENT_TEAM =
 // Team-ID-prefixed
 YOUPDATED_APP_GROUP = $(DEVELOPMENT_TEAM).$(YOUPDATED_BUNDLE_ID)
 
-// app's version, released on `app-v*` tags; the release workflow checks it against the tag.
+// app's version, released on `app-macos-v*` tags; the release workflow checks it against the tag.
 MARKETING_VERSION = 0.9.0
 CURRENT_PROJECT_VERSION = 1
 

@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="Youpdated.App.Views.FollowingView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:Youpdated.App.Views"
+    xmlns:vm="using:Youpdated.Core.ViewModels">
+
+    <UserControl.Resources>
+        <DataTemplate x:Key="HeaderTemplate" x:DataType="local:FollowingHeader">
+            <TextBlock Text="{x:Bind Title}" Margin="4,16,0,6" CharacterSpacing="60"
+                       Style="{StaticResource CaptionTextBlockStyle}" FontWeight="SemiBold"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+        </DataTemplate>
+        <DataTemplate x:Key="RowTemplate" x:DataType="vm:FollowingRow">
+            <local:FollowingRowView Row="{x:Bind}" />
+        </DataTemplate>
+        <local:RowTemplateSelector x:Key="RowSelector" Header="{StaticResource HeaderTemplate}" Row="{StaticResource RowTemplate}" />
+    </UserControl.Resources>
+
+    <ScrollViewer HorizontalScrollMode="Disabled" VerticalScrollBarVisibility="Auto">
+        <!-- A scroller places its own child by the child's natural width, not its MaxWidth, so the column is one level in -->
+        <Grid>
+            <StackPanel MaxWidth="640" Padding="20,12,20,24" Spacing="4">
+                <TextBox x:Name="FilterBox" x:Uid="FollowingFilter" Margin="0,4,0,8" TextChanged="OnFilterChanged" />
+
+                <!-- Youpdated's entry -->
+                <local:FollowingRowView x:Name="StarredRow" Visibility="Collapsed" />
+                <Grid x:Name="SelfMissingRow" Visibility="Collapsed" Padding="12,8" ColumnSpacing="10"
+                      CornerRadius="{StaticResource ControlCornerRadius}" Background="{ThemeResource SubtleFillColorSecondaryBrush}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <FontIcon Glyph="&#xE734;" FontSize="16" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                    <TextBlock Grid.Column="1" x:Uid="FollowingSelfMissing" VerticalAlignment="Center" TextWrapping="Wrap" />
+                    <Button Grid.Column="2" x:Uid="FollowingWatchSelf" Click="OnWatchSelf" />
+                </Grid>
+
+                <ItemsRepeater x:Name="Repeater"
+                               ItemTemplate="{StaticResource RowSelector}"
+                               XYFocusKeyboardNavigation="Enabled"
+                               TabFocusNavigation="Once">
+                    <ItemsRepeater.Layout>
+                        <StackLayout Orientation="Vertical" />
+                    </ItemsRepeater.Layout>
+                </ItemsRepeater>
+
+                <TextBlock x:Name="NothingText" x:Uid="FollowingNothing" Visibility="Collapsed" Margin="4,24,4,0"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" HorizontalAlignment="Center" />
+            </StackPanel>
+        </Grid>
+    </ScrollViewer>
+</UserControl>

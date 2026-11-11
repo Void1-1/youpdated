@@ -1,0 +1,13 @@
+<Project>
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <Version>0.9.0</Version>
+    <Company>Void1-1</Company>
+    <Product>Youpdated</Product>
+    <Copyright>Copyright (c) Void1-1. MIT License.</Copyright>
+  </PropertyGroup>
+</Project>

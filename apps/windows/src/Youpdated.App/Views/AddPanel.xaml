@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="Youpdated.App.Views.AddPanel"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:Youpdated.App.Views">
+
+    <!-- + flyout, big Add field of an empty window -->
+    <StackPanel Spacing="12">
+        <TextBlock x:Name="Label" x:Uid="AddLabel" Style="{StaticResource BodyStrongTextBlockStyle}" />
+        <TextBox x:Name="Box" x:Uid="AddBox" TextChanged="OnTextChanged" KeyDown="OnBoxKeyDown" />
+
+        <SelectorBar x:Name="Choices" Visibility="Collapsed" SelectionChanged="OnChoiceChanged" />
+
+        <Grid MinHeight="72">
+            <ProgressRing x:Name="Spinner" IsActive="False" Width="24" Height="24" />
+            <Grid x:Name="PreviewCard" Visibility="Collapsed" Padding="12" ColumnSpacing="12"
+                  CornerRadius="{StaticResource OverlayCornerRadius}" BorderThickness="1"
+                  Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                  BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <local:IconView x:Name="PreviewIcon" Size="40" VerticalAlignment="Top" />
+                <StackPanel Grid.Column="1" Spacing="2">
+                    <TextBlock x:Name="PreviewName" Style="{StaticResource BodyStrongTextBlockStyle}" TextTrimming="CharacterEllipsis" />
+                    <TextBlock x:Name="PreviewLine" TextWrapping="WrapWholeWords" MaxLines="2" TextTrimming="CharacterEllipsis"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                </StackPanel>
+            </Grid>
+        </Grid>
+
+        <!-- A failed fetch shows under the card; it can still be followed -->
+        <TextBlock x:Name="ErrorText" Visibility="Collapsed" TextWrapping="Wrap" IsTextSelectionEnabled="True"
+                   Foreground="{ThemeResource SystemFillColorCautionBrush}" />
+
+        <!-- Already following -->
+        <Grid ColumnSpacing="8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <local:PriorityMenu x:Name="PriorityPicker" HorizontalAlignment="Left" />
+            <Button x:Name="FollowButton" Grid.Column="1" Style="{StaticResource AccentButtonStyle}" IsEnabled="False" Click="OnFollow" />
+        </Grid>
+        <HyperlinkButton x:Uid="AddImport" Padding="0" Click="OnImport" />
+    </StackPanel>
+</UserControl>

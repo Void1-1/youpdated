@@ -1,0 +1,108 @@
+name: windows-release
+
+# Builds the Windows app's release zip for an `app-windows-v*` tag. It only builds
+# and checks it: attaching it to the release is done by hand, as for the Mac app.
+# See apps/windows/README.md.
+on:
+  push:
+    tags: ["app-windows-v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "The app-windows-v* tag to build"
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Windows release zip
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - name: Check the version
+        id: version
+        shell: pwsh
+        run: |
+          $tag = "${{ inputs.tag || github.ref_name }}"
+          if ($tag -notmatch '^app-windows-v(\d+\.\d+\.\d+)$') { throw "Not an app-windows-v<x.y.z> tag: $tag" }
+          $version = $Matches[1]
+          $props = [xml](Get-Content apps/windows/Directory.Build.props)
+          $declared = "$($props.Project.PropertyGroup.Version)".Trim()
+          if ($declared -ne $version) { throw "Directory.Build.props says $declared, the tag says $version" }
+          "version=$version" >> $env:GITHUB_OUTPUT
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: apps/windows/global.json
+
+      - name: Test
+        working-directory: apps/windows
+        run: dotnet test --project tests/Youpdated.Core.Tests
+
+      - name: Build the app
+        working-directory: apps/windows
+        run: dotnet build src/Youpdated.App -c Release
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+
+      # The same script that freezes the Mac engine; it runs smoke.py on the result
+      - name: Freeze the engine
+        shell: pwsh
+        run: python apps/engine/build.py --python (Get-Command python).Source
+
+      - name: Put the app together
+        id: zip
+        shell: pwsh
+        run: |
+          $version = "${{ steps.version.outputs.version }}"
+          $built = Get-ChildItem apps\windows\src\Youpdated.App\bin\Release -Recurse -Filter Youpdated.exe | Select-Object -First 1
+          if (-not $built) { throw "Youpdated.exe was not built" }
+          # One folder in the zip, so extracting gives a Youpdated folder
+          $root = New-Item -ItemType Directory -Force "$env:RUNNER_TEMP\release"
+          $app = Join-Path $root Youpdated
+          # .pdb files stay: they put line numbers in the diagnostic log's stack traces
+          Copy-Item $built.DirectoryName $app -Recurse
+          Copy-Item build\engine\dist\youpdated-engine (Join-Path $app youpdated-engine) -Recurse
+          $name = "Youpdated-$version-Windows-x64.zip"
+          $zip = Join-Path $root $name
+          Compress-Archive -Path $app -DestinationPath $zip -CompressionLevel Optimal
+          $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          "{0:N0} MB zipped, {1:N0} MB unpacked" -f ((Get-Item $zip).Length / 1MB), ((Get-ChildItem $app -Recurse | Measure-Object Length -Sum).Sum / 1MB)
+          "SHA-256 of ${name}: $hash"
+          "$hash  $name" | Set-Content -Encoding ascii (Join-Path $root "$name.sha256")
+          "zip=$zip" >> $env:GITHUB_OUTPUT
+          "exe=$(Join-Path $app Youpdated.exe)" >> $env:GITHUB_OUTPUT
+          "name=$name" >> $env:GITHUB_OUTPUT
+
+      # The packaged app starts, starts its own engine, and keeps running
+      - name: Launch
+        shell: pwsh
+        env:
+          APP_EXE: ${{ steps.zip.outputs.exe }}
+        run: |
+          $data = New-Item -ItemType Directory -Force "$env:RUNNER_TEMP\youpdated-launch"
+          $env:YOUPDATED_ENGINE_CONFIG = "$data\config.yaml"
+          $env:YOUPDATED_ENGINE_STATE = "$data\state.sqlite3"
+          $app = Start-Process $env:APP_EXE -PassThru
+          Start-Sleep -Seconds 30
+          $engine = Get-Process youpdated-engine -ErrorAction SilentlyContinue
+          if ($app.HasExited) { throw "Youpdated.exe exited with code $($app.ExitCode)" }
+          if (-not $engine) { throw "The app is running but its engine isn't" }
+          "Running after 30 seconds, with its engine at $($engine[0].Path)"
+          Stop-Process -Id $app.Id -Force
+          $engine | Stop-Process -Force
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.zip.outputs.name }}
+          path: |
+            ${{ steps.zip.outputs.zip }}
+            ${{ steps.zip.outputs.zip }}.sha256
+          retention-days: 14

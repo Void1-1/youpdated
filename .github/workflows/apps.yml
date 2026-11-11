@@ -45,3 +45,23 @@ jobs:
         run: >
           xcodebuild -project apps/macos/Youpdated.xcodeproj -scheme Youpdated
           -destination 'generic/platform=macOS' CODE_SIGNING_ALLOWED=NO build
+
+  windows:
+    name: Windows app
+    runs-on: windows-latest
+    # global.json, which picks the test runner, only applies from here
+    defaults:
+      run:
+        working-directory: apps/windows
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: apps/windows/global.json
+
+      - name: Test
+        run: dotnet test --project tests/Youpdated.Core.Tests
+
+      - name: Build the app
+        run: dotnet build src/Youpdated.App -c Release

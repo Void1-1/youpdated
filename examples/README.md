@@ -2,6 +2,10 @@
 
 Standalone programs built on youpdated. Each runs against an existing config and history.
 
+## ConfigExample.yaml
+
+Every config option in one file, commented. `test_config_example.py` checks that it loads, shows every built-in source, and passes `youpdated check --test`.
+
 ## desktop
 
 ```sh

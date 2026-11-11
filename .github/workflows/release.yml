@@ -20,8 +20,9 @@ jobs:
   # The same 13-job matrix used on every push. A release that can't pass CI
   # never gets as far as building.
   verify:
-    # Releases tagged `app-v*` are the desktop apps, which don't go to PyPI. A
-    # skipped job skips the ones that need it, so this also covers build and publish.
+    # Releases tagged `app-macos-v*` and `app-windows-v*` (`app-v0.9.0` before them)
+    # are the desktop apps, which don't go to PyPI. A skipped job skips the ones
+    # that need it, so this also covers build and publish.
     if: github.event_name != 'release' || startsWith(github.event.release.tag_name, 'v')
     uses: ./.github/workflows/tests.yml
     # tests.yml also holds the CodeQL job, which asks for security-events:

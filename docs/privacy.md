@@ -31,6 +31,8 @@
 
 **The desktop app's Show icons** (off by default) adds requests for a picture for each target: Steam's store details and header image, a git repo owner's avatar (from the forge's API outside GitHub), a YouTube channel's page and picture, an itch game's page and cover, or a feed's image or its site's icon. They go through the same client and `privacy:` settings as everything else, a few per check, and about once a month per target afterwards. npm, PyPI, Homebrew, and browsers have no icons and get no extra requests. The icons are kept in the history, so they can be encrypted, and turning the setting off deletes them.
 
+**App diagnostic logs** (Settings → Advanced, off by default) writes errors to `%LOCALAPPDATA%\youpdated\app\app.log` on Windows, and is never sent anywhere. It holds the app, engine, and Windows versions, whether notifications could be shown, and errors with their stack traces, including what the engine prints when something fails. That can reveal what you follow, and file paths in it include your Windows user name, so read it before attaching it to a bug report. It isn't encrypted, even when your config and history are! Turning the setting off stops new writes but leaves the file; **Remove Youpdated from this PC** deletes it.
+
 ## The `privacy:` block
 
 ```yaml
