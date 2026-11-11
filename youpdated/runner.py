@@ -18,6 +18,9 @@ from .versions import Highest, VersionRules, highest
 # ``(source, key)`` of a target
 Key = tuple[str, str]
 
+# Most targets checked at once; the client still sends at most `privacy.concurrency` requests at a time
+MAX_WORKERS = 64
+
 
 @dataclass
 class _Pending:
@@ -196,8 +199,15 @@ def run(
     def work(
         target: Target,
     ) -> tuple[Target, list[Update] | Exception, int, list[Update], list[Validator], list[str]]:
-        if progress is not None:
-            progress.target_started(target)
+        # Started once its first request goes out
+        announced = False
+
+        def announce() -> None:
+            nonlocal announced
+            announced = True
+            if progress is not None:
+                progress.target_started(target)
+
         outcome: list[Update] | Exception
         dropped = 0
         passed: list[Update] = []
@@ -216,6 +226,7 @@ def run(
                 client.deferred_validators() as pending,
                 client.tracked_urls() as urls,
                 client.unconditional() if full else nullcontext(),
+                client.first_request(announce),
             ):
                 items = list(sources[target.source].fetch(target, client))
             kept = [u for u in items if not target.ignores(u.tags)]
@@ -228,6 +239,8 @@ def run(
             outcome = kept
         except Exception as exc:  # collected, non fatal
             outcome = exc
+        if not announced:
+            announce()
         if progress is not None:
             progress.target_finished(
                 target, outcome if isinstance(outcome, Exception) else None
@@ -237,10 +250,19 @@ def run(
     if progress is not None:
         progress.run_started(len(targets))
 
-    workers = max(1, min(config.privacy.concurrency, len(targets)))
+    # The client caps requests in flight at `privacy.concurrency`
+    workers = max(1, min(len(targets), max(config.privacy.concurrency, MAX_WORKERS)))
     # run_scope: targets that share an upstream document fetch it once between them
     with client.run_scope(), ThreadPoolExecutor(max_workers=workers) as pool:
-        for target, outcome, dropped, passed, pending, urls in pool.map(work, targets):
+        futures = {i: pool.submit(work, targets[i]) for i in _interleaved(targets)}
+        try:
+            outcomes = [futures[i].result() for i in range(len(targets))]
+        except BaseException:
+            # targets not started yet send nothing
+            for future in futures.values():
+                future.cancel()
+            raise
+        for target, outcome, dropped, passed, pending, urls in outcomes:
             result.ignored += dropped
             if isinstance(outcome, Exception) and client.test:
                 # Nothing was sent, so a source that needs an answer to go on stopped early
@@ -327,6 +349,18 @@ def _newest(updates: Iterable[Update]) -> list[Update]:
         ):
             newest[key] = update
     return list(newest.values())
+
+
+def _interleaved(targets: list[Target]) -> list[int]:
+    """Indexes of ``targets``, one from each source in turn"""
+    by_source: dict[str, list[int]] = {}
+    for i, target in enumerate(targets):
+        by_source.setdefault(target.source, []).append(i)
+    queues = list(by_source.values())
+    order: list[int] = []
+    for depth in range(max(map(len, queues), default=0)):
+        order.extend(queue[depth] for queue in queues if depth < len(queue))
+    return order
 
 
 def _highest_versions(

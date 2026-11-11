@@ -21,7 +21,7 @@ CHROME_URL = (
 EDGE_URL = "https://edgeupdates.microsoft.com/api/products"
 FIREFOX_URL = "https://product-details.mozilla.org/1.0/firefox_versions.json"
 BRAVE_ATOM_URL = "https://github.com/brave/brave-browser/releases.atom"
-BRAVE_API_URL = "https://api.github.com/repos/brave/brave-browser/releases?per_page=100"
+BRAVE_API_URL = "https://api.github.com/repos/brave/brave-browser/releases?per_page=30"
 BRAVE_LATEST_URL = "https://github.com/brave/brave-browser/releases/latest"
 
 

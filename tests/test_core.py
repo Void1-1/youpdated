@@ -188,6 +188,61 @@ def test_targets_sharing_a_url_fetch_it_once_and_all_get_the_body(state, client)
     assert all(b is not None and b.content == b'{"v": 1}' for b in bodies)
 
 
+def _at_once(count, call):
+    """``call()`` from ``count`` threads let go together, results in thread order"""
+    import threading
+
+    ready = threading.Barrier(count)
+    results = [None] * count
+
+    def go(i):
+        ready.wait(timeout=5)
+        results[i] = call()
+
+    threads = [threading.Thread(target=go, args=(i,)) for i in range(count)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(timeout=5)
+    return results
+
+
+def test_targets_asking_for_a_url_at_once_share_one_request(state):
+    """Every target starts together, so the run's copy isn't there yet when they ask"""
+    calls = []
+
+    def slow(request):
+        calls.append(request.url)
+        time.sleep(0.1)  # the others ask while this is on its way
+        return httpx.Response(200, content=b'{"v": 1}')
+
+    privacy = PrivacyConfig(jitter=(0.0, 0.0), concurrency=4)
+    with Client(privacy, state, transport=httpx.MockTransport(slow)) as client:
+        with client.run_scope():
+            bodies = _at_once(3, lambda: client.get("https://e.com/shared.json"))
+
+    assert len(calls) == 1
+    assert all(b is not None and b.content == b'{"v": 1}' for b in bodies)
+
+
+def test_a_shared_request_without_a_body_leaves_the_others_to_ask(state):
+    """A 304 to one target's validators says nothing to a target that sent none"""
+    calls = []
+
+    def answer(request):
+        calls.append(request.url)
+        time.sleep(0.1)
+        return httpx.Response(304 if len(calls) == 1 else 200, content=b"body")
+
+    privacy = PrivacyConfig(jitter=(0.0, 0.0), concurrency=4)
+    with Client(privacy, state, transport=httpx.MockTransport(answer)) as client:
+        with client.run_scope():
+            bodies = _at_once(2, lambda: client.get("https://e.com/feed", conditional=True))
+
+    assert len(calls) == 2
+    assert sorted(b is None for b in bodies) == [False, True]
+
+
 @respx.mock
 def test_a_304_across_runs_still_means_nothing_new(state, client):
     """Outside a run, and on a fresh run, 304 keeps its normal meaning."""
@@ -374,7 +429,7 @@ def test_a_429_without_retry_after_falls_back_to_backoff(client, monkeypatch):
     )
 
     client.get("https://e.com/x", retries=2)
-    assert sleeps == [1.5, 3.0]
+    assert sleeps == [pytest.approx(1.5, abs=0.2), pytest.approx(3.0, abs=0.2)]
 
 
 @respx.mock
@@ -530,7 +585,7 @@ def test_show_all_reports_a_new_target_instead_of_baselining_it(state, client):
     assert len(result.updates) == 2
 
 
-_BRAVE_API = "https://api.github.com/repos/brave/brave-browser/releases?per_page=100"
+_BRAVE_API = "https://api.github.com/repos/brave/brave-browser/releases?per_page=30"
 
 
 def _brave_release(name: str) -> dict:
@@ -572,6 +627,66 @@ def test_a_target_added_onto_a_shared_unchanged_document_still_records_a_baselin
     )
     later = run(_brave("stable", "beta"), state, client)
     assert [u.title for u in later.updates] == ["Beta v1.3"]
+
+
+_BRAVE_FULL = "https://api.github.com/repos/brave/brave-browser/releases?per_page=100"
+
+
+def _nightlies(first: int, count: int) -> list[dict]:
+    return [_brave_release(f"Nightly v1.{n}") for n in range(first, first - count, -1)]
+
+
+@respx.mock
+def test_brave_asks_for_a_short_page_while_it_reaches_the_last_check(state, client):
+    """GitHub takes seconds to build 100 releases, so 30 are asked for while they
+    reach back to one already seen"""
+    short = respx.get(_BRAVE_API).mock(return_value=httpx.Response(200, json=_nightlies(100, 30)))
+    full = respx.get(_BRAVE_FULL).mock(return_value=httpx.Response(500))
+    run(_brave("stable"), state, client)  # first check: a baseline, nothing older wanted
+    assert short.call_count == 1 and not full.called
+
+    short.return_value = httpx.Response(200, json=_nightlies(103, 30))
+    later = run(_brave("nightly"), state, client)
+    assert not full.called
+    assert later.baselined  # nightly is new here
+
+    short.return_value = httpx.Response(200, json=_nightlies(105, 30))
+    latest = run(_brave("nightly"), state, client)
+    assert not full.called
+    assert [u.title for u in latest.updates] == ["Nightly v1.105", "Nightly v1.104"]
+
+
+@respx.mock
+def test_brave_asks_for_the_full_page_when_the_short_one_is_all_new(state, client):
+    """Gone a while, a busy channel's 30 newest can all be new: the 100 then fill the gap"""
+    stable = lambda n: _brave_release(f"Release v2.{n}")
+    respx.get(_BRAVE_API).mock(return_value=httpx.Response(200, json=[stable(1), *_nightlies(100, 29)]))
+    full = respx.get(_BRAVE_FULL).mock(return_value=httpx.Response(500))
+    run(_brave("stable"), state, client)
+
+    # Three releases since, and enough nightlies to push the one seen off the short page
+    page = [stable(4), stable(3), *_nightlies(200, 28)]
+    respx.get(_BRAVE_API).mock(return_value=httpx.Response(200, json=page))
+    full.return_value = httpx.Response(200, json=[*page, stable(2), stable(1)])
+    later = run(_brave("stable"), state, client)
+    assert full.called
+    assert [u.title for u in later.updates] == ["Release v2.4", "Release v2.3", "Release v2.2"]
+
+
+@respx.mock
+def test_brave_keeps_the_short_page_when_the_full_one_fails(state, client):
+    stable = lambda n: _brave_release(f"Release v2.{n}")
+    respx.get(_BRAVE_API).mock(return_value=httpx.Response(200, json=[stable(1), *_nightlies(100, 29)]))
+    run(_brave("stable"), state, client)
+
+    respx.get(_BRAVE_API).mock(
+        return_value=httpx.Response(200, json=[stable(3), stable(2), *_nightlies(200, 28)])
+    )
+    full = respx.get(_BRAVE_FULL).mock(return_value=httpx.Response(403, json={}))
+    later = run(_brave("stable"), state, client)
+    assert full.called
+    assert [u.title for u in later.updates] == ["Release v2.3", "Release v2.2"]
+    assert not later.errors
 
 
 def _links(state) -> set[tuple[str, str, str]]:
@@ -1158,3 +1273,129 @@ def test_check_test_shows_config_problems_and_fails_on_them(tmp_path, capsys):
     assert main([*args, "--json"]) == 0
     report = json.loads(capsys.readouterr().out)
     assert {e["source"] for e in report["errors"]} == {"git", "nope"}
+
+
+@respx.mock
+def test_a_rate_limited_api_skips_neither_its_site_nor_the_fallback(client):
+    """Brave falls back from api.github.com to github.com's feed when the API says 429"""
+    api = respx.get("https://api.github.com/repos/o/r/releases").mock(
+        return_value=httpx.Response(429)
+    )
+    feed = respx.get("https://github.com/o/r/releases.atom").mock(
+        return_value=httpx.Response(200, content=b"<feed/>")
+    )
+    with client.run_scope():
+        with pytest.raises(FetchError, match="HTTP 429"):
+            client.get("https://api.github.com/repos/o/r/releases")
+        assert api.call_count == 3
+        # the API isn't asked again this run
+        with pytest.raises(FetchError, match="not sent, api.github.com kept answering HTTP 429"):
+            client.get("https://api.github.com/repos/o/r/releases")
+        assert api.call_count == 3
+        # but the site's other host is
+        assert client.get("https://github.com/o/r/releases.atom").content == b"<feed/>"
+    assert feed.call_count == 1
+
+
+def test_a_hold_on_one_host_does_not_delay_its_site(client, monkeypatch):
+    sleeps = _record_sleeps(monkeypatch)
+    client._hold_host("api.github.com", 7)
+    client._pace("github.com")
+    assert sleeps == []
+    client._pace("api.github.com")
+    assert sleeps == [pytest.approx(7, abs=0.5)]
+
+
+@respx.mock
+def test_an_unreachable_host_fails_the_rest_of_the_run_at_once(client):
+    down = respx.get(url__startswith="https://down.example/").mock(
+        side_effect=httpx.ConnectError("refused")
+    )
+    respx.get("https://up.example/x").mock(return_value=httpx.Response(200, content=b"ok"))
+    with client.run_scope():
+        with pytest.raises(FetchError, match="ConnectError"):
+            client.get("https://down.example/a")
+        tried = down.call_count
+        with pytest.raises(FetchError, match="not sent, down.example didn't answer"):
+            client.get("https://down.example/b")
+        assert down.call_count == tried
+        assert client.get("https://up.example/x").content == b"ok"
+    # a later run tries again
+    with client.run_scope():
+        with pytest.raises(FetchError, match="ConnectError"):
+            client.get("https://down.example/a")
+    assert down.call_count == 2 * tried
+
+
+@respx.mock
+def test_outside_a_run_nothing_is_given_up_on(client):
+    route = respx.get("https://down.example/a").mock(side_effect=httpx.ConnectError("refused"))
+    for _ in range(2):
+        with pytest.raises(FetchError, match="ConnectError"):
+            client.get("https://down.example/a")
+    assert route.call_count == 6
+
+
+@respx.mock
+def test_a_site_is_sent_one_user_agent_a_run(client):
+    route = respx.get(url__regex=r".*").mock(return_value=httpx.Response(200))
+    for _ in range(20):
+        client.get("https://github.com/a")
+        client.get("https://api.github.com/b")
+    agents = {call.request.headers["User-Agent"] for call in route.calls}
+    assert len(agents) == 1
+
+
+def test_fast_mode_is_read_from_privacy():
+    assert parse_config({"sources": {"npm": ["x"]}}).privacy.fast_mode is False
+    config = parse_config({"sources": {"npm": ["x"]}, "privacy": {"fast_mode": True}})
+    assert config.privacy.fast_mode is True
+    with pytest.raises(ConfigError, match="`privacy.fast_mode` must be true or false"):
+        parse_config({"sources": {"npm": ["x"]}, "privacy": {"fast_mode": "yes"}})
+
+
+@pytest.mark.parametrize("how", ["flag", "config"])
+def test_fast_mode_warns_every_check(tmp_path, capsys, how):
+    from youpdated.cli import main
+
+    config = tmp_path / "c.yaml"
+    fast = "privacy:\n  fast_mode: true\n" if how == "config" else ""
+    config.write_text(fast + "sources:\n  npm: [express]\n")
+    argv = ["check", "--test", "-c", str(config), "--state", str(tmp_path / "s.sqlite3")]
+    assert main(argv + (["--fast"] if how == "flag" else [])) == 0
+    out = capsys.readouterr().out
+    assert "fast mode" in out and "fast_mode=on" in out
+
+
+def test_no_warning_without_fast_mode(tmp_path, capsys):
+    from youpdated.cli import main
+
+    config = tmp_path / "c.yaml"
+    config.write_text("sources:\n  npm: [express]\n")
+    main(["check", "--test", "-c", str(config), "--state", str(tmp_path / "s.sqlite3")])
+    assert "fast mode" not in capsys.readouterr().out
+
+
+def test_a_connection_gets_a_shorter_wait_to_open_than_an_answer(state):
+    privacy = PrivacyConfig(timeout=20)
+    with Client(privacy, state) as c:
+        timeout = c._client.timeout
+    assert (timeout.connect, timeout.read) == (8.0, 20)
+
+
+def test_through_a_proxy_a_connection_gets_the_full_timeout(state):
+    with Client(PrivacyConfig(timeout=20, proxy="socks5://127.0.0.1:9050"), state) as c:
+        assert c._client.timeout.connect == 20
+
+
+@respx.mock
+def test_a_connection_that_timed_out_is_tried_once_more(client):
+    route = respx.get("https://dead.example/a").mock(side_effect=httpx.ConnectTimeout("t"))
+    with pytest.raises(FetchError):
+        client.get("https://dead.example/a")
+    assert route.call_count == 2
+
+    other = respx.get("https://flaky.example/a").mock(side_effect=httpx.ConnectError("x"))
+    with pytest.raises(FetchError):
+        client.get("https://flaky.example/a")
+    assert other.call_count == 3
