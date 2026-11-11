@@ -1,14 +1,11 @@
 """YouTube channels and playlists
 
-YouTube's RSS endpoint (``/feeds/videos.xml``) is the easiest,
-but its iffy and 404s, then serves fine later. (endpoints work, it's throttling)
-
-Every fetch goes through a list:
+YouTube's RSS endpoint (``/feeds/videos.xml``) is the easiest, but it has outages: every
+channel answers 404 for hours, a few times a year or daily for a stretch, through a
+proxy or VPN too. So every fetch goes through a list:
     1. the official feed
     2. an Invidious instance (privacy-friendly, but flaky sometimes)
     3. the Data API, if YOUTUBE_API_KEY is set
-
-Set ``privacy.proxy`` and step 1 generally works
 """
 
 from __future__ import annotations
@@ -36,6 +33,9 @@ PICTURE_SIZE_RE = re.compile(r"=s\d+(?=-|$)")
 VIDEO_ID_RE = re.compile(r"^[A-Za-z0-9_-]{11}$")
 
 CHANNEL_CACHE = "youtube_channel_ids"
+# The path that last answered for a target, and when: "feed|<time>"
+PATH_CACHE = "youtube_path"
+PATH_SWITCH_SLACK = timedelta(days=1)
 INSTANCE_CACHE = "youtube_invidious"
 MAX_ITEMS = 15
 # Instances asked per fetch, picked at random
@@ -48,7 +48,7 @@ INSTANCE_LIST_AGE = timedelta(days=1)
 class YouTubeSource:
     name: ClassVar[str] = "youtube"
     summary: ClassVar[str] = "New videos on a channel or playlist"
-    caches: ClassVar[tuple[str, ...]] = (CHANNEL_CACHE,)
+    caches: ClassVar[tuple[str, ...]] = (CHANNEL_CACHE, PATH_CACHE)
     # Not keyed by a target
     shared_caches: ClassVar[tuple[str, ...]] = (INSTANCE_CACHE,)
 
@@ -114,7 +114,11 @@ class YouTubeSource:
 
         failures: list[str] = []
 
-        for attempt in (self._official_feed, self._invidious, self._data_api):
+        for path, attempt in (
+            ("feed", self._official_feed),
+            ("invidious", self._invidious),
+            ("api", self._data_api),
+        ):
             try:
                 updates = attempt(target, client, feed_id, api_id)
             except FetchError as exc:
@@ -124,13 +128,37 @@ class YouTubeSource:
                 failures.append(f"{type(exc).__name__}: {exc}")
                 continue
             if updates is not None:
-                return updates
+                return self._since_last_path(target, client, path, updates)
 
         raise FetchError(
             "every YouTube path failed (" + "; ".join(failures) + "). "
-            "The official feed throttles, retrying often works, or set "
-            "privacy.proxy, or YOUTUBE_API_KEY."
+            "The official feed has outages often, a later check likely works. "
+            "Set YOUTUBE_API_KEY for more consistancy."
         )
+
+    def _since_last_path(
+        self, target: Target, client: Client, path: str, updates: list[Update]
+    ) -> list[Update]:
+        """``updates``, less those another path's check would have listed"""
+        state = client.state
+        if state is None or client.test:
+            return updates
+        now = datetime.now(timezone.utc)
+        last_path, _, last_at = (state.cache_get(PATH_CACHE, target.key) or "").partition("|")
+        state.cache_set(PATH_CACHE, target.key, f"{path}|{now.isoformat()}")
+        if last_path == path or not state.is_baselined(self.name, target.key):
+            return updates
+        try:
+            checked = datetime.fromisoformat(last_at) if last_at else state.last_run()
+        except ValueError:
+            checked = state.last_run()
+        if checked is None:
+            return updates
+        cutoff = checked - PATH_SWITCH_SLACK
+        return [
+            u for u in updates
+            if u.published is None or u.published >= cutoff or not state.is_new(u)
+        ]
 
     # yt official feed
 
@@ -142,7 +170,7 @@ class YouTubeSource:
         if fetched is None:
             return []
         if fetched.status in (403, 404):
-            raise FetchError(f"official feed returned {fetched.status} (likely blocked)")
+            raise FetchError(f"official feed returned {fetched.status}")
         return self._label_and_parse(target, fetched.content)
 
     # invidious

@@ -8,6 +8,7 @@ import signal
 import threading
 import time
 
+import httpx
 import pytest
 import respx
 from httpx import Response
@@ -56,10 +57,9 @@ def test_pace_does_not_delay_a_different_host():
 
 def test_pace_holds_the_host_lock_only_to_reserve_a_slot():
     client = Client(PrivacyConfig(jitter=(0.3, 0.3)))
-    client._pace("example.com")  # seed _host_last so the next call must wait
+    client._pace("example.com")  # take the first turn so the next call must wait
 
-    with client._registry_lock:
-        lock = client._host_locks["example.com"]
+    lock = client._host("example.com").cond
 
     waiting = threading.Event()
 
@@ -104,6 +104,64 @@ def test_concurrent_pacing_still_spaces_every_caller(monkeypatch):
     gaps = [b - a for a, b in zip(reserved, reserved[1:])]
     assert all(gap >= 0.05 - 1e-3 for gap in gaps), gaps
     assert all(gap < 0.5 for gap in gaps), gaps
+
+
+def test_concurrency_caps_requests_in_flight():
+    peak = 0
+    in_flight = 0
+    lock = threading.Lock()
+
+    def slow(request):
+        nonlocal peak, in_flight
+        with lock:
+            in_flight += 1
+            peak = max(peak, in_flight)
+        time.sleep(0.05)
+        with lock:
+            in_flight -= 1
+        return Response(200)
+
+    client = Client(
+        PrivacyConfig(jitter=(0.0, 0.0), concurrency=2), transport=httpx.MockTransport(slow)
+    )
+    threads = [
+        threading.Thread(target=client.get, args=(f"https://host{i}.example/",))
+        for i in range(6)
+    ]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join(timeout=5)
+
+    assert peak == 2
+
+
+def test_waiting_out_a_gap_holds_no_request_slot():
+    """With room for one request, a host's gap doesn't hold up another host"""
+    client = Client(PrivacyConfig(jitter=(0.5, 0.5), concurrency=1))
+    client._pace("busy.example")
+    waiter = threading.Thread(target=client._pace, args=("busy.example",))
+    waiter.start()
+    time.sleep(0.05)
+
+    start = time.monotonic()
+    client._pace("other.example")
+    assert time.monotonic() - start < 0.2
+    assert waiter.is_alive()
+    waiter.join(timeout=2)
+
+
+def test_a_hold_while_waiting_pushes_the_turn_back():
+    client = Client(PrivacyConfig(jitter=(0.0, 0.0)))
+    client._hold_host("e.example", 0.2)
+    start = time.monotonic()
+    waiter = threading.Thread(target=client._pace, args=("e.example",))
+    waiter.start()
+    time.sleep(0.05)
+    client._hold_host("e.example", 0.4)  # until ~0.45s
+    waiter.join(timeout=2)
+
+    assert time.monotonic() - start >= 0.4
 
 
 # run progress
@@ -540,3 +598,105 @@ def test_live_progress_counts_a_target_listed_twice():
 
     live.target_finished(Target(source="feed", key="dupe"), None)
     assert live._describe() == "finishing"
+
+
+@respx.mock
+def test_a_busy_host_does_not_hold_up_the_others(state):
+    """Targets on a host with a queue don't keep the rest of the run waiting"""
+    respx.get(url__startswith="https://registry.npmjs.org/").mock(
+        return_value=Response(200, json={"name": "express", "versions": {}, "time": {}})
+    )
+    respx.get(url__regex=r".*").mock(
+        return_value=Response(200, text="<feed xmlns='http://www.w3.org/2005/Atom'/>")
+    )
+    reporter = Recorder()
+    config = Config(
+        sources={"git": ["a/one", "b/two", "c/three", "d/four"], "npm": ["express"]},
+        privacy=PrivacyConfig(jitter=(0.15, 0.15), concurrency=1),
+    )
+    with Client(config.privacy, state) as client:
+        result = run(config, state, client, progress=reporter)
+
+    assert not result.errors
+    finished = [name for name, _ in reporter.finished]
+    # github.com is paced 0.15s a hit; npm's one request needn't wait for all four
+    assert finished.index("express") < finished.index("github.com/d/four")
+    # still read back in config order
+    assert [t.display for t in result.targets][-1] == "express"
+
+
+@pytest.mark.parametrize(
+    "netloc,site",
+    [
+        ("hempuli.itch.io", "itch.io"),
+        ("Someone.Substack.com:443", "substack.com"),
+        ("itch.io", "itch.io"),
+        ("api.github.com", "github.com"),
+        ("blog.rust-lang.org", "rust-lang.org"),
+        ("www.bbc.co.uk", "bbc.co.uk"),
+        ("e.com:8080", "e.com"),
+        ("user@a.itch.io", "itch.io"),
+        ("127.0.0.1:9050", "127.0.0.1"),
+        ("[::1]:80", "[::1]"),
+        ("localhost", "localhost"),
+    ],
+)
+def test_hosts_of_one_site_are_paced_as_one(netloc, site):
+    from youpdated.http import pace_key
+
+    assert pace_key(netloc) == site
+
+
+@pytest.mark.parametrize(
+    "netloc,key",
+    [
+        ("api.github.com", "api.github.com"),
+        ("hempuli.itch.io", "itch.io"),  # a rate limit, fast or not
+        ("e.com:8080", "e.com"),
+    ],
+)
+def test_fast_mode_paces_each_host_on_its_own(netloc, key):
+    from youpdated.http import pace_key
+
+    assert pace_key(netloc, by_site=False) == key
+
+
+def test_fast_mode_uses_short_gaps():
+    from youpdated.http import FAST_JITTER
+
+    client = Client(PrivacyConfig(jitter=(5.0, 5.0), fast_mode=True))
+    assert all(FAST_JITTER[0] <= client._gap() <= FAST_JITTER[1] for _ in range(50))
+    assert "fast_mode=on" in client.describe()
+
+
+def test_a_429_from_one_itch_game_holds_the_others(monkeypatch):
+    client = Client(PrivacyConfig(jitter=(0.0, 0.0)))
+    reserved = _record_reservations(monkeypatch)
+    client._hold_host("one.itch.io", 7)
+    client._pace("two.itch.io")
+    assert len(reserved) == 1 and reserved[0] - time.monotonic() > 6
+
+
+@respx.mock
+def test_an_interrupted_run_starts_no_more_targets(state, client, monkeypatch):
+    """Targets still queued are dropped, not checked before exiting"""
+    import youpdated.runner as runner
+
+    monkeypatch.setattr(runner, "MAX_WORKERS", 1)
+    respx.get(url__regex=r".*").mock(
+        return_value=Response(200, text="<feed xmlns='http://www.w3.org/2005/Atom'/>")
+    )
+
+    class Interrupting(Recorder):
+        def target_finished(self, target, error):
+            super().target_finished(target, error)
+            raise KeyboardInterrupt
+
+    reporter = Interrupting()
+    config = Config(
+        sources={"git": [f"o/r{i}" for i in range(10)]},
+        privacy=PrivacyConfig(jitter=(0.0, 0.0), concurrency=1),
+    )
+    with pytest.raises(KeyboardInterrupt):
+        run(config, state, client, progress=reporter)
+    assert len(reporter.started) < 10

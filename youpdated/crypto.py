@@ -26,6 +26,7 @@ import os
 import sys
 import tempfile
 import threading
+from concurrent.futures import Future
 from contextlib import suppress
 from pathlib import Path
 
@@ -39,11 +40,13 @@ __all__ = [
     "available",
     "cache_keys",
     "decrypt",
+    "derive_ahead",
     "encrypt",
     "is_encrypted",
     "is_encrypted_file",
     "prompt_passphrase",
     "require_backend",
+    "salt_of",
     "write_private",
 ]
 
@@ -168,10 +171,11 @@ def cache_keys(enabled: bool = True) -> None:
 
 
 def _key(passphrase: str, salt: bytes, log2_n: int, r: int, p: int) -> bytes:
+    """The API's :class:`KeyCache` when it's on, otherwise the keys this run derived"""
     cache = _cache
-    if cache is None:
-        return _derive(passphrase, salt, log2_n, r, p)
-    return cache.key(passphrase, salt, log2_n, r, p)
+    if cache is not None:
+        return cache.key(passphrase, salt, log2_n, r, p)
+    return _run_key(passphrase, salt, log2_n, r, p)
 
 
 def is_encrypted(blob: bytes) -> bool:
@@ -187,12 +191,17 @@ def is_encrypted_file(path: str | Path) -> bool:
         return False
 
 
-def encrypt(payload: bytes, passphrase: str) -> bytes:
+def encrypt(payload: bytes, passphrase: str, *, salt: bytes | None = None) -> bytes:
+    """Seal ``payload``. fresh nonce every call; fresh salt unless one is given"""
     if not passphrase:
         raise EncryptionError("passphrase must not be empty")
-    aesgcm = _aesgcm()
     cache = _cache
-    salt = (cache.salt(passphrase) if cache is not None else None) or os.urandom(_SALT_LEN)
+    if salt is None:
+        # In the API's process, the salt this passphrase last opened a file with
+        salt = (cache.salt(passphrase) if cache is not None else None) or os.urandom(_SALT_LEN)
+    elif len(salt) != _SALT_LEN:
+        raise EncryptionError(f"salt must be {_SALT_LEN} bytes")
+    aesgcm = _aesgcm()
     nonce = os.urandom(_NONCE_LEN)
     header = MAGIC + bytes([VERSION, KDF_SCRYPT, _LOG2_N, _R, _P]) + salt + nonce
     key = _key(passphrase, salt, _LOG2_N, _R, _P)
@@ -201,8 +210,8 @@ def encrypt(payload: bytes, passphrase: str) -> bytes:
     return header + aesgcm(key).encrypt(nonce, payload, header)
 
 
-def decrypt(blob: bytes, passphrase: str) -> bytes:
-    """Recover the payload, or raise EncryptionError for a bad passphrase or tampering."""
+def _header(blob: bytes) -> tuple[bytes, bytes, bytes, int, int, int]:
+    """``(header, salt, nonce, log2_n, r, p)`` of a container, checked"""
     if not is_encrypted(blob):
         raise EncryptionError("not an encrypted Youpdated file")
     if len(blob) < _HEADER_LEN:
@@ -226,7 +235,17 @@ def decrypt(blob: bytes, passphrase: str) -> bytes:
     header = blob[:_HEADER_LEN]
     nonce = blob[_HEADER_LEN - _NONCE_LEN : _HEADER_LEN]
     salt = blob[_HEADER_LEN - _NONCE_LEN - _SALT_LEN : _HEADER_LEN - _NONCE_LEN]
+    return header, salt, nonce, log2_n, r, p
 
+
+def salt_of(blob: bytes) -> bytes:
+    """The salt a container was sealed with"""
+    return _header(blob)[1]
+
+
+def decrypt(blob: bytes, passphrase: str) -> bytes:
+    """Recover the payload, or raise EncryptionError for a bad passphrase or tampering"""
+    header, salt, nonce, log2_n, r, p = _header(blob)
     aesgcm = _aesgcm()
     key = _key(passphrase, salt, log2_n, r, p)
     try:
@@ -237,6 +256,48 @@ def decrypt(blob: bytes, passphrase: str) -> bytes:
     if cache is not None:
         cache.remember(passphrase, salt, log2_n, r, p)
     return payload
+
+
+def derive_ahead(path: str | Path, passphrase: str) -> None:
+    """Start deriving the key for the file at ``path`` in the background"""
+    try:
+        with open(path, "rb") as handle:
+            _, salt, _, log2_n, r, p = _header(handle.read(_HEADER_LEN))
+    except (OSError, EncryptionError):
+        return
+    if not passphrase:
+        return
+    def derive() -> None:
+        # A failure is raised again, cleanly, by the decrypt that waits
+        with suppress(BaseException):
+            _key(passphrase, salt, log2_n, r, p)
+
+    threading.Thread(target=derive, daemon=True, name="youpdated-derive").start()
+
+
+_KEYS_KEPT = 8
+_keys: dict[tuple[str, bytes, int, int, int], Future] = {}
+_keys_lock = threading.Lock()
+
+
+def _run_key(passphrase: str, salt: bytes, log2_n: int, r: int, p: int) -> bytes:
+    entry = (passphrase, salt, log2_n, r, p)
+    with _keys_lock:
+        future = _keys.get(entry)
+        owner = future is None
+        if owner:
+            future = _keys[entry] = Future()
+            while len(_keys) > _KEYS_KEPT:
+                del _keys[next(iter(_keys))]
+    if owner:
+        try:
+            future.set_result(_derive(passphrase, salt, log2_n, r, p))
+        except BaseException as exc:
+            with _keys_lock:
+                if _keys.get(entry) is future:
+                    del _keys[entry]
+            future.set_exception(exc)
+    return future.result()
 
 
 def write_private(path: str | Path, blob: bytes) -> None:
