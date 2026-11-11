@@ -8,7 +8,7 @@ namespace Youpdated.Core.Tests;
 
 public class ContractTests
 {
-    private static readonly Dictionary<string, JsonTypeInfo> ReplyTypes = new()
+    internal static readonly Dictionary<string, JsonTypeInfo> ReplyTypes = new()
     {
         ["hello"] = ContractJson.Default.HelloReply,
         ["unlock"] = ContractJson.Default.UnlockReply,
