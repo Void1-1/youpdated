@@ -1,5 +1,4 @@
-# Every option Youpdated's config takes, in one file. Keep it in step with docs/configuration.md
-# when options are added. Check it without sending a request:
+# Every option Youpdated's config takes, in one file. To check it without sending any requests:
 #
 #   youpdated check --test -v --config examples/ConfigExample.yaml
 #
@@ -62,7 +61,7 @@ sources:
     - package: django
       name: Django                   # how it's shown
       ignore: [prerelease]           # skip alphas, betas, rcs, and dev releases
-      versions: {bump: minor, min: "5.0"}   # 5.2.0 and 6.0.0, not 5.2.1, nothing before 5.0
+      versions: {bump: minor, min: "5.0"} # 5.2.0 and 6.0.0, not 5.2.1, nothing before 5.0
 
   steam:
     - 440                            # appid; the store name is looked up for you
@@ -70,9 +69,9 @@ sources:
       name: Counter-Strike 2
 
   itch:
-    - https://hempuli.itch.io/baba-is-you        # devlogs and builds (the default)
+    - https://hempuli.itch.io/baba-is-you # devlogs and builds (the default)
     - url: https://aak581.itch.io/engineering-marvels-from-hell
-      watch: [devlog]                            # devlog | releases
+      watch: [devlog]                # devlog | releases
 
   youtube:
     - "@NASA"                        # handle, channel id (UC...), or channel URL
@@ -96,19 +95,19 @@ sources:
     - https://www.videolan.org/vlc/
     - url: https://www.7-zip.org/
       name: 7-Zip
-      regex: 'Download 7-Zip ([\d.]+)'   # pin where the version is, matched against the page's HTML
+      regex: 'Download 7-Zip ([\d.]+)' # pin where the version is, matched against the page's HTML
 
 notify:                              # optional: push new updates somewhere, see docs/notifications.md
   webhooks:
-    - https://ntfy.sh/my-private-topic             # format guessed from the URL
+    - https://ntfy.sh/my-private-topic # format guessed from the URL
     - https://discord.com/api/webhooks/123/abc
     - url: https://example.com/youpdated
-      format: json                                 # json | discord | slack | ntfy
+      format: json                   # json | discord | slack | ntfy
       headers:
         Authorization: Bearer abc123
-      priority: high                               # high | normal | low: this priority and above (normal is the default)
-      digest: false                                # send as found, even while the desktop app holds a digest
-  command:                                         # or just: notify-send "{label}" "{title}"
-    run: [notify-send, "{label}", "{title}"]       # never run through a shell; once per update
+      priority: high                 # high | normal | low: this priority and above (normal is the default)
+      digest: false                  # send as found, even while the desktop app holds a digest
+  command:                           # or just: notify-send "{label}" "{title}"
+    run: [notify-send, "{label}", "{title}"] # never run through a shell; once per update
     priority: normal
-  timeout: 30                                      # seconds per command
+  timeout: 30                        # seconds per command
