@@ -7,6 +7,7 @@ import re
 import signal
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 
 import httpx
 import pytest
@@ -687,6 +688,31 @@ def test_an_interrupted_run_starts_no_more_targets(state, client, monkeypatch):
         return_value=Response(200, text="<feed xmlns='http://www.w3.org/2005/Atom'/>")
     )
 
+    class HeldBack(ThreadPoolExecutor):
+        """Queued targets wait for the pool to shut down, so only cancelling them skips them """
+
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self.released = threading.Event()
+            self.submitted = 0
+
+        def submit(self, fn, /, *args, **kwargs):
+            self.submitted += 1
+            if self.submitted == 1:
+                return super().submit(fn, *args, **kwargs)
+
+            def held(*a, **kw):
+                self.released.wait()
+                return fn(*a, **kw)
+
+            return super().submit(held, *args, **kwargs)
+
+        def shutdown(self, *args, **kwargs):
+            self.released.set()
+            super().shutdown(*args, **kwargs)
+
+    monkeypatch.setattr(runner, "ThreadPoolExecutor", HeldBack)
+
     class Interrupting(Recorder):
         def target_finished(self, target, error):
             super().target_finished(target, error)
@@ -699,4 +725,5 @@ def test_an_interrupted_run_starts_no_more_targets(state, client, monkeypatch):
     )
     with pytest.raises(KeyboardInterrupt):
         run(config, state, client, progress=reporter)
-    assert len(reporter.started) < 10
+    # The interrupted target, plus at most the one the worker had already picked up
+    assert len(reporter.started) <= 2

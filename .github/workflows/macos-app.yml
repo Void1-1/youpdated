@@ -1,17 +1,25 @@
-name: apps
+name: macOS app
 
+# Runs when something the Mac app builds or tests against changes: its own
+# source, the contract fixtures and shared cases both apps read, and the engine
 on:
   push:
     branches: [main]
     paths:
-      - "apps/**"
+      - "apps/macos/**"
+      - "apps/contract/**"
+      - "apps/shared/**"
       - "youpdated/**"
-      - ".github/workflows/apps.yml"
+      - "pyproject.toml"
+      - ".github/workflows/macos-app.yml"
   pull_request:
     paths:
-      - "apps/**"
+      - "apps/macos/**"
+      - "apps/contract/**"
+      - "apps/shared/**"
       - "youpdated/**"
-      - ".github/workflows/apps.yml"
+      - "pyproject.toml"
+      - ".github/workflows/macos-app.yml"
   workflow_dispatch:
 
 permissions:
@@ -45,23 +53,3 @@ jobs:
         run: >
           xcodebuild -project apps/macos/Youpdated.xcodeproj -scheme Youpdated
           -destination 'generic/platform=macOS' CODE_SIGNING_ALLOWED=NO build
-
-  windows:
-    name: Windows app
-    runs-on: windows-latest
-    # global.json, which picks the test runner, only applies from here
-    defaults:
-      run:
-        working-directory: apps/windows
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: actions/setup-dotnet@v6
-        with:
-          global-json-file: apps/windows/global.json
-
-      - name: Test
-        run: dotnet test --project tests/Youpdated.Core.Tests
-
-      - name: Build the app
-        run: dotnet build src/Youpdated.App -c Release
