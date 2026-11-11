@@ -19,8 +19,7 @@ YOUPDATED_LIVE_ENGINE="$PWD/build/engine/dist/youpdated-engine/youpdated-engine"
 A frozen engine carries its Python, so it runs only on the macOS versions that Python was built for. Homebrew's is built for the Mac it's installed on, and the script refuses the result if that's newer than the app's `MACOSX_DEPLOYMENT_TARGET`.
 
 Use a [python-build-standalone](https://github.com/astral-sh/python-build-standalone/releases) `install_only` build instead, built for macOS 11 on Apple silicon. Check it against the release's `SHA256SUMS`, unpack it anywhere, and pass its `python/bin/python3`.
-> This was last built with 3.14.10.
 
 ## Notes
 
-On macOS only, for Apple silicon. Intel and Windows haven't been built.
+Built for macOS on Apple silicon, and for Windows x64 by `.github/workflows/windows-release.yml` with python.org's Python from `actions/setup-python`. Intel Macs haven't been built.

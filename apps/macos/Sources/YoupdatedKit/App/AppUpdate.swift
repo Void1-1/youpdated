@@ -8,9 +8,10 @@ public struct AppUpdate: Hashable, Sendable {
     public var releaseURL: URL?
     public var downloadURL: URL
 
-    public static let tagPrefix = "app-v"
+    /// This app's release tags. Windows releases are `app-windows-v*` and the CLI's `v*`, on the same repo
+    public static let tagPrefixes = ["app-macos-v", "app-v"]
 
-    /// `Youpdated-<version>-macOS.dmg`, attached to every `app-v*` release
+    /// `Youpdated-<version>-macOS.dmg`, attached to every `app-macos-v*` release
     public static func assetName(version: String) -> String {
         "Youpdated-\(version)-macOS.dmg"
     }
@@ -26,8 +27,8 @@ public struct AppUpdate: Hashable, Sendable {
 
     public static func update(from item: InboxItem) -> AppUpdate? {
         let tag = item.version ?? item.title
-        guard tag.hasPrefix(tagPrefix) else { return nil }
-        let version = String(tag.dropFirst(tagPrefix.count))
+        guard let prefix = tagPrefixes.first(where: { tag.hasPrefix($0) }) else { return nil }
+        let version = String(tag.dropFirst(prefix.count))
         guard !version.isEmpty, version.first?.isNumber == true else { return nil }
         // the target key is host/owner/repo
         let parts = item.target.split(separator: "/")

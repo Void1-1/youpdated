@@ -1,0 +1,113 @@
+# Every option Youpdated's config takes, in one file. To check it without sending any requests:
+#
+#   youpdated check --test -v --config examples/ConfigExample.yaml
+#
+# Every source entry is either a bare value or a mapping with more options. Leave out
+# anything you don't need: only `sources:` is required.
+
+privacy:                             # see docs/privacy.md
+  # proxy: socks5://127.0.0.1:9050   # every request through it, Tor's default SOCKS port here
+  user_agent: rotate                 # 'rotate', or a fixed UA string
+  jitter: [0.5, 3.0]                 # random gap in seconds between hits on one host
+  concurrency: 4                     # requests at once
+  timeout: 20                        # seconds per request
+
+ignore:                              # update types never reported; `ignore: [prerelease]` for every source
+  '*': [prerelease]                  # '*' is every source
+  git: [commit]                      # just this source
+
+versions:                            # which versions are reported; `versions: {bump: major}` for every source
+  '*': {bump: any}                   # any | patch | minor | major (any is the default)
+  npm: {bump: major}                 # only new major versions, like 19.0.0
+
+expiry: 1y                           # forget items missing from every fetch this long: 30d, 52w, 2y, never
+track_latest: true                   # also ask forges and Steam for the latest release, one request each
+editor: code                         # what `youpdated edit` opens: a command, a path, or (macOS) an app's name
+
+sources:
+  git:                               # GitHub, GitLab, Codeberg, Forgejo/Gitea
+    - python/cpython                 # owner/repo means GitHub
+    - repo: astral-sh/uv
+      watch: [releases, commits]     # releases | tags | commits (releases is the default)
+      branch: main                   # for `commits`
+      ignore: [tag]                  # adds to the rules above, this entry only
+      versions: {bump: minor}        # replaces the rules above one rule at a time
+    - https://gitlab.com/gitlab-org/cli
+    - codeberg.org/forgejo/forgejo   # host/owner/repo
+    - repo: https://gitlab.gnome.org/GNOME/gtk
+      watch: [releases, tags]
+    - repo: tools/deploy             # a self-hosted instance
+      host: git.example.org
+      forge: forgejo                 # github | gitlab | forgejo (gitea is forgejo)
+      token_env: EXAMPLE_GIT_TOKEN   # an env var holding a token, only ever sent to this host
+
+  npm:
+    - express
+    - "@types/node"                  # quote scoped names
+    - package: react
+      tag: next                      # follow a dist-tag other than latest
+    - package: vue
+      versions: {min: "3"}           # 3.0.0 and later
+
+  homebrew:                          # homebrew/core and homebrew/cask only
+    - wget                           # a formula
+    - cask:firefox                   # a cask
+    - cask: docker                   # the mapping form, as a formula and a cask can share a name
+      name: Docker Desktop
+
+  pypi:
+    - httpx
+    - youpdated
+    - package: django
+      name: Django                   # how it's shown
+      ignore: [prerelease]           # skip alphas, betas, rcs, and dev releases
+      versions: {bump: minor, min: "5.0"} # 5.2.0 and 6.0.0, not 5.2.1, nothing before 5.0
+
+  steam:
+    - 440                            # appid; the store name is looked up for you
+    - appid: 730
+      name: Counter-Strike 2
+
+  itch:
+    - https://hempuli.itch.io/baba-is-you # devlogs and builds (the default)
+    - url: https://aak581.itch.io/engineering-marvels-from-hell
+      watch: [devlog]                # devlog | releases
+
+  youtube:
+    - "@NASA"                        # handle, channel id (UC...), or channel URL
+    - playlist: PLxxxxxxxxxxxxxxxx
+
+  browser:                           # chrome | brave | firefox | edge
+    - chrome
+    - brave
+    - firefox
+    - browser: edge
+      platform: windows              # mac | windows | linux | android | ios
+      channel: beta                  # stable | beta | dev | canary (+ esr and nightly for firefox)
+
+  feed:                              # anything with an RSS or Atom feed
+    - https://blog.rust-lang.org/feed.xml
+    - url: https://github.com/obsidianmd/obsidian-releases/releases.atom
+      name: Obsidian
+      limit: 5                       # newest items read per check
+
+  webpage:                           # anything else: the version a download page shows
+    - https://www.videolan.org/vlc/
+    - url: https://www.7-zip.org/
+      name: 7-Zip
+      regex: 'Download 7-Zip ([\d.]+)' # pin where the version is, matched against the page's HTML
+
+notify:                              # optional: push new updates somewhere, see docs/notifications.md
+  webhooks:
+    - https://ntfy.sh/my-private-topic # format guessed from the URL
+    - https://discord.com/api/webhooks/123/abc
+    - url: https://example.com/youpdated
+      format: json                   # json | discord | slack | ntfy
+      headers:
+        Authorization: Bearer abc123
+      priority: high                 # high | normal | low: this priority and above (normal is the default)
+      digest: false                  # send as found, even while the desktop app holds a digest
+  command:                           # or just: notify-send "{label}" "{title}"
+    run: [notify-send, "{label}", "{title}"] # never run through a shell; once per update
+    priority: normal
+  timeout: 30                        # seconds per command

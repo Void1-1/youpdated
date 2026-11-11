@@ -1,0 +1,668 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
+    <xsd:import namespace="http://www.w3.org/XML/1998/namespace" />
+    <xsd:element name="root" msdata:IsDataSet="true">
+      <xsd:complexType>
+        <xsd:choice maxOccurs="unbounded">
+          <xsd:element name="data">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+                <xsd:element name="comment" type="xsd:string" minOccurs="0" msdata:Ordinal="2" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" msdata:Ordinal="1" />
+              <xsd:attribute name="type" type="xsd:string" msdata:Ordinal="3" />
+              <xsd:attribute name="mimetype" type="xsd:string" msdata:Ordinal="4" />
+              <xsd:attribute ref="xml:space" />
+            </xsd:complexType>
+          </xsd:element>
+          <xsd:element name="resheader">
+            <xsd:complexType>
+              <xsd:sequence>
+                <xsd:element name="value" type="xsd:string" minOccurs="0" msdata:Ordinal="1" />
+              </xsd:sequence>
+              <xsd:attribute name="name" type="xsd:string" use="required" />
+            </xsd:complexType>
+          </xsd:element>
+        </xsd:choice>
+      </xsd:complexType>
+    </xsd:element>
+  </xsd:schema>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="ViewUpdates.Text" xml:space="preserve">
+    <value>Updates</value>
+  </data>
+  <data name="ViewFollowing.Text" xml:space="preserve">
+    <value>Following</value>
+  </data>
+  <data name="TitleProblems.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve">
+    <value>Problems</value>
+  </data>
+  <data name="TitleProblems.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve">
+    <value>Problems</value>
+  </data>
+  <data name="TitleCheck.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve">
+    <value>Check now (Ctrl+R)</value>
+  </data>
+  <data name="TitleCheck.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve">
+    <value>Check now</value>
+  </data>
+  <data name="TitleAdd.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve">
+    <value>Add (Ctrl+N)</value>
+  </data>
+  <data name="TitleAdd.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve">
+    <value>Add</value>
+  </data>
+  <data name="TitleMore.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve">
+    <value>More</value>
+  </data>
+  <data name="TitleMore.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve">
+    <value>More</value>
+  </data>
+  <data name="TitleBack.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve">
+    <value>Back</value>
+  </data>
+  <data name="TitleBack.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve">
+    <value>Back</value>
+  </data>
+  <data name="SettingsTitleBar" xml:space="preserve">
+    <value>Settings</value>
+  </data>
+  <data name="MoreFilter" xml:space="preserve">
+    <value>Filter by source</value>
+  </data>
+  <data name="AllSources" xml:space="preserve">
+    <value>All sources</value>
+  </data>
+  <data name="MoreMarkAllRead" xml:space="preserve">
+    <value>Mark all read</value>
+  </data>
+  <data name="MoreImport" xml:space="preserve">
+    <value>Import a file…</value>
+  </data>
+  <data name="MoreSettings" xml:space="preserve">
+    <value>Settings</value>
+  </data>
+  <data name="PausedUntil" xml:space="preserve">
+    <value>Paused until {0}</value>
+  </data>
+  <data name="PausedIndefinitely" xml:space="preserve">
+    <value>Paused</value>
+  </data>
+  <data name="CliNoticeBar.Title" xml:space="preserve">
+    <value>Checks are also running from the command line</value>
+  </data>
+  <data name="CliNoticeBar.Message" xml:space="preserve">
+    <value>Updates they find won't appear here.</value>
+  </data>
+  <data name="CliNoticeLink.Content" xml:space="preserve">
+    <value>Learn more</value>
+  </data>
+  <data name="SelfWatchBar.Title" xml:space="preserve">
+    <value>Watch Youpdated for app updates?</value>
+  </data>
+  <data name="SelfWatchAdd.Content" xml:space="preserve">
+    <value>Add</value>
+  </data>
+  <data name="StartMenuBar.Title" xml:space="preserve">
+    <value>Add Youpdated to the Start menu?</value>
+  </data>
+  <data name="StartMenuAdd.Content" xml:space="preserve">
+    <value>Add to Start</value>
+  </data>
+  <data name="LockedTitle.Text" xml:space="preserve">
+    <value>Youpdated is locked</value>
+  </data>
+  <data name="UnlockPassphraseBox.Header" xml:space="preserve">
+    <value>Passphrase</value>
+  </data>
+  <data name="UnlockRememberBox.Content" xml:space="preserve">
+    <value>Remember on this computer</value>
+  </data>
+  <data name="UnlockButtonInline.Content" xml:space="preserve">
+    <value>Unlock</value>
+  </data>
+  <data name="WelcomeTitle.Text" xml:space="preserve">
+    <value>Paste a link to anything you want to follow</value>
+  </data>
+  <data name="ExampleGitHub" xml:space="preserve">
+    <value>A GitHub repo</value>
+  </data>
+  <data name="ExampleSteam" xml:space="preserve">
+    <value>A Steam game</value>
+  </data>
+  <data name="ExampleNpm" xml:space="preserve">
+    <value>An npm package</value>
+  </data>
+  <data name="ExampleYouTube" xml:space="preserve">
+    <value>A YouTube channel</value>
+  </data>
+  <data name="SinceThisMorning" xml:space="preserve">
+    <value>Since this morning</value>
+  </data>
+  <data name="SinceThisAfternoon" xml:space="preserve">
+    <value>Since this afternoon</value>
+  </data>
+  <data name="SinceThisEvening" xml:space="preserve">
+    <value>Since this evening</value>
+  </data>
+  <data name="SinceYesterday" xml:space="preserve">
+    <value>Since yesterday</value>
+  </data>
+  <data name="SinceDay" xml:space="preserve">
+    <value>Since {0}</value>
+  </data>
+  <data name="UpToDate" xml:space="preserve">
+    <value>You're up to date</value>
+  </data>
+  <data name="CheckedAt" xml:space="preserve">
+    <value>Checked {0}</value>
+  </data>
+  <data name="NotChecked" xml:space="preserve">
+    <value>Not checked yet</value>
+  </data>
+  <data name="FeedShowing" xml:space="preserve">
+    <value>Showing {0}</value>
+  </data>
+  <data name="FeedClearFilter.[using:Microsoft.UI.Xaml.Controls]ToolTipService.ToolTip" xml:space="preserve">
+    <value>Show everything</value>
+  </data>
+  <data name="FeedClearFilter.[using:Microsoft.UI.Xaml.Automation]AutomationProperties.Name" xml:space="preserve">
+    <value>Show everything</value>
+  </data>
+  <data name="SectionToday" xml:space="preserve">
+    <value>Today</value>
+  </data>
+  <data name="SectionYesterday" xml:space="preserve">
+    <value>Yesterday</value>
+  </data>
+  <data name="SectionThisWeek" xml:space="preserve">
+    <value>This week</value>
+  </data>
+  <data name="SectionEarlier" xml:space="preserve">
+    <value>Earlier</value>
+  </data>
+  <data name="UpdateDownload.Content" xml:space="preserve">
+    <value>Download</value>
+  </data>
+  <data name="CardMore" xml:space="preserve">
+    <value>+{0} more</value>
+  </data>
+  <data name="CardUnread" xml:space="preserve">
+    <value>unread</value>
+  </data>
+  <data name="CardOpen.Text" xml:space="preserve">
+    <value>Open</value>
+  </data>
+  <data name="CardFullNotes.Content" xml:space="preserve">
+    <value>Show full notes</value>
+  </data>
+  <data name="CardAlsoNew.Text" xml:space="preserve">
+    <value>Also new</value>
+  </data>
+  <data name="MenuOpen" xml:space="preserve">
+    <value>Open</value>
+  </data>
+  <data name="MenuMarkRead" xml:space="preserve">
+    <value>Mark read</value>
+  </data>
+  <data name="MenuMarkUnread" xml:space="preserve">
+    <value>Mark unread</value>
+  </data>
+  <data name="MenuPriority" xml:space="preserve">
+    <value>Priority</value>
+  </data>
+  <data name="MenuSnooze" xml:space="preserve">
+    <value>Snooze 1 hour</value>
+  </data>
+  <data name="MenuCopyLink" xml:space="preserve">
+    <value>Copy link</value>
+  </data>
+  <data name="MenuShowInFollowing" xml:space="preserve">
+    <value>Show in Following</value>
+  </data>
+  <data name="MenuShowInUpdates" xml:space="preserve">
+    <value>Show in Updates</value>
+  </data>
+  <data name="MenuStopFollowing" xml:space="preserve">
+    <value>Stop following…</value>
+  </data>
+  <data name="PriorityHigh" xml:space="preserve">
+    <value>High</value>
+  </data>
+  <data name="PriorityNormal" xml:space="preserve">
+    <value>Normal</value>
+  </data>
+  <data name="PriorityLow" xml:space="preserve">
+    <value>Low</value>
+  </data>
+  <data name="AddLabel.Text" xml:space="preserve">
+    <value>Paste a link or name</value>
+  </data>
+  <data name="AddBox.PlaceholderText" xml:space="preserve">
+    <value>Link or name</value>
+  </data>
+  <data name="AddImport.Content" xml:space="preserve">
+    <value>Import a file…</value>
+  </data>
+  <data name="AddFollow" xml:space="preserve">
+    <value>Follow</value>
+  </data>
+  <data name="AddShowInFollowing" xml:space="preserve">
+    <value>Show in Following</value>
+  </data>
+  <data name="PreviewNothingYet" xml:space="preserve">
+    <value>Nothing published yet</value>
+  </data>
+  <data name="DropAdd" xml:space="preserve">
+    <value>Follow in Youpdated</value>
+  </data>
+  <data name="DropImport" xml:space="preserve">
+    <value>Import into Youpdated</value>
+  </data>
+  <data name="FollowingFilter.PlaceholderText" xml:space="preserve">
+    <value>Filter</value>
+  </data>
+  <data name="FollowingNothing.Text" xml:space="preserve">
+    <value>Nothing matches</value>
+  </data>
+  <data name="FollowingSelfMissing.Text" xml:space="preserve">
+    <value>Watch Youpdated for app updates</value>
+  </data>
+  <data name="FollowingWatchSelf.Content" xml:space="preserve">
+    <value>Watch</value>
+  </data>
+  <data name="SourceNotYet" xml:space="preserve">
+    <value>Not checked yet</value>
+  </data>
+  <data name="SourceMixed" xml:space="preserve">
+    <value>Updates</value>
+  </data>
+  <data name="RemoveTitle" xml:space="preserve">
+    <value>Stop following {0}?</value>
+  </data>
+  <data name="RemoveWipe" xml:space="preserve">
+    <value>Also forget its history</value>
+  </data>
+  <data name="RemoveButton" xml:space="preserve">
+    <value>Stop following</value>
+  </data>
+  <data name="ImportTitle" xml:space="preserve">
+    <value>Import</value>
+  </data>
+  <data name="ImportAdd" xml:space="preserve">
+    <value>{0} to add</value>
+  </data>
+  <data name="ImportAlready" xml:space="preserve">
+    <value>Already following</value>
+  </data>
+  <data name="ImportSkipped" xml:space="preserve">
+    <value>Skipped</value>
+  </data>
+  <data name="ImportButton" xml:space="preserve">
+    <value>Import</value>
+  </data>
+  <data name="ProblemsTitle" xml:space="preserve">
+    <value>Problems</value>
+  </data>
+  <data name="ProblemsCopy" xml:space="preserve">
+    <value>Copy details</value>
+  </data>
+  <data name="ProblemsRetry" xml:space="preserve">
+    <value>Retry</value>
+  </data>
+  <data name="ProblemsNone" xml:space="preserve">
+    <value>No problems in the last check</value>
+  </data>
+  <data name="SettingsTitle.Text" xml:space="preserve">
+    <value>Settings</value>
+  </data>
+  <data name="SettingsIcons.Header" xml:space="preserve">
+    <value>Show icons</value>
+  </data>
+  <data name="SettingsIcons.Description" xml:space="preserve">
+    <value>Fetched through your proxy settings</value>
+  </data>
+  <data name="SettingsGroupChecking.Text" xml:space="preserve">
+    <value>Checking</value>
+  </data>
+  <data name="SettingsInterval.Header" xml:space="preserve">
+    <value>Check for updates</value>
+  </data>
+  <data name="SettingsDigest.Header" xml:space="preserve">
+    <value>Daily digest</value>
+  </data>
+  <data name="SettingsDigest.Description" xml:space="preserve">
+    <value>High priority still notifies right away.</value>
+  </data>
+  <data name="SettingsDigestTime.Header" xml:space="preserve">
+    <value>Send at</value>
+  </data>
+  <data name="SettingsGroupNotifications.Text" xml:space="preserve">
+    <value>Notifications</value>
+  </data>
+  <data name="SettingsNotifications.Header" xml:space="preserve">
+    <value>Windows notifications</value>
+  </data>
+  <data name="SettingsWindowsNotifications.Header" xml:space="preserve">
+    <value>Notification settings in Windows</value>
+  </data>
+  <data name="SettingsGroupStartup.Text" xml:space="preserve">
+    <value>Startup</value>
+  </data>
+  <data name="SettingsStartAtLogin.Header" xml:space="preserve">
+    <value>Start Youpdated when you sign in</value>
+  </data>
+  <data name="SettingsStartupBlocked.Title" xml:space="preserve">
+    <value>Turned off in Startup apps</value>
+  </data>
+  <data name="SettingsStartupBlocked.Message" xml:space="preserve">
+    <value>Windows won't start Youpdated at sign-in until it's turned on there.</value>
+  </data>
+  <data name="SettingsStartupApps.Content" xml:space="preserve">
+    <value>Open Startup apps</value>
+  </data>
+  <data name="SettingsGroupSecurity.Text" xml:space="preserve">
+    <value>Security</value>
+  </data>
+  <data name="SettingsRemember.Header" xml:space="preserve">
+    <value>Remember passphrase on this computer</value>
+  </data>
+  <data name="SettingsRemember.Description" xml:space="preserve">
+    <value>Kept in Credential Manager</value>
+  </data>
+  <data name="SettingsAdvanced.Header" xml:space="preserve">
+    <value>Advanced</value>
+  </data>
+  <data name="SettingsAdvanced.Description" xml:space="preserve">
+    <value>Troubleshooting</value>
+  </data>
+  <data name="SettingsDiagnosticLog.Header" xml:space="preserve">
+    <value>Save a diagnostic log</value>
+  </data>
+  <data name="SettingsDiagnosticLog.Description" xml:space="preserve">
+    <value>Saves errors to a local file for bug reporting.</value>
+  </data>
+  <data name="SettingsShowLog.Header" xml:space="preserve">
+    <value>Show the log file</value>
+  </data>
+  <data name="SettingsGroupAbout.Text" xml:space="preserve">
+    <value>About</value>
+  </data>
+  <data name="SettingsVersion" xml:space="preserve">
+    <value>Version {0}</value>
+  </data>
+  <data name="SettingsEngine.Header" xml:space="preserve">
+    <value>Engine</value>
+  </data>
+  <data name="SettingsUpdates.Header" xml:space="preserve">
+    <value>App updates</value>
+  </data>
+  <data name="SettingsUpdatesWatching" xml:space="preserve">
+    <value>Watching for new versions</value>
+  </data>
+  <data name="SettingsUpdatesOff" xml:space="preserve">
+    <value>Not watching for new versions</value>
+  </data>
+  <data name="SettingsWatchSelf.Content" xml:space="preserve">
+    <value>Watch Youpdated</value>
+  </data>
+  <data name="SettingsSource.Header" xml:space="preserve">
+    <value>Source code</value>
+  </data>
+  <data name="SettingsSource.Description" xml:space="preserve">
+    <value>github.com/Void1-1/youpdated</value>
+  </data>
+  <data name="SettingsRemovePc.Header" xml:space="preserve">
+    <value>Remove Youpdated from this PC</value>
+  </data>
+  <data name="SettingsRemovePc.Description" xml:space="preserve">
+    <value>Clears start at sign-in, youpdated:// links, notifications, and the saved passphrase.</value>
+  </data>
+  <data name="SettingsRemovePcButton.Content" xml:space="preserve">
+    <value>Remove…</value>
+  </data>
+  <data name="EveryHour" xml:space="preserve">
+    <value>Every hour</value>
+  </data>
+  <data name="EveryHours" xml:space="preserve">
+    <value>Every {0} hours</value>
+  </data>
+  <data name="Cancel" xml:space="preserve">
+    <value>Cancel</value>
+  </data>
+  <data name="RemovePcTitle" xml:space="preserve">
+    <value>Remove Youpdated from this PC?</value>
+  </data>
+  <data name="RemovePcBody" xml:space="preserve">
+    <value>This clears start at sign-in, youpdated:// links, notifications, the Jump List, the Start menu shortcut, and the saved passphrase.</value>
+  </data>
+  <data name="RemovePcData" xml:space="preserve">
+    <value>Also delete my config and history</value>
+  </data>
+  <data name="RemovePcButton" xml:space="preserve">
+    <value>Remove</value>
+  </data>
+  <data name="RemovedTitle" xml:space="preserve">
+    <value>Youpdated has been removed</value>
+  </data>
+  <data name="RemovedBody" xml:space="preserve">
+    <value>Your config and history are gone too. Delete this folder to finish: {0}</value>
+  </data>
+  <data name="RemovedBodyDataKept" xml:space="preserve">
+    <value>Your config and history were kept. Delete this folder to finish: {0}</value>
+  </data>
+  <data name="RemovedClose" xml:space="preserve">
+    <value>Quit</value>
+  </data>
+  <data name="TrayChecking" xml:space="preserve">
+    <value>Youpdated: checking…</value>
+  </data>
+  <data name="TrayLocked" xml:space="preserve">
+    <value>Youpdated is locked</value>
+  </data>
+  <data name="TrayUnlock" xml:space="preserve">
+    <value>Unlock…</value>
+  </data>
+  <data name="TrayPaused" xml:space="preserve">
+    <value>Youpdated: checks paused</value>
+  </data>
+  <data name="TrayProblems" xml:space="preserve">
+    <value>Youpdated: some sources had problems</value>
+  </data>
+  <data name="TrayNothingNew" xml:space="preserve">
+    <value>No new updates</value>
+  </data>
+  <data name="TrayOpen" xml:space="preserve">
+    <value>Open Youpdated…</value>
+  </data>
+  <data name="TrayCheckNow" xml:space="preserve">
+    <value>Check now</value>
+  </data>
+  <data name="TrayPause" xml:space="preserve">
+    <value>Pause</value>
+  </data>
+  <data name="TrayPauseHour" xml:space="preserve">
+    <value>1 hour</value>
+  </data>
+  <data name="TrayPauseTomorrow" xml:space="preserve">
+    <value>Until tomorrow</value>
+  </data>
+  <data name="TrayPauseResumed" xml:space="preserve">
+    <value>Until resumed</value>
+  </data>
+  <data name="TrayResume" xml:space="preserve">
+    <value>Resume checks</value>
+  </data>
+  <data name="TraySettings" xml:space="preserve">
+    <value>Settings…</value>
+  </data>
+  <data name="TrayQuit" xml:space="preserve">
+    <value>Quit Youpdated</value>
+  </data>
+  <data name="JumpCheckNow" xml:space="preserve">
+    <value>Check now</value>
+  </data>
+  <data name="JumpAddSource" xml:space="preserve">
+    <value>Add…</value>
+  </data>
+  <data name="JumpOpen" xml:space="preserve">
+    <value>Open Youpdated</value>
+  </data>
+  <data name="NewUpdatesOne" xml:space="preserve">
+    <value>1 new update</value>
+  </data>
+  <data name="NewUpdatesMany" xml:space="preserve">
+    <value>{0} new updates</value>
+  </data>
+  <data name="UpdateAvailable" xml:space="preserve">
+    <value>Youpdated {0} is available</value>
+  </data>
+  <data name="ToastAndMore" xml:space="preserve">
+    <value>{0} and {1} more</value>
+  </data>
+  <data name="ToastLine" xml:space="preserve">
+    <value>{0}: {1}</value>
+  </data>
+  <data name="ToastMore" xml:space="preserve">
+    <value>(+{0} more)</value>
+  </data>
+  <data name="ToastOpen" xml:space="preserve">
+    <value>Open</value>
+  </data>
+  <data name="ToastMarkRead" xml:space="preserve">
+    <value>Mark read</value>
+  </data>
+  <data name="ToastSnooze" xml:space="preserve">
+    <value>Snooze 1 hour</value>
+  </data>
+  <data name="ToastDownload" xml:space="preserve">
+    <value>Download</value>
+  </data>
+  <data name="JustNow" xml:space="preserve">
+    <value>Just now</value>
+  </data>
+  <data name="MinutesAgo" xml:space="preserve">
+    <value>{0} min ago</value>
+  </data>
+  <data name="HoursAgo" xml:space="preserve">
+    <value>{0} hr ago</value>
+  </data>
+  <data name="Yesterday" xml:space="preserve">
+    <value>Yesterday</value>
+  </data>
+  <data name="CheckingStarted" xml:space="preserve">
+    <value>Checking…</value>
+  </data>
+  <data name="CheckingProgress" xml:space="preserve">
+    <value>Checking… {0} of {1}</value>
+  </data>
+  <data name="PausedResumeTip" xml:space="preserve">
+    <value>Resume checks</value>
+  </data>
+  <data name="PriorityChoice" xml:space="preserve">
+    <value>{0}: {1}</value>
+  </data>
+  <data name="PriorityHighMeans" xml:space="preserve">
+    <value>Notify immediately</value>
+  </data>
+  <data name="PriorityNormalMeans" xml:space="preserve">
+    <value>Notify</value>
+  </data>
+  <data name="PriorityLowMeans" xml:space="preserve">
+    <value>Inbox only</value>
+  </data>
+  <data name="SourceBrowsers" xml:space="preserve">
+    <value>Browsers</value>
+  </data>
+  <data name="SettingsGroupView.Text" xml:space="preserve">
+    <value>View</value>
+  </data>
+  <data name="SettingsDensity.Header" xml:space="preserve">
+    <value>Density</value>
+  </data>
+  <data name="SettingsGroupBy.Header" xml:space="preserve">
+    <value>Group by</value>
+  </data>
+  <data name="SettingsGroupRead.Header" xml:space="preserve">
+    <value>Group read updates</value>
+  </data>
+  <data name="SettingsGroupRead.Description" xml:space="preserve">
+    <value>Read updates organized by group instead of Earlier</value>
+  </data>
+  <data name="SettingsLowPriority.Header" xml:space="preserve">
+    <value>Low priority</value>
+  </data>
+  <data name="SettingsReadUpdates.Header" xml:space="preserve">
+    <value>Read updates</value>
+  </data>
+  <data name="SettingsPreviews.Header" xml:space="preserve">
+    <value>Previews</value>
+  </data>
+  <data name="SettingsPreviews.Description" xml:space="preserve">
+    <value>The first lines of the notes on cards</value>
+  </data>
+  <data name="SettingsTimes.Header" xml:space="preserve">
+    <value>Times</value>
+  </data>
+  <data name="MoreGroupBy" xml:space="preserve">
+    <value>Group by</value>
+  </data>
+  <data name="MoreDensity" xml:space="preserve">
+    <value>Density</value>
+  </data>
+  <data name="DensityComfortable" xml:space="preserve">
+    <value>Comfortable</value>
+  </data>
+  <data name="DensityCompact" xml:space="preserve">
+    <value>Compact</value>
+  </data>
+  <data name="GroupByDay" xml:space="preserve">
+    <value>Day</value>
+  </data>
+  <data name="GroupByPriority" xml:space="preserve">
+    <value>Priority</value>
+  </data>
+  <data name="GroupBySource" xml:space="preserve">
+    <value>Source</value>
+  </data>
+  <data name="GroupByNone" xml:space="preserve">
+    <value>None</value>
+  </data>
+  <data name="LowPriorityShow" xml:space="preserve">
+    <value>Show in the feed</value>
+  </data>
+  <data name="LowPriorityHide" xml:space="preserve">
+    <value>Hide from the feed</value>
+  </data>
+  <data name="ReadLast7Days" xml:space="preserve">
+    <value>Last 7 days</value>
+  </data>
+  <data name="ReadLast30Days" xml:space="preserve">
+    <value>Last 30 days</value>
+  </data>
+  <data name="ReadAll" xml:space="preserve">
+    <value>All</value>
+  </data>
+  <data name="ReadNone" xml:space="preserve">
+    <value>None</value>
+  </data>
+  <data name="TimesRelative" xml:space="preserve">
+    <value>Relative</value>
+  </data>
+  <data name="TimesAbsolute" xml:space="preserve">
+    <value>Absolute</value>
+  </data>
+</root>

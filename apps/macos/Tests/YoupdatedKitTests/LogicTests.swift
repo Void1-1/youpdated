@@ -102,6 +102,21 @@ private var utc: Calendar {
         #expect(AppUpdate.available(in: page.items, current: "1.2") == nil)
     }
 
+    @Test func onlyThisAppsTagsAreUpdates() throws {
+        let starred = try #require(page.items.filter(\.starred).first)
+        func tagged(_ tag: String) -> InboxItem {
+            var item = starred
+            item.version = tag
+            return item
+        }
+        let update = try #require(AppUpdate.available(in: [tagged("app-macos-v1.2.0")], current: "1.0.0"))
+        #expect(update.version == "1.2.0")
+        #expect(update.downloadURL.absoluteString
+            == "https://github.com/Void1-1/youpdated/releases/download/app-macos-v1.2.0/Youpdated-1.2.0-macOS.dmg")
+        #expect(AppUpdate.available(in: [tagged("app-windows-v1.2.0")], current: "1.0.0") == nil)
+        #expect(AppUpdate.available(in: [tagged("v1.2.0")], current: "1.0.0") == nil)
+    }
+
     @Test func comparesVersions() {
         #expect(AppUpdate.compare("1.10.0", "1.9.9") == .orderedDescending)
         #expect(AppUpdate.compare("1.1", "1.1.0") == .orderedSame)

@@ -6,7 +6,7 @@ It needs macOS 15 or newer on Apple silicon (M1 or later). Python isn't required
 
 ## Install
 
-1. Download `Youpdated-<version>-macOS.dmg` from the newest `app-v` release on the [releases page](https://github.com/Void1-1/youpdated/releases). The newest release listed may be for the command-line tool, so look for the one starting with `app-v`.
+1. Download `Youpdated-<version>-macOS.dmg` from the newest Mac release on the [releases page](https://github.com/Void1-1/youpdated/releases). The newest release listed may be for the command-line tool, so look for a tag starting with `app-macos-v`.
 2. Open the `.dmg` and drag Youpdated to Applications.
 3. Open Youpdated. macOS will say it can't verify the app. Click **Done**, not Move to Trash.
 4. Open **System Settings → Privacy & Security**, scroll down to Security, and click **Open Anyway** beside the message about Youpdated. Confirm with your password or Touch ID. (signing with Apple is currently not possible)

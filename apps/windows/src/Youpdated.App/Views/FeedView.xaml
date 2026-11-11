@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="Youpdated.App.Views.FeedView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:Youpdated.App.Views"
+    xmlns:vm="using:Youpdated.Core.ViewModels">
+
+    <UserControl.Resources>
+        <DataTemplate x:Key="HeaderTemplate" x:DataType="local:FeedHeader">
+            <TextBlock Text="{x:Bind Title}" Margin="4,16,0,8" CharacterSpacing="60"
+                       Style="{StaticResource CaptionTextBlockStyle}" FontWeight="SemiBold"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+        </DataTemplate>
+        <DataTemplate x:Key="CardTemplate" x:DataType="vm:FeedCard">
+            <local:FeedCardView Card="{x:Bind}" />
+        </DataTemplate>
+        <local:RowTemplateSelector x:Key="RowSelector" Header="{StaticResource HeaderTemplate}" Card="{StaticResource CardTemplate}" />
+    </UserControl.Resources>
+
+    <ScrollViewer x:Name="Scroller" HorizontalScrollMode="Disabled" VerticalScrollBarVisibility="Auto">
+        <!-- A scroller places its own child by the child's natural width, not its MaxWidth, so the column is one level in -->
+        <Grid>
+            <StackPanel MaxWidth="640" Padding="20,12,20,24">
+                <StackPanel Margin="4,4,4,8" Spacing="2">
+                    <TextBlock x:Name="HeadingTitle" Style="{StaticResource SubtitleTextBlockStyle}" TextTrimming="CharacterEllipsis" />
+                    <StackPanel x:Name="HeadingLine" Orientation="Horizontal" />
+                </StackPanel>
+
+                <!-- Showing one target or source -->
+                <Grid x:Name="FilterChip" Visibility="Collapsed" Margin="0,0,0,8" Padding="12,6,6,6" ColumnSpacing="8"
+                      CornerRadius="{StaticResource ControlCornerRadius}" Background="{ThemeResource SubtleFillColorSecondaryBrush}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <FontIcon Glyph="&#xE71C;" FontSize="14" />
+                    <TextBlock x:Name="FilterText" Grid.Column="1" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                    <Button Grid.Column="2" x:Uid="FeedClearFilter" Style="{StaticResource SubtleButtonStyle}" Padding="6" Click="OnClearFilter">
+                        <FontIcon Glyph="&#xE711;" FontSize="12" />
+                    </Button>
+                </Grid>
+
+                <!-- Pinned above the sections if an app update is unread -->
+                <Grid x:Name="UpdateCard" Visibility="Collapsed" Margin="0,0,0,8" Padding="16,12" ColumnSpacing="12"
+                      CornerRadius="{StaticResource OverlayCornerRadius}" BorderThickness="1"
+                      Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                      BorderBrush="{ThemeResource AccentFillColorDefaultBrush}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <FontIcon Glyph="&#xE898;" FontSize="18" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" />
+                    <TextBlock x:Name="UpdateText" Grid.Column="1" VerticalAlignment="Center" Style="{StaticResource BodyStrongTextBlockStyle}"
+                               TextTrimming="CharacterEllipsis" />
+                    <Button x:Name="DownloadButton" Grid.Column="2" x:Uid="UpdateDownload" Style="{StaticResource AccentButtonStyle}" Click="OnDownload" />
+                </Grid>
+
+                <Grid>
+                    <Grid x:Name="ShadowReceiver" Background="Transparent" IsHitTestVisible="False" />
+                    <ItemsRepeater x:Name="Repeater"
+                                   ItemTemplate="{StaticResource RowSelector}"
+                                   XYFocusKeyboardNavigation="Enabled"
+                                   TabFocusNavigation="Once"
+                                   ElementPrepared="OnElementPrepared">
+                        <ItemsRepeater.Layout>
+                            <StackLayout Orientation="Vertical" />
+                        </ItemsRepeater.Layout>
+                    </ItemsRepeater>
+                </Grid>
+            </StackPanel>
+        </Grid>
+    </ScrollViewer>
+</UserControl>

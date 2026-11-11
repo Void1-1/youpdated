@@ -4,6 +4,10 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Added
+
+- **Youpdated for Windows (beta).** A notification area app for Windows 10 22H2 and 11, x64, with its own copy of the engine (no Python needed). It shares a config and history with the CLI. See [docs/windows-app.md](docs/windows-app.md). Released on `app-windows-v*` tags. And the Mac app's releases move from `app-v*` to `app-macos-v*`!
+
 ## [0.5.0] — 2026-11-06
 
 ### Added

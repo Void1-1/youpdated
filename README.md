@@ -20,6 +20,7 @@
   <a href="#get-started">Get started</a> ·
   <a href="#sources">Sources</a> ·
   <a href="https://github.com/Void1-1/youpdated/blob/main/docs/macos-app.md">Youpdated MacOS App (beta)</a> ·
+  <a href="https://github.com/Void1-1/youpdated/blob/main/docs/windows-app.md">Youpdated Windows App (beta)</a> ·
   <a href="#learn-more">Docs</a>
 </p>
 
@@ -53,7 +54,7 @@
 
 ## Get started
 
-On a Mac and want an app version? [Youpdated for Mac](https://github.com/Void1-1/youpdated/blob/main/docs/macos-app.md) is in beta.
+Want an app version? [Youpdated for Mac](https://github.com/Void1-1/youpdated/blob/main/docs/macos-app.md) and [Youpdated for Windows](https://github.com/Void1-1/youpdated/blob/main/docs/windows-app.md) are in beta.
 
 ### 1. Install
 
@@ -157,6 +158,7 @@ youpdated uninstall          # remove Youpdated and its files
 ## Learn more
 
 - [Youpdated for Mac](https://github.com/Void1-1/youpdated/blob/main/docs/macos-app.md): the menu bar app, in beta
+- [Youpdated for Windows](https://github.com/Void1-1/youpdated/blob/main/docs/windows-app.md): the notification area app, in beta
 - [Configuration](https://github.com/Void1-1/youpdated/blob/main/docs/configuration.md): all options, ignoring update types, and how long history is kept
 - [Usage](https://github.com/Void1-1/youpdated/blob/main/docs/usage.md): all commands, JSON and RSS output, and running on a schedule
 - [Notifications](https://github.com/Void1-1/youpdated/blob/main/docs/notifications.md): get updates on your phone, Discord, Slack, or to a script

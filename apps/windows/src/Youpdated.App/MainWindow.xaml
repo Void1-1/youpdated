@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="Youpdated.App.MainWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:views="using:Youpdated.App.Views"
+    Title="Youpdated">
+
+    <Grid x:Name="Root" AllowDrop="True" DragOver="OnDragOver" Drop="OnDrop">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Window's title bar, on Mica -->
+        <Grid x:Name="AppTitleBar" Height="48">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition x:Name="CaptionInset" Width="0" />
+            </Grid.ColumnDefinitions>
+
+            <StackPanel x:Name="TitleStart" Orientation="Horizontal" Spacing="10" Padding="12,0,0,0" VerticalAlignment="Center">
+                <Button x:Name="BackButton" x:Uid="TitleBack" Style="{StaticResource SubtleButtonStyle}" Visibility="Collapsed" Click="OnBack">
+                    <FontIcon Glyph="&#xE72B;" FontSize="14" />
+                </Button>
+                <Image x:Name="TitleIcon" Source="ms-appx:///Assets/Youpdated.ico" Width="16" Height="16" Margin="4,0,0,0" />
+                <TextBlock x:Name="TitleText" Text="Youpdated" VerticalAlignment="Center" Style="{StaticResource CaptionTextBlockStyle}" />
+            </StackPanel>
+
+            <!-- Updates | Following -->
+            <SelectorBar x:Name="ViewSwitcher" Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center"
+                         SelectionChanged="OnViewChanged">
+                <SelectorBarItem x:Name="UpdatesItem" x:Uid="ViewUpdates" IsSelected="True" />
+                <SelectorBarItem x:Name="FollowingItem" x:Uid="ViewFollowing" />
+            </SelectorBar>
+
+            <StackPanel x:Name="TitleActions" Grid.Column="2" Orientation="Horizontal" Spacing="2" Padding="0,0,8,0" VerticalAlignment="Center">
+                <Button x:Name="ProblemsButton" x:Uid="TitleProblems" Style="{StaticResource SubtleButtonStyle}" Visibility="Collapsed">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <FontIcon Glyph="&#xE7BA;" FontSize="14" Foreground="{ThemeResource SystemFillColorCautionBrush}" />
+                        <InfoBadge x:Name="ProblemsBadge" Style="{ThemeResource CautionValueInfoBadgeStyle}" />
+                    </StackPanel>
+                </Button>
+                <Button x:Name="CheckButton" x:Uid="TitleCheck" Style="{StaticResource SubtleButtonStyle}" Click="OnCheck">
+                    <FontIcon x:Name="CheckIcon" Glyph="&#xE72C;" FontSize="14" />
+                </Button>
+                <Button x:Name="AddButton" x:Uid="TitleAdd" Style="{StaticResource SubtleButtonStyle}">
+                    <FontIcon Glyph="&#xE710;" FontSize="14" />
+                    <Button.Flyout>
+                        <Flyout x:Name="AddFlyout" Placement="BottomEdgeAlignedRight" Opening="OnAddOpening" Opened="OnAddOpened">
+                            <views:AddPanel x:Name="FlyoutAdd" Width="340" />
+                        </Flyout>
+                    </Button.Flyout>
+                </Button>
+                <Button x:Name="MoreButton" x:Uid="TitleMore" Style="{StaticResource SubtleButtonStyle}">
+                    <FontIcon Glyph="&#xE712;" FontSize="14" />
+                    <Button.Flyout>
+                        <MenuFlyout x:Name="MoreMenu" Placement="BottomEdgeAlignedRight" Opening="OnMoreOpening" />
+                    </Button.Flyout>
+                </Button>
+            </StackPanel>
+        </Grid>
+
+        <ProgressBar x:Name="CheckProgress" Grid.Row="1" Visibility="Collapsed" />
+
+        <StackPanel Grid.Row="2" Padding="16,0,16,0" Spacing="4">
+            <InfoBar x:Name="CliBar" x:Uid="CliNoticeBar" Severity="Warning" IsOpen="False" Closed="OnCliBarClosed">
+                <InfoBar.ActionButton>
+                    <HyperlinkButton x:Uid="CliNoticeLink" NavigateUri="https://github.com/Void1-1/youpdated/blob/main/docs/usage.md" />
+                </InfoBar.ActionButton>
+            </InfoBar>
+            <InfoBar x:Name="SelfWatchBar" x:Uid="SelfWatchBar" Severity="Informational" IsOpen="False" Closed="OnSelfWatchClosed">
+                <InfoBar.ActionButton>
+                    <Button x:Uid="SelfWatchAdd" Style="{StaticResource AccentButtonStyle}" Click="OnSelfWatchAdd" />
+                </InfoBar.ActionButton>
+            </InfoBar>
+            <InfoBar x:Name="StartMenuBar" x:Uid="StartMenuBar" Severity="Informational" IsOpen="False" Closed="OnStartMenuClosed">
+                <InfoBar.ActionButton>
+                    <Button x:Uid="StartMenuAdd" Click="OnStartMenuAdd" />
+                </InfoBar.ActionButton>
+            </InfoBar>
+        </StackPanel>
+
+        <Grid Grid.Row="3">
+            <ProgressRing x:Name="StartingRing" IsActive="True" Width="32" Height="32" />
+
+            <!-- Locked -->
+            <StackPanel x:Name="LockedPanel" Visibility="Collapsed" MaxWidth="360" Spacing="12" Padding="24"
+                        HorizontalAlignment="Center" VerticalAlignment="Center">
+                <FontIcon Glyph="&#xE72E;" FontSize="40" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                <TextBlock x:Uid="LockedTitle" Style="{StaticResource SubtitleTextBlockStyle}" HorizontalAlignment="Center" />
+                <PasswordBox x:Name="PassphraseBox" x:Uid="UnlockPassphraseBox" KeyDown="OnPassphraseKeyDown" />
+                <CheckBox x:Name="RememberBox" x:Uid="UnlockRememberBox" />
+                <Button x:Name="UnlockButton" x:Uid="UnlockButtonInline" Style="{StaticResource AccentButtonStyle}" HorizontalAlignment="Stretch" Click="OnUnlock" />
+                <InfoBar x:Name="UnlockError" Severity="Error" IsClosable="False" IsOpen="False" />
+            </StackPanel>
+
+            <!-- First launch -->
+            <ScrollViewer x:Name="WelcomePanel" Visibility="Collapsed">
+                <Grid>
+                    <StackPanel MaxWidth="520" Spacing="16" Padding="24,48,24,24" VerticalAlignment="Center">
+                        <TextBlock x:Uid="WelcomeTitle" Style="{StaticResource TitleTextBlockStyle}" TextWrapping="Wrap" TextAlignment="Center" />
+                        <views:AddPanel x:Name="WelcomeAdd" />
+                        <views:WrapPanel x:Name="ExampleChips" />
+                    </StackPanel>
+                </Grid>
+            </ScrollViewer>
+
+            <views:FeedView x:Name="Feed" Visibility="Collapsed" />
+            <views:FollowingView x:Name="Following" Visibility="Collapsed" />
+
+            <Frame x:Name="SettingsFrame" Visibility="Collapsed" />
+        </Grid>
+    </Grid>
+</Window>

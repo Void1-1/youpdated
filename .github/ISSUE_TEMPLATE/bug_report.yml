@@ -17,6 +17,7 @@ body:
       label: Where it happened
       options:
         - Mac app (beta)
+        - Windows app (beta)
         - Command line
         - Both
     validations:
@@ -93,7 +94,7 @@ body:
     attributes:
       label: Details or verbose output
       description: |
-        In the app, the text from Copy Details in the Problems list, if there is one.
+        In the app, the text from Copy Details in the Problems list, if there is one. Or the relevant log files (enable in advanced settings).
         On the command line, run the failing command with `-v` and paste the output. This
         shows each request and its status, which is usually enough to identify the cause.
         `--test` is a good alternative if the problem is in config handling.

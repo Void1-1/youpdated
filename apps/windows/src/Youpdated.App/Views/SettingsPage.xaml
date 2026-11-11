@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="Youpdated.App.Views.SettingsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:Youpdated.App.Views"
+    xmlns:controls="using:CommunityToolkit.WinUI.Controls">
+
+    <ScrollViewer>
+        <!-- A scroller places its own child by the child's natural width, not its MaxWidth, so the column is one level in -->
+        <Grid>
+            <StackPanel Padding="24,16,24,24" Spacing="4" MaxWidth="1000" HorizontalAlignment="Stretch">
+                <TextBlock x:Uid="SettingsTitle" Style="{StaticResource TitleTextBlockStyle}" Margin="0,0,0,16" />
+
+                <TextBlock x:Uid="SettingsGroupView" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="1,8,0,4" />
+                <controls:SettingsCard x:Uid="SettingsDensity">
+                    <controls:SettingsCard.HeaderIcon>
+                        <FontIcon Glyph="&#xE8FD;" />
+                    </controls:SettingsCard.HeaderIcon>
+                    <ComboBox x:Name="DensityBox" MinWidth="180" SelectionChanged="OnViewChoice" />
+                </controls:SettingsCard>
+                <controls:SettingsCard x:Uid="SettingsGroupBy">
+                    <controls:SettingsCard.HeaderIcon>
+                        <FontIcon Glyph="&#xE8CB;" />
+                    </controls:SettingsCard.HeaderIcon>
+                    <ComboBox x:Name="GroupByBox" MinWidth="180" SelectionChanged="OnViewChoice" />
+                </controls:SettingsCard>
+                <controls:SettingsCard x:Name="GroupReadCard" x:Uid="SettingsGroupRead">
+                    <ToggleSwitch x:Name="GroupReadSwitch" Toggled="OnGroupReadToggled" />
+                </controls:SettingsCard>
+                <controls:SettingsCard x:Uid="SettingsLowPriority">
+                    <controls:SettingsCard.HeaderIcon>
+                        <FontIcon Glyph="&#xE7ED;" />
+                    </controls:SettingsCard.HeaderIcon>
+                    <ComboBox x:Name="LowPriorityBox" MinWidth="180" SelectionChanged="OnViewChoice" />
+                </controls:SettingsCard>
+                <controls:SettingsCard x:Uid="SettingsReadUpdates">
+                    <controls:SettingsCard.HeaderIcon>
+                        <FontIcon Glyph="&#xE8C3;" />
+                    </controls:SettingsCard.HeaderIcon>
+                    <ComboBox x:Name="ReadUpdatesBox" MinWidth="180" SelectionChanged="OnViewChoice" />
+                </controls:SettingsCard>
+                <controls:SettingsCard x:Uid="SettingsPreviews">
+                    <controls:SettingsCard.HeaderIcon>
+                        <FontIcon Glyph="&#xE8A1;" />
+                    </controls:SettingsCard.HeaderIcon>
+                    <ToggleSwitch x:Name="PreviewsSwitch" Toggled="OnPreviewsToggled" />
+                </controls:SettingsCard>
+                <controls:SettingsCard x:Uid="SettingsTimes">
+                    <controls:SettingsCard.HeaderIcon>
+                        <FontIcon Glyph="&#xE823;" />
+                    </controls:SettingsCard.HeaderIcon>
+                    <ComboBox x:Name="TimesBox" MinWidth="180" SelectionChanged="OnViewChoice" />
+                </controls:SettingsCard>
+                <!-- The engine keeps this one, as show_icons -->
+                <controls:SettingsCard x:Uid="SettingsIcons">
+                    <controls:SettingsCard.HeaderIcon>
+                        <FontIcon Glyph="&#xEB9F;" />
+                    </controls:SettingsCard.HeaderIcon>
+                    <ToggleSwitch IsOn="{x:Bind Settings.ShowIcons, Mode=TwoWay}" />
+                </controls:SettingsCard>
+
+                <TextBlock x:Uid="SettingsGroupChecking" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="1,24,0,4" />
+                <controls:SettingsCard x:Uid="SettingsInterval">
+                    <controls:SettingsCard.HeaderIcon>
+                        <FontIcon Glyph="&#xE895;" />
+                    </controls:SettingsCard.HeaderIcon>
+                    <ComboBox x:Name="IntervalBox" MinWidth="180" SelectionChanged="OnIntervalChanged" />
+                </controls:SettingsCard>
+                <controls:SettingsExpander x:Uid="SettingsDigest" IsExpanded="{x:Bind Settings.DigestEnabled, Mode=OneWay}">
+                    <controls:SettingsExpander.HeaderIcon>
+                        <FontIcon Glyph="&#xE823;" />
+                    </controls:SettingsExpander.HeaderIcon>
+                    <ToggleSwitch IsOn="{x:Bind Settings.DigestEnabled, Mode=TwoWay}" />
+                    <controls:SettingsExpander.Items>
+                        <controls:SettingsCard x:Uid="SettingsDigestTime" IsEnabled="{x:Bind Settings.DigestEnabled, Mode=OneWay}">
+                            <TimePicker x:Name="DigestPicker" SelectedTimeChanged="OnDigestTimeChanged" />
+                        </controls:SettingsCard>
+                    </controls:SettingsExpander.Items>
+                </controls:SettingsExpander>
+
+                <TextBlock x:Uid="SettingsGroupNotifications" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="1,24,0,4" />
+                <controls:SettingsCard x:Uid="SettingsNotifications">
+                    <controls:SettingsCard.HeaderIcon>
+                        <FontIcon Glyph="&#xEA8F;" />
+                    </controls:SettingsCard.HeaderIcon>
+                    <ToggleSwitch IsOn="{x:Bind Settings.OsNotifications, Mode=TwoWay}" />
+                </controls:SettingsCard>
+                <controls:SettingsCard x:Uid="SettingsWindowsNotifications" IsClickEnabled="True" Click="OnWindowsNotifications">
+                    <controls:SettingsCard.ActionIcon>
+                        <FontIcon Glyph="&#xE8A7;" />
+                    </controls:SettingsCard.ActionIcon>
+                </controls:SettingsCard>
+
+                <TextBlock x:Uid="SettingsGroupStartup" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="1,24,0,4" />
+                <controls:SettingsCard x:Uid="SettingsStartAtLogin">
+                    <controls:SettingsCard.HeaderIcon>
+                        <FontIcon Glyph="&#xE7E8;" />
+                    </controls:SettingsCard.HeaderIcon>
+                    <ToggleSwitch IsOn="{x:Bind Settings.StartAtLogin, Mode=TwoWay}" />
+                </controls:SettingsCard>
+                <InfoBar x:Uid="SettingsStartupBlocked" Severity="Warning" IsClosable="False"
+                         IsOpen="{x:Bind Settings.StartAtLoginDisabledByUser, Mode=OneWay}">
+                    <InfoBar.ActionButton>
+                        <HyperlinkButton x:Uid="SettingsStartupApps" Click="OnStartupApps" />
+                    </InfoBar.ActionButton>
+                </InfoBar>
+
+                <StackPanel Visibility="{x:Bind Settings.IsEncrypted, Mode=OneWay}" Spacing="4">
+                    <TextBlock x:Uid="SettingsGroupSecurity" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="1,24,0,4" />
+                    <controls:SettingsCard x:Uid="SettingsRemember">
+                        <controls:SettingsCard.HeaderIcon>
+                            <FontIcon Glyph="&#xE72E;" />
+                        </controls:SettingsCard.HeaderIcon>
+                        <ToggleSwitch IsOn="{x:Bind Settings.RememberPassphrase, Mode=TwoWay}" />
+                    </controls:SettingsCard>
+                </StackPanel>
+
+                <!-- Collapsed: none of it is needed day to day -->
+                <controls:SettingsExpander x:Uid="SettingsAdvanced" Margin="0,24,0,0">
+                    <controls:SettingsExpander.HeaderIcon>
+                        <FontIcon Glyph="&#xE90F;" />
+                    </controls:SettingsExpander.HeaderIcon>
+                    <controls:SettingsExpander.Items>
+                        <controls:SettingsCard x:Uid="SettingsDiagnosticLog">
+                            <ToggleSwitch x:Name="DiagnosticLogSwitch" Toggled="OnDiagnosticLogToggled" />
+                        </controls:SettingsCard>
+                        <controls:SettingsCard x:Name="ShowLogCard" x:Uid="SettingsShowLog" IsClickEnabled="True" Click="OnShowLog">
+                            <controls:SettingsCard.ActionIcon>
+                                <FontIcon Glyph="&#xE8A7;" />
+                            </controls:SettingsCard.ActionIcon>
+                        </controls:SettingsCard>
+                    </controls:SettingsExpander.Items>
+                </controls:SettingsExpander>
+
+                <TextBlock x:Uid="SettingsGroupAbout" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="1,24,0,4" />
+                <controls:SettingsExpander Header="Youpdated" Description="{x:Bind local:SettingsPage.AppVersion(Settings.AppVersion)}" IsExpanded="True">
+                    <controls:SettingsExpander.HeaderIcon>
+                        <ImageIcon Source="ms-appx:///Assets/Youpdated.ico" />
+                    </controls:SettingsExpander.HeaderIcon>
+                    <controls:SettingsExpander.Items>
+                        <controls:SettingsCard x:Uid="SettingsEngine" Description="{x:Bind Settings.EngineVersion, Mode=OneWay}" />
+                        <controls:SettingsCard x:Uid="SettingsUpdates"
+                                               Description="{x:Bind local:SettingsPage.UpdateStatus(Settings.WatchingSelf), Mode=OneWay}">
+                            <Button x:Uid="SettingsWatchSelf" Click="OnWatchSelf"
+                                    Visibility="{x:Bind local:Bind.Hide(Settings.WatchingSelf), Mode=OneWay}" />
+                        </controls:SettingsCard>
+                        <controls:SettingsCard x:Uid="SettingsSource" IsClickEnabled="True" Click="OnSourceCode">
+                            <controls:SettingsCard.ActionIcon>
+                                <FontIcon Glyph="&#xE8A7;" />
+                            </controls:SettingsCard.ActionIcon>
+                        </controls:SettingsCard>
+                        <controls:SettingsCard x:Uid="SettingsRemovePc">
+                            <Button x:Uid="SettingsRemovePcButton" Click="OnRemoveFromPc" />
+                        </controls:SettingsCard>
+                    </controls:SettingsExpander.Items>
+                </controls:SettingsExpander>
+
+                <InfoBar Severity="Error" IsClosable="False" Margin="0,16,0,0"
+                         Message="{x:Bind Settings.Error, Mode=OneWay}"
+                         IsOpen="{x:Bind local:Bind.NotNull(Settings.Error), Mode=OneWay}" />
+            </StackPanel>
+        </Grid>
+    </ScrollViewer>
+</Page>
