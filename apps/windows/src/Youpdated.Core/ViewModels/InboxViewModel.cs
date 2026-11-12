@@ -133,6 +133,30 @@ public sealed partial class InboxViewModel : ObservableObject
         }
     }
 
+    /// <summary>Delete Update from the inbox</summary>
+    public async Task<bool> DeleteAsync(IReadOnlyList<string> ids)
+    {
+        if (ids.Count == 0)
+        {
+            return true;
+        }
+        try
+        {
+            var reply = await _engine.InboxDeleteAsync(ids);
+            _notifications.Remove(ids);
+            var deleted = ids.ToHashSet();
+            _items = [.. _items.Where(item => !deleted.Contains(item.Id))];
+            SetUnread(reply.Unread);
+            Changed(refreshed: false);
+            return true;
+        }
+        catch (Exception exc) when (exc is EngineException or EngineUnavailableException or EngineExitedException or EngineProtocolException)
+        {
+            Error = exc.Message;
+            return false;
+        }
+    }
+
     public async Task<bool> SetPriorityAsync(TargetKey target, Priority priority)
     {
         try

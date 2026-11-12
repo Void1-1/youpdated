@@ -185,6 +185,9 @@
                         <FontIcon Glyph="&#xE90F;" />
                     </controls:SettingsExpander.HeaderIcon>
                     <controls:SettingsExpander.Items>
+                        <controls:SettingsCard x:Uid="SettingsHideSelfWatch">
+                            <ToggleSwitch IsOn="{x:Bind Settings.HideSelfWatchSuggestions, Mode=TwoWay}" />
+                        </controls:SettingsCard>
                         <controls:SettingsCard x:Uid="SettingsDiagnosticLog">
                             <ToggleSwitch x:Name="DiagnosticLogSwitch" Toggled="OnDiagnosticLogToggled" />
                         </controls:SettingsCard>
@@ -206,7 +209,7 @@
                         <controls:SettingsCard x:Uid="SettingsUpdates"
                                                Description="{x:Bind local:SettingsPage.UpdateStatus(Settings.WatchingSelf), Mode=OneWay}">
                             <Button x:Uid="SettingsWatchSelf" Click="OnWatchSelf"
-                                    Visibility="{x:Bind local:Bind.Hide(Settings.WatchingSelf), Mode=OneWay}" />
+                                    Visibility="{x:Bind local:Bind.Show(Settings.OffersWatchSelf), Mode=OneWay}" />
                         </controls:SettingsCard>
                         <controls:SettingsCard x:Uid="SettingsSource" IsClickEnabled="True" Click="OnSourceCode">
                             <controls:SettingsCard.ActionIcon>

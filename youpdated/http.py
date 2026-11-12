@@ -19,6 +19,7 @@ from urllib.parse import urlsplit
 
 import httpx
 
+from . import __version__
 from .config import PrivacyConfig
 from .state import State
 
@@ -45,13 +46,16 @@ Validator = tuple[str, str | None, str | None]
 # it blends in better, but can be changed here
 USER_AGENTS: tuple[str, ...] = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
-    "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+    "(KHTML, like Gecko) Chrome/158.0.0.0 Safari/537.36",
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-    "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (X11; Linux x86_64; rv:127.0) Gecko/20100101 Firefox/127.0",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_5) AppleWebKit/605.1.15 "
-    "(KHTML, like Gecko) Version/17.5 Safari/605.1.15",
+    "(KHTML, like Gecko) Chrome/158.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:160.0) Gecko/20100101 Firefox/160.0",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 "
+    "(KHTML, like Gecko) Version/27.2 Safari/605.1.15",
 )
+
+# `user_agent: youpdated`: states the tool, version, and where to get info
+YOUPDATED_USER_AGENT = f"Youpdated/{__version__} (+https://github.com/Void1-1/youpdated)"
 
 RETRY_STATUSES = frozenset({429, 500, 502, 503, 504})
 # Statuses whose ``Retry-After`` header is honored (RFC 6585 §4, RFC 9110 §10.2.3).
@@ -59,6 +63,8 @@ RETRY_AFTER_STATUSES = frozenset({429, 503})
 # A POST is retried only when the server says it did nothing; a 500, 502, or 504 may come
 # after the webhook was delivered
 POST_RETRY_STATUSES = RETRY_AFTER_STATUSES
+# An unexpected refusal (not a ``soft_statuses``) is usually a host-wide block
+BLOCKED_STATUSES = frozenset({403})
 
 # httpx's default
 MAX_REDIRECTS = 20
@@ -368,6 +374,8 @@ class Client:
     # internals
 
     def _user_agent(self, host: str) -> str:
+        if self.privacy.user_agent == "youpdated":
+            return YOUPDATED_USER_AGENT
         if self.privacy.user_agent != "rotate":
             return self.privacy.user_agent
         with self._registry_lock:
@@ -650,6 +658,8 @@ class Client:
 
             if response.status_code in RETRY_AFTER_STATUSES:
                 self._give_up_on(host, f"kept answering HTTP {response.status_code}")
+            elif response.status_code in BLOCKED_STATUSES:
+                self._give_up_on(host, f"refused a request (HTTP {response.status_code})")
             raise FetchError(f"{url}: HTTP {response.status_code}")
 
         raise FetchError(f"{url}: {last_error}")

@@ -3,7 +3,7 @@ import SwiftUI
 import YoupdatedKit
 
 public struct SettingsView: View {
-    public enum Pane: Hashable, Sendable { case general, view, notifications, privacy, about }
+    public enum Pane: Hashable, Sendable { case general, view, notifications, privacy, advanced, about }
 
     @State private var pane: Pane
 
@@ -17,6 +17,7 @@ public struct SettingsView: View {
             Tab(String(localized: "View"), systemImage: "rectangle.grid.1x2", value: .view) { ViewSettings() }
             Tab(String(localized: "Notifications"), systemImage: "bell.badge", value: .notifications) { NotificationSettings() }
             Tab(String(localized: "Privacy"), systemImage: "hand.raised", value: .privacy) { PrivacySettings() }
+            Tab(String(localized: "Advanced"), systemImage: "gearshape.2", value: .advanced) { AdvancedSettings() }
             Tab(String(localized: "About"), systemImage: "info.circle", value: .about) { AboutSettings() }
         }
         .frame(width: 480)
@@ -81,6 +82,7 @@ public struct SettingsPaneView: View {
         case .view: ViewSettings()
         case .notifications: NotificationSettings()
         case .privacy: PrivacySettings()
+        case .advanced: AdvancedSettings()
         case .about: AboutSettings()
         }
     }
@@ -364,6 +366,50 @@ struct PrivacySettings: View {
     }
 }
 
+/// Settings → Advanced
+struct AdvancedSettings: View {
+    @Environment(AppModel.self) private var model
+    @State private var logging = AppLog.shared.enabled
+    @State private var logExists = AppLog.shared.exists
+
+    var body: some View {
+        @Bindable var model = model
+        Form {
+            Section {
+                Toggle(String(localized: "Hide suggestions to watch Youpdated"), isOn: $model.hidesSelfWatchSuggestions)
+            } footer: {
+                Text(String(localized: "No prompts to add Youpdated to your sources."))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Section {
+                Toggle(String(localized: "Save diagnostic logs"), isOn: Binding(
+                    get: { logging },
+                    set: { on in
+                        AppLog.shared.enabled = on
+                        logging = on
+                        if on {
+                            let os = ProcessInfo.processInfo.operatingSystemVersionString
+                            AppLog.shared.write("Diagnostic logs enabled, Youpdated \(model.appVersion), engine \(model.engineVersion ?? "not running"), macOS \(os)")
+                        }
+                        logExists = AppLog.shared.exists
+                    }
+                ))
+                Button(String(localized: "Show Log in Finder")) {
+                    NSWorkspace.shared.activateFileViewerSelecting([AppLog.shared.file])
+                }
+                .disabled(!logExists)
+            } footer: {
+                Text(String(localized: "Saves errors to ~/Library/Logs/Youpdated/app.log for bug reports."))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .formStyle(.grouped)
+        .onAppear { logExists = AppLog.shared.exists }
+    }
+}
+
 struct AboutSettings: View {
     @Environment(AppModel.self) private var model
 
@@ -383,6 +429,8 @@ struct AboutSettings: View {
                     LabeledContent(Wording.appUpdate(update.version)) { DownloadButton(update: update) }
                 } else if model.sources.selfTarget != nil {
                     Label(String(localized: "Youpdated is up to date"), systemImage: "checkmark.circle")
+                } else if model.hidesSelfWatchSuggestions {
+                    Text(String(localized: "Not watching for new versions"))
                 } else {
                     LabeledContent(String(localized: "Not watching for new versions")) {
                         Button(String(localized: "Watch")) { Task { await model.watchSelf() } }

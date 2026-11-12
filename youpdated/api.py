@@ -60,6 +60,7 @@ OPS = (
     "inbox.list",
     "inbox.mark",
     "inbox.snooze",
+    "inbox.delete",
     "targets.list",
     "targets.preview",
     "targets.add",
@@ -835,6 +836,15 @@ class Engine:
             for item in found:
                 state.cache_set("app", f"snooze:{item}", until)
         return {"until": until}
+
+    def op_inbox_delete(self, p: _Params) -> dict[str, Any]:
+        ids = p.get("ids", "strings", required=True)
+        p.done()
+        if not ids:
+            raise _bad("`ids` must not be empty")
+        with self._history() as state:
+            deleted = state.inbox_delete(ids)
+            return {"deleted": deleted, "unread": state.inbox_unread()}
 
     def op_targets_list(self, p: _Params) -> dict[str, Any]:
         p.done()

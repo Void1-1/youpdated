@@ -159,6 +159,12 @@ public sealed class EngineClient(IEngineChannel channel)
         return channel.SendAsync("inbox.mark", parameters, ContractJson.Default.InboxMarkReply, cancellationToken);
     }
 
+    public Task<InboxDeleteReply> InboxDeleteAsync(IReadOnlyList<string> ids, CancellationToken cancellationToken = default) =>
+        channel.SendAsync("inbox.delete", new JsonObject
+        {
+            ["ids"] = new JsonArray([.. ids.Select(id => (JsonNode?)id)]),
+        }, ContractJson.Default.InboxDeleteReply, cancellationToken);
+
     public Task<InboxSnoozeReply> InboxSnoozeAsync(
         IReadOnlyList<string> ids, int minutes = 60, CancellationToken cancellationToken = default) =>
         channel.SendAsync("inbox.snooze", new JsonObject

@@ -458,6 +458,40 @@ def test_removing_without_wipe_drops_unread_items(engine, fake, tmp_path):
     assert [i["target"] for i in engine("inbox.list")["items"]] == ["alpha"]
 
 
+def test_deleting_the_read_items_of_a_target_no_longer_followed(engine, fake, tmp_path):
+    engine.config_override = make_config(tmp_path, entries=("alpha", "beta"))
+    engine("check")
+    write_items(fake, {"alpha": [item("1.1")], "beta": [item("2.1")]})
+    engine("check")
+    beta = [i["id"] for i in engine("inbox.list")["items"] if i["target"] == "beta"]
+    engine("inbox.mark", read=True, ids=beta)
+    engine("targets.remove", source="fake", key="beta")
+    # read items stay after a remove without wipe
+    left = [i["id"] for i in engine("inbox.list")["items"] if i["target"] == "beta"]
+    assert left
+
+    reply = engine("inbox.delete", ids=[*left, "i_not_there"])
+
+    assert reply == {"ok": True, "deleted": len(left), "unread": 1}
+    assert {i["target"] for i in engine("inbox.list")["items"]} == {"alpha"}
+
+
+def test_a_deleted_item_isnt_reported_again(engine, fake):
+    write_items(fake, {"alpha": [item("1.1")]})
+    engine("check")
+    write_items(fake, {"alpha": [item("1.1"), item("1.2")]})
+    engine("check")
+    ids = [i["id"] for i in engine("inbox.list")["items"]]
+    engine("inbox.snooze", ids=ids)
+    engine("inbox.delete", ids=ids)
+    engine("check")
+    assert engine("inbox.list")["items"] == []
+
+
+def test_inbox_delete_needs_ids(engine):
+    assert engine("inbox.delete", ids=[])["error"]["code"] == "bad_request"
+
+
 def test_a_cli_rm_takes_unread_items_on_the_next_check(engine, fake, tmp_path):
     engine.config_override = make_config(tmp_path, entries=("alpha", "beta"))
     engine("check")

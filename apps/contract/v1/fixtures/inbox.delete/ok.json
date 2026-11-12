@@ -1,0 +1,15 @@
+{
+  "description": "Deleting a card's updates",
+  "request": {
+    "id": 64,
+    "op": "inbox.delete",
+    "ids": ["i_8f3a1c2e9b7d4a10"]
+  },
+  "events": [],
+  "reply": {
+    "id": 64,
+    "ok": true,
+    "deleted": 1,
+    "unread": 3
+  }
+}

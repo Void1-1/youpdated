@@ -23,6 +23,7 @@
       "inbox.list",
       "inbox.mark",
       "inbox.snooze",
+      "inbox.delete",
       "targets.list",
       "targets.preview",
       "targets.add",

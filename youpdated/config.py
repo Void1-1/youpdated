@@ -634,8 +634,11 @@ def _parse_privacy(raw: Any, where: str) -> PrivacyConfig:
     ua = raw.get("user_agent")
     if ua is not None:
         if not isinstance(ua, str) or not ua.strip():
-            raise ConfigError(f"{where}`settings.privacy.user_agent` must be 'rotate' or a UA string")
-        privacy.user_agent = ua
+            raise ConfigError(
+                f"{where}`settings.privacy.user_agent` must be 'rotate', 'youpdated', or a UA string"
+            )
+        keyword = ua.strip().lower()
+        privacy.user_agent = keyword if keyword in ("rotate", "youpdated") else ua
 
     jitter = raw.get("jitter")
     if jitter is not None:
@@ -678,6 +681,19 @@ FAST_MODE_WARNING = (
 )
 
 
+# `user_agent: youpdated` with encryption and a proxy
+NAMED_UA_WARNING = (
+    "`user_agent: youpdated` names Youpdated and its version in requests. This setup is "
+    "secured with encryption and a proxy, but that setting identifies check traffic. "
+    "`user_agent: rotate` blends in more. See docs/privacy.md."
+)
+NAMED_UA_UNCONFIRMED = (
+    "`user_agent: youpdated` on an encrypted and proxied setup must be confirmed before "
+    "anything is sent: run `youpdated check` in a terminal, or set `user_agent: rotate`. "
+    "Nothing was sent."
+)
+
+
 EXAMPLE_CONFIG = """\
 # youpdated config: every source entry is a bare value or a mapping.
 
@@ -685,7 +701,7 @@ settings:
   privacy:
     # Route every request through a proxy. Works with Tor's default SOCKS port.
     # proxy: socks5://127.0.0.1:9050
-    user_agent: rotate     # 'rotate' or a fixed UA string
+    user_agent: rotate     # 'rotate', 'youpdated', or a fixed UA string
     jitter: [0.5, 3.0]     # random delay, in seconds, between hits on one site
     concurrency: 4         # requests in flight at once
     timeout: 20

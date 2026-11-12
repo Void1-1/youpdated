@@ -115,6 +115,7 @@ public actor EngineClient {
     private func receive(_ data: Data) {
         guard let header = try? decoder.decode(ReplyHeader.self, from: data) else {
             Self.log.error("unreadable line from engine: \(String(decoding: data.prefix(200), as: UTF8.self), privacy: .public)")
+            AppLog.shared.write("engine wrote a line that isn't JSON: \(String(decoding: data.prefix(200), as: UTF8.self))")
             return
         }
         if let event = header.event {
@@ -124,6 +125,7 @@ public actor EngineClient {
         guard let id = header.id, let continuation = pending.removeValue(forKey: id) else {
             // bad_request for an unreadable line has a null id
             Self.log.error("reply for no pending request: \(String(decoding: data.prefix(200), as: UTF8.self), privacy: .public)")
+            AppLog.shared.write("engine reply for no pending request: \(String(decoding: data.prefix(200), as: UTF8.self))")
             return
         }
         continuation.resume(returning: data)

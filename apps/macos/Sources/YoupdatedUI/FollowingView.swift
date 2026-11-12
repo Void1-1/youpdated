@@ -17,7 +17,8 @@ struct FollowingView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     if let own = layout.own {
                         row(own, starred: true)
-                    } else if model.feed.filter.isEmpty && model.sources.loaded && model.sources.selfTarget == nil {
+                    } else if model.feed.filter.isEmpty && model.sources.loaded && model.sources.selfTarget == nil
+                                && !model.hidesSelfWatchSuggestions {
                         WatchYoupdatedRow()
                     }
                     ForEach(layout.groups) { group in
@@ -30,7 +31,7 @@ struct FollowingView: View {
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 16)
-                .frame(maxWidth: 640)
+                .frame(maxWidth: 640, alignment: .leading)
                 .frame(maxWidth: .infinity)
             }
             .focusable()

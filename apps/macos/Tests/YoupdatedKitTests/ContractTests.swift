@@ -7,7 +7,7 @@ import Testing
     nonisolated(unsafe) static let replyTypes: [String: any Decodable.Type] = [
         "hello": HelloReply.self, "unlock": UnlockReply.self, "status": StatusReply.self,
         "check": CheckReply.self, "inbox.list": InboxPage.self, "inbox.mark": MarkReply.self,
-        "inbox.snooze": SnoozeReply.self, "targets.list": TargetsReply.self,
+        "inbox.snooze": SnoozeReply.self, "inbox.delete": DeleteReply.self, "targets.list": TargetsReply.self,
         "targets.preview": PreviewReply.self, "targets.add": AddReply.self,
         "targets.remove": RemoveReply.self, "import.preview": ImportPreviewReply.self,
         "import.apply": ImportApplyReply.self, "settings.get": SettingsReply.self,
@@ -106,6 +106,7 @@ import Testing
         ("inbox.mark/ids", Params.Mark(read: true, ids: ["i_8f3a1c2e9b7d4a10"], all: nil, source: nil)),
         ("inbox.mark/all", Params.Mark(read: true, ids: nil, all: true, source: nil)),
         ("inbox.snooze/ok", Params.Snooze(ids: ["i_2b9e5d7f0c1a3e44"], minutes: 60)),
+        ("inbox.delete/ok", Params.Delete(ids: ["i_8f3a1c2e9b7d4a10"])),
         ("targets.preview/picked", Params.Preview(value: "express", source: "npm")),
         ("targets.add/ok", Params.Add(source: "git", entries: ["python/cpython"])),
         ("targets.remove/wipe", Params.Remove(source: "steam", key: "440", wipe: true)),

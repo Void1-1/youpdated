@@ -7,8 +7,11 @@ All notable changes to this project are documented here. The format follows [Kee
 ### Added
 
 - **Youpdated for Windows (beta).** A notification area app for Windows 10 22H2 and 11, x64, with its own copy of the engine (no Python needed). It shares a config and history with the CLI. See [docs/windows-app.md](docs/windows-app.md). Released on `app-windows-v*` tags. And the Mac app's releases move from `app-v*` to `app-macos-v*`!
+- **`settings.privacy.user_agent: youpdated`** sends `Youpdated/<version> (+https://github.com/Void1-1/youpdated)` instead of a browser string, so sites can know what is sending requests. On an encrypted setup with a proxy, it warns and asks once before anything is sent. See [docs/privacy.md](docs/privacy.md#user-agent).
 - **Fast mode**: `settings.privacy.fast_mode: true`, or `check --fast` for a check. Requests to one host are 0.1 to 0.5s apart instead of `jitter`, and hosts are paced on their own instead of by site. Traffic will look automated, is more likely to be rate limited, and is easier to single out and link to you, even through a proxy, so checks in fast mode print a warning. Off by default.
 - **Privacy in app Settings.** The Mac and Windows apps can now set the proxy (None, Tor, Tor Browser, or a custom address) and fast mode. They also display the other `settings.privacy` options. A new proxy is tested before it's saved. The config is edited in place, comments kept. New engine ops `privacy.get` and `privacy.set`.
+- **Delete Update** in a feed card's right-click menu. It removes the card's updates, read or not, but they stay in seen history. Engine op `inbox.delete`. Stop Following is left out of the menu for a target that's no longer followed.
+- **Settings → Advanced.** *Hide suggestions to watch Youpdated* (off by default) hides offers to follow Youpdated's own releases. The Mac app gained the Windows app's **Save a diagnostic log** (off by default), writing errors, engine output, and notification problems to `~/Library/Logs/Youpdated/app.log` for bug reports.
 
 ### Changed
 
@@ -18,6 +21,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Fixed
 
+- **A long update title widened the Mac menu bar menu.** Its rows are now cut to a fixed width, and the whole title is in the tooltip.
+- **The Mac app centered a target with no updates** when it was picked in Following. It's now placed like the rest of the feed.
 - **YouTube reported old videos as new when its feed was down.** The official feed has outages and the Invidious fallback lists only regular videos, not Shorts or streams. A video not seen before and older than the last check is no longer reported when the channel switches path. The error for every path failing no longer blames blocking or suggests a proxy, which doesn't help.
 - **A YouTube playlist's URL works on its own.** `youpdated add https://www.youtube.com/playlist?list=…` adds it under `youtube` instead of `webpage`, and the URL can be listed under `youtube:` without `playlist:`.
 - **YouTube playlists are shown by their title**, instead of `playlist PL…`. A `name:` on the entry still comes first.

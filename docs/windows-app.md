@@ -44,7 +44,7 @@ Use version 0.5.0 or newer of the command-line tool (`youpdated --version` to ch
 
 ## Privacy
 
-The app has no accounts or analytics, and sends requests only to the sites your sources need. On a first launch it also offers to follow Youpdated's GitHub repo, which is how it hears about new versions. Under advanced settings there is also an option to log errors locally for bug reporting, which is off by default. See [Privacy](privacy.md) for more information.
+The app has no accounts or analytics, and sends requests only to the sites your sources need. On a first launch it also offers to follow Youpdated's GitHub repo, which is how it hears about new versions. Under advanced settings there are also options to hide suggestions to follow it, and to log errors locally for bug reporting, both off by default. See [Privacy](privacy.md) for more information.
 
 ## Reporting a problem
 
@@ -53,7 +53,7 @@ The app has no accounts or analytics, and sends requests only to the sites your 
 - The **Version** and **Engine** lines from About, at the bottom of Settings.
 - What you did, and what happened instead.
 - For a source that fails, the text from **Copy Details** in the Problems list. Check it for tokens and private information first.
-- For anything else, turn on **Settings → Advanced → Save a diagnostic log**, make it happen again, and attach the file from **Show the log file**. Check it first: [Privacy](privacy.md#what-each-source-contacts) lists what it holds.
+- For anything else, turn on **Settings → Advanced → Save diagnostic logs**, make it happen again, and attach the file from **Show the log file**. Check it first: [Privacy](privacy.md#what-each-source-contacts) lists what it holds.
 
 ## Remove it
 

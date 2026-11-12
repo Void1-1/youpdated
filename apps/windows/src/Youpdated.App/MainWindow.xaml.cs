@@ -79,6 +79,14 @@ public sealed partial class MainWindow : Window, IMainWindow
 
         _app.PropertyChanged += OnAppChanged;
         _app.Problems.PropertyChanged += OnAppChanged;
+        _app.Settings.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(SettingsViewModel.HideSelfWatchSuggestions) && _app.Settings.HideSelfWatchSuggestions)
+            {
+                // closed without declining
+                SelfWatchBar.IsOpen = false;
+            }
+        };
         Root.Loaded += (_, _) =>
         {
             var scale = Root.XamlRoot.RasterizationScale;

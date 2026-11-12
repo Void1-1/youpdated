@@ -31,7 +31,7 @@
 
 **The desktop app's Show icons** (off by default) adds requests for a picture for each target: Steam's store details and header image, a git repo owner's avatar (from the forge's API outside GitHub), a YouTube channel's page and picture, an itch game's page and cover, or a feed's image or its site's icon. They go through the same client and `settings.privacy` options as everything else, a few per check, and about once a month per target afterwards. npm, PyPI, Homebrew, and browsers have no icons and get no extra requests. The icons are kept in the history, so they can be encrypted, and turning the setting off deletes them.
 
-**App diagnostic logs** (Settings → Advanced, off by default) writes errors to `%LOCALAPPDATA%\youpdated\app\app.log` on Windows, and is never sent anywhere. It holds the app, engine, and Windows versions, whether notifications could be shown, and errors with their stack traces, including what the engine prints when something fails. That can reveal what you follow, and file paths in it include your Windows user name, so read it before attaching it to a bug report. It isn't encrypted, even when your config and history are! Turning the setting off stops new writes but leaves the file; **Remove Youpdated from this PC** deletes it.
+**App diagnostic logs** (Settings → Advanced, off by default) writes errors to `%LOCALAPPDATA%\youpdated\app\app.log` on Windows and `~/Library/Logs/Youpdated/app.log` on Mac, and is never sent anywhere. It holds app, engine, and OS versions, if notifications could be shown, and errors, including engine outputs when something fails. That can reveal sources you follow, and system file paths, so read it before sharing. It isn't encrypted, even when your config and history are! Turning the setting off stops new writes but keeps the file; on Windows, **Remove Youpdated from this PC** deletes it, and on Mac you can delete the folder.
 
 ## The `settings.privacy` block
 
@@ -39,7 +39,7 @@
 settings:
   privacy:
     # proxy: socks5://127.0.0.1:9050 # Tor's default SOCKS port
-    user_agent: rotate               # 'rotate', or a fixed UA string
+    user_agent: rotate               # 'rotate', 'youpdated', or a fixed UA string
     jitter: [0.5, 3.0]               # random gap between hits on one site
     concurrency: 4                   # requests in flight at once
     timeout: 20
@@ -47,6 +47,14 @@ settings:
 ```
 
 In desktop apps, **Settings → Privacy** can set `proxy` and `fast_mode`. The app edits the config in place.
+
+## User agent
+
+- `rotate` (default) sends each site one of a few current desktop browser strings per check, so requests blend in with ordinary browsing. Forge APIs (GitHub, GitLab, Codeberg) are sent `python-httpx/<version>` instead.
+- `youpdated` sends `Youpdated/<version> (+https://github.com/Void1-1/youpdated)`. Sites can see what is asking and rate limit rather than block it. Every request says it comes from Youpdated, so `rotate` is still suggested for privacy.
+- Any other string is sent as is, to every site.
+
+**On encrypted setups with a proxy**, `youpdated` identifies your traffic explicitly. Youpdated warns about it on every check and confirms once, when `youpdated edit` saves the change or on the first `youpdated check`. A check that can't ask (no terminal, `--json`, a scheduled run) sends nothing until it's been confirmed. The answer is kept in the history.
 
 ## Fast mode
 

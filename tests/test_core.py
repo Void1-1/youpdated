@@ -501,6 +501,30 @@ def test_rotating_user_agent_is_a_real_browser_string(client):
 
 
 @respx.mock
+def test_youpdated_user_agent_names_the_tool_and_version(client):
+    from youpdated import __version__
+
+    client.privacy.user_agent = "youpdated"
+    route = respx.get("https://a.itch.io/game").mock(return_value=httpx.Response(200))
+    client.get("https://a.itch.io/game")
+    assert route.calls[0].request.headers["User-Agent"] == (
+        f"Youpdated/{__version__} (+https://github.com/Void1-1/youpdated)"
+    )
+    assert "user_agent=youpdated" in client.describe()
+
+
+@pytest.mark.parametrize("value", ["youpdated", "Youpdated", " YOUPDATED "])
+def test_youpdated_user_agent_keyword_ignores_case(value):
+    config = parse_config({"privacy": {"user_agent": value}, "sources": {"npm": ["x"]}})
+    assert config.privacy.user_agent == "youpdated"
+
+
+def test_a_custom_user_agent_is_kept_as_written():
+    config = parse_config({"privacy": {"user_agent": "My Agent/1.0"}, "sources": {"npm": ["x"]}})
+    assert config.privacy.user_agent == "My Agent/1.0"
+
+
+@respx.mock
 def test_test_mode_sends_nothing_but_records_the_url(state):
     route = respx.get("https://e.com/x").mock(return_value=httpx.Response(200))
     with Client(state=state, test=True) as client:
@@ -1356,6 +1380,35 @@ def test_a_rate_limited_api_skips_neither_its_site_nor_the_fallback(client):
         # but the site's other host is
         assert client.get("https://github.com/o/r/releases.atom").content == b"<feed/>"
     assert feed.call_count == 1
+
+
+@respx.mock
+def test_a_403_stops_the_run_asking_that_host_again(client):
+    first = respx.get("https://a.itch.io/game").mock(return_value=httpx.Response(403))
+    other = respx.get("https://b.itch.io/game/devlog.rss").mock(
+        return_value=httpx.Response(200, content=b"<rss/>")
+    )
+    with client.run_scope():
+        with pytest.raises(FetchError, match="HTTP 403"):
+            client.get("https://a.itch.io/game")
+        # 403 isn't retried
+        assert first.call_count == 1
+        with pytest.raises(FetchError, match=r"not sent, itch.io refused a request \(HTTP 403\)"):
+            client.get("https://b.itch.io/game/devlog.rss")
+    assert other.call_count == 0
+    # a later run tries again
+    with client.run_scope():
+        assert client.get("https://b.itch.io/game/devlog.rss").content == b"<rss/>"
+
+
+@respx.mock
+def test_a_403_a_source_expects_does_not_stop_the_host(client):
+    respx.get("https://www.youtube.com/a").mock(return_value=httpx.Response(403))
+    other = respx.get("https://www.youtube.com/b").mock(return_value=httpx.Response(200))
+    with client.run_scope():
+        assert client.get("https://www.youtube.com/a", soft_statuses=(403,)).status == 403
+        client.get("https://www.youtube.com/b")
+    assert other.call_count == 1
 
 
 def test_a_hold_on_one_host_does_not_delay_its_site(client, monkeypatch):

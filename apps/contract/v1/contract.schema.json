@@ -480,6 +480,25 @@
       "properties": { "until": { "$ref": "#/$defs/Timestamp" } }
     },
 
+    "inbox.delete.request": {
+      "description": "Deletes inbox items, read or not. They stay seen.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ids"],
+      "properties": {
+        "ids": { "type": "array", "items": { "type": "string" }, "minItems": 1 }
+      }
+    },
+    "inbox.delete.reply": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["deleted", "unread"],
+      "properties": {
+        "deleted": { "type": "integer", "minimum": 0, "description": "Items deleted; ids not in inbox skipped" },
+        "unread": { "type": "integer", "minimum": 0 }
+      }
+    },
+
     "targets.list.request": { "type": "object", "additionalProperties": false },
     "targets.list.reply": {
       "type": "object",
