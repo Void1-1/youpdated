@@ -179,17 +179,43 @@ final class StatusItemController: NSObject, NSMenuDelegate, NSWindowDelegate {
         menu.addItem(quit)
     }
 
+    /// An update row's widest text
+    static let rowWidth: CGFloat = 340
+    static let nameWidth: CGFloat = 150
+
     private func rowItem(_ row: InboxRow) -> NSMenuItem {
         let entry = action(row.target.display, #selector(openRow(_:)))
-        let title = NSMutableAttributedString(string: row.target.display + "   ")
-        let detail = row.items.count > 1 ? "\(row.newest.title)  +\(row.items.count - 1)" : row.newest.title
+        let font = NSFont.menuFont(ofSize: 0)
+        let name = Self.fit(row.target.display, width: Self.nameWidth, font: font) + "   "
+        let more = row.items.count > 1 ? "  +\(row.items.count - 1)" : ""
+        let room = Self.rowWidth - Self.width(name + more, font: font)
+        let detail = Self.fit(row.newest.title, width: room, font: font) + more
+        let title = NSMutableAttributedString(string: name)
         title.append(NSAttributedString(string: detail, attributes: [.foregroundColor: NSColor.secondaryLabelColor]))
         entry.attributedTitle = title
+        entry.toolTip = "\(row.target.display): \(row.newest.title)"
         entry.image = NSImage(
             systemSymbolName: row.starred ? "star.fill" : SourceStyle.symbolName(row.target.source),
             accessibilityDescription: SourceLabel.label(source: row.target.source, key: row.target.key))
         entry.representedObject = row
         return entry
+    }
+
+    static func width(_ text: String, font: NSFont) -> CGFloat {
+        (text as NSString).size(withAttributes: [.font: font]).width
+    }
+
+    /// ``text`` cut to fit ``width``
+    static func fit(_ text: String, width: CGFloat, font: NSFont) -> String {
+        guard self.width(text, font: font) > width else { return text }
+        let characters = Array(text)
+        var low = 0, high = characters.count
+        while low < high {
+            let middle = (low + high + 1) / 2
+            let candidate = String(characters[..<middle]).trimmingCharacters(in: .whitespaces) + "…"
+            if self.width(candidate, font: font) <= width { low = middle } else { high = middle - 1 }
+        }
+        return String(characters[..<low]).trimmingCharacters(in: .whitespaces) + "…"
     }
 
     private func action(_ title: String, _ selector: Selector) -> NSMenuItem {

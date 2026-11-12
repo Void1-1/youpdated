@@ -45,7 +45,7 @@ Use version 0.5.0 or newer of the command-line tool (`youpdated --version` to ch
 
 ## Privacy
 
-The app has no accounts or analytics, and sends requests only to the sites your sources need. On a first launch it also follows Youpdated's GitHub repo, which is how it hears about new versions (disableable). See [Privacy](privacy.md) for more information.
+The app has no accounts or analytics, and sends requests only to the sites your sources need. On a first launch it also follows Youpdated's GitHub repo, which is how it hears about new versions (disableable). **Settings → Advanced** can hide follow suggestions, and save errors to a local log (both off by default). See [Privacy](privacy.md) for more information.
 
 ## Reporting a problem
 
@@ -54,6 +54,7 @@ The app has no accounts or analytics, and sends requests only to the sites your 
 - The **App version** and **Engine version**, from the bottom of Settings.
 - What you did, and what happened instead.
 - For a source that fails, the text from **Copy Details** in the Problems list. Check it for tokens and private information first.
+- For anything else, turn on **Settings → Advanced → Save diagnostic logs**, do the problematic action, and attach the file from **Show Log in Finder**. Check it first: [Privacy](privacy.md#what-each-source-contacts) for content logged.
 
 ## Remove it
 
@@ -64,4 +65,5 @@ That leaves your data, which the command-line tool also uses. To remove that:
 
 - **Your follows and history:** delete `~/Library/Application Support/youpdated/`. This also removes the command-line tool's config and history.
 - **The app's display settings:** run `defaults delete io.github.void1-1.Youpdated`.
+- **A diagnostic log:** delete `~/Library/Logs/Youpdated/`.
 - **A passphrase:** delete the `Youpdated` item in the Passwords section of Keychain Access.

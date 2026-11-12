@@ -192,6 +192,8 @@ public final class ProcessTransport: EngineTransport, @unchecked Sendable {
         lock.unlock()
         // logs go on to the app's own stderr, so Console and the terminal show
         FileHandle.standardError.write(data)
+        let text = String(decoding: data, as: UTF8.self).trimmingCharacters(in: .newlines)
+        if !text.isEmpty { AppLog.shared.write("engine: \(text)") }
     }
 
     private func ended(status: Int32, signaled: Bool) {

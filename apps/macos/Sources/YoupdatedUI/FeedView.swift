@@ -48,7 +48,7 @@ struct FeedView: View {
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 16)
-                .frame(maxWidth: 640)
+                .frame(maxWidth: 640, alignment: .leading)
                 .frame(maxWidth: .infinity)
                 // new cards slide in once per check
                 .animation(atTop ? Motion.cards(reduceMotion) : nil, value: layout.cards.map(\.id))
@@ -476,8 +476,14 @@ struct CardMenu: View {
         }
         Button(String(localized: "Show in Following")) { window.showInFollowing(card.target.targetKey, model: model) }
         Divider()
-        Button(String(localized: "Stop Following…"), role: .destructive) {
-            window.removing = model.sources.targets.first { $0.id == card.target.targetKey }
+        if model.inbox.canDelete {
+            Button(card.items.count == 1 ? String(localized: "Delete Update") : String(localized: "Delete \(card.items.count) Updates"),
+                   role: .destructive) {
+                Task { await model.feed.delete(card) }
+            }
+        }
+        if let target = model.sources.targets.first(where: { $0.id == card.target.targetKey }) {
+            Button(String(localized: "Stop Following…"), role: .destructive) { window.removing = target }
         }
     }
 }

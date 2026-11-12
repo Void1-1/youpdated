@@ -907,6 +907,21 @@ class State:
             ).fetchall()
         return {(row["source"], row["target"]) for row in rows}
 
+    def inbox_delete(self, ids: Iterable[str]) -> int:
+        """Delete ``ids`` from the inbox. Seen items stay seen"""
+        ids = list(ids)
+        if not ids:
+            return 0
+        with self._lock:
+            removed = self._conn.execute(
+                f"DELETE FROM inbox WHERE id IN ({','.join('?' * len(ids))})", ids
+            ).rowcount
+            self._drop_orphans()
+            self._conn.commit()
+            if removed:
+                self._dirty = True
+        return removed
+
     def inbox_drop_unread(self, targets: Iterable[tuple[str, str]]) -> int:
         """Forget unread items of targets no longer watched"""
         with self._lock:

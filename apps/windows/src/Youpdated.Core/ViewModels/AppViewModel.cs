@@ -76,7 +76,8 @@ public sealed partial class AppViewModel : ObservableObject, IAsyncDisposable
         Following = new FollowingViewModel(Sources, services.AppVersion);
         Icons = new IconCache(_engine);
         Problems = new ProblemsViewModel(_engine);
-        Settings = new SettingsViewModel(_engine, services.Startup, services.Credentials, () => _passphrase, services.AppVersion);
+        Settings = new SettingsViewModel(
+            _engine, services.Startup, services.Credentials, () => _passphrase, services.AppVersion, services.LocalState);
         Unlock = new UnlockViewModel(UnlockAsync);
         Downloader = new UpdateDownloader(services.Http);
 
@@ -623,7 +624,7 @@ public sealed partial class AppViewModel : ObservableObject, IAsyncDisposable
         {
             StartMenuOfferNeeded?.Invoke();
         }
-        if (status.SelfWatch == SelfWatch.Absent && !Settings.Current.SelfWatchDeclined)
+        if (status.SelfWatch == SelfWatch.Absent && !Settings.Current.SelfWatchDeclined && !Settings.HideSelfWatchSuggestions)
         {
             SelfWatchOfferNeeded?.Invoke();
         }

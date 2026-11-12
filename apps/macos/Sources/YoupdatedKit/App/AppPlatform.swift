@@ -46,6 +46,12 @@ public final class AppDefaults {
         set { defaults.set(newValue, forKey: "launchedBefore") }
     }
 
+    /// Settings → Advanced
+    public var hidesSelfWatchSuggestions: Bool {
+        get { defaults.bool(forKey: "hidesSelfWatchSuggestions") }
+        set { defaults.set(newValue, forKey: "hidesSelfWatchSuggestions") }
+    }
+
     /// Settings → View
     public var viewOptions: ViewOptions {
         get {

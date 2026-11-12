@@ -69,6 +69,7 @@ Used for the desktop apps and `youpdated api serve` to communicate. [contract.sc
   - An icon is a PNG, JPEG, GIF, WebP, or ICO image, max 256 KiB, kept in history and encrypted (if enabled).
 - **`Target.latest`** is the newest item for the target, CLI included. Pruning doesn't remove it, and an empty fetch with leaves it unchanged. `rm --wipe` to clear.
 - **Retry.** A `source` problem's `key` includes the failed target; `check {"targets": [{"source": …, "key": …}]}` checks just it. `notify` and `config` problems have no target to retry, so their `key` is null.
+- **Deleting items.** `inbox.delete` removes items from the inbox, read or not. They stay in seen history, so a later check doesn't report them again.
 - **Removing a target** with `wipe` forgets seen items, cached validators, inbox items, priority, latest item, and icon, like `youpdated rm --wipe`.
 
 ## Fixtures

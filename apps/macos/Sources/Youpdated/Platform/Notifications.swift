@@ -37,7 +37,15 @@ final class Notifications: NSObject, UNUserNotificationCenterDelegate {
     /// Asks once, on the first time
     private func authorize() async -> Bool {
         if let authorized { return authorized }
-        let granted = (try? await center.requestAuthorization(options: [.alert, .sound, .badge])) ?? false
+        let granted: Bool
+        do {
+            granted = try await center.requestAuthorization(options: [.alert, .sound, .badge])
+        } catch {
+            AppLog.shared.write("Notifications: display prompt failed: \(error)")
+            granted = false
+        }
+        let settings = await center.notificationSettings()
+        AppLog.shared.write("Notifications: allowed \(granted), authorization \(settings.authorizationStatus.rawValue), alerts \(settings.alertSetting.rawValue)")
         authorized = granted
         return granted
     }
@@ -45,9 +53,16 @@ final class Notifications: NSObject, UNUserNotificationCenterDelegate {
     func post(_ contents: [NotificationContent], at date: Date? = nil) {
         guard !contents.isEmpty else { return }
         Task {
-            guard await authorize() else { return }
+            guard await authorize() else {
+                AppLog.shared.write("Notifications: \(contents.count) not shown, not allowed")
+                return
+            }
             for content in contents {
-                try? await center.add(request(for: content, at: date))
+                do {
+                    try await center.add(request(for: content, at: date))
+                } catch {
+                    AppLog.shared.write("Notifications: not shown: \(error)")
+                }
             }
         }
     }

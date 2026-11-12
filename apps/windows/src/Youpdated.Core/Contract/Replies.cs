@@ -36,6 +36,8 @@ public sealed record InboxMarkReply(int Changed, int Unread);
 
 public sealed record InboxSnoozeReply(DateTimeOffset Until);
 
+public sealed record InboxDeleteReply(int Deleted, int Unread);
+
 public sealed record TargetsListReply(IReadOnlyList<Target> Targets);
 
 public sealed record PreviewReply(

@@ -133,6 +133,23 @@ func run() async throws {
         SettingsPaneView(.view).environment(settingsModel).frame(width: 480).padding(20)
     }
 
+    // Settings → Advanced
+    let (advancedModel, _) = await makeModel()
+    try await render("settings-advanced", size: CGSize(width: 520, height: 420), title: "Advanced") {
+        SettingsPaneView(.advanced).environment(advancedModel).frame(width: 480).padding(20)
+    }
+
+    // a target with no updates, filtered in Following
+    let (quietModel, _) = await makeModel()
+    if let quiet = quietModel.sources.targets.first(where: { target in
+        !target.starred && !quietModel.inbox.items.contains { $0.targetKey == target.id }
+    }) {
+        quietModel.feed.showOnly(quiet.ref)
+    }
+    try await render("feed-quiet-target", size: CGSize(width: 600, height: 360)) {
+        AppWindowView().environment(quietModel).environment(WindowState()).environment(downloader)
+    }
+
     // Following
     let followingWindow = WindowState()
     followingWindow.mode = .following

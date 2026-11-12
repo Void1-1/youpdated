@@ -300,7 +300,7 @@ public sealed partial class FeedCardView : UserControl
         }
     }
 
-    /// <summary>Open, Mark read / unread, Priority, Snooze 1 hour, Copy link, Show in Following, Stop following</summary>
+    /// <summary>Open, Mark read / unread, Priority, Snooze 1 hour, Copy link, Show in Following, Delete, Stop following</summary>
     private void OnMenuOpening(object? sender, object e)
     {
         if (sender is not MenuFlyout menu || Card is not { } card || Feed is not { } feed || AppController.Current?.App is not { } app)
@@ -327,14 +327,22 @@ public sealed partial class FeedCardView : UserControl
         }));
         menu.Items.Add(new MenuFlyoutSeparator());
         menu.Items.Add(Item("MenuShowInFollowing", "\uE71D", () => app.ShowInFollowing(card.Target)));
-        menu.Items.Add(Item("MenuStopFollowing", "\uE74D", async () =>
+        var deleteItem = Item("MenuDelete", "\uE738", async () => await feed.DeleteAsync(card));
+        if (card.Items.Count > 1)
         {
-            var target = app.Sources.Targets.FirstOrDefault(t => t.AsKey() == card.Target);
-            if (target is not null && XamlRoot is { } root && await Dialogs.RemoveTargetAsync(root, target) is { } wipe)
+            deleteItem.Text = Text.Format("MenuDeleteMany", card.Items.Count);
+        }
+        menu.Items.Add(deleteItem);
+        if (app.Sources.Targets.FirstOrDefault(t => t.AsKey() == card.Target) is { } target)
+        {
+            menu.Items.Add(Item("MenuStopFollowing", "\uE74D", async () =>
             {
-                await app.Sources.RemoveAsync(target, wipe);
-            }
-        }));
+                if (XamlRoot is { } root && await Dialogs.RemoveTargetAsync(root, target) is { } wipe)
+                {
+                    await app.Sources.RemoveAsync(target, wipe);
+                }
+            }));
+        }
     }
 
     private static MenuFlyoutItem Item(string key, string glyph, Action click)
