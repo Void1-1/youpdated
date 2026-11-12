@@ -16,7 +16,9 @@ public sealed record StatusReply(
     DateTimeOffset? LastRun,
     string? LastRunBy,
     string? SelfWatch,
-    Counts? Counts);
+    Counts? Counts,
+    // `user_agent: youpdated` on an encrypted, proxied setup
+    string? NamedUserAgent = null);
 
 public sealed record CheckReply(
     DateTimeOffset CheckedAt,
@@ -70,6 +72,8 @@ public sealed record ImportApplyReply(
     IReadOnlyList<TargetRef> Targets);
 
 public sealed record SettingsReply(Settings Settings);
+
+public sealed record PrivacyReply(Privacy Privacy);
 
 public sealed record PriorityReply(Priority Priority);
 

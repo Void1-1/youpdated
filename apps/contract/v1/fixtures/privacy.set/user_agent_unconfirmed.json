@@ -1,0 +1,17 @@
+{
+  "description": "Adding a proxy to an encrypted setup with `user_agent: youpdated`, before it's confirmed",
+  "request": {
+    "id": 63,
+    "op": "privacy.set",
+    "proxy": "socks5://127.0.0.1:9050"
+  },
+  "events": [],
+  "reply": {
+    "id": 63,
+    "ok": false,
+    "error": {
+      "code": "user_agent_unconfirmed",
+      "message": "`user_agent: youpdated` names Youpdated in requests, and this change makes the setup encrypted and proxied. Confirm it with `confirm_user_agent`. Nothing was saved."
+    }
+  }
+}

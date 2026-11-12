@@ -1,0 +1,30 @@
+{
+  "description": "An encrypted setup with a proxy and `user_agent: youpdated`, not confirmed yet",
+  "request": {
+    "id": 33,
+    "op": "status"
+  },
+  "events": [],
+  "reply": {
+    "id": 33,
+    "ok": true,
+    "locked": false,
+    "encrypted": {
+      "config": true,
+      "history": true
+    },
+    "config_path": "/Users/me/Library/Application Support/youpdated/config.yaml",
+    "config_exists": true,
+    "config_error": null,
+    "history_path": "/Users/me/Library/Application Support/youpdated/state.sqlite3",
+    "last_run": "2026-10-29T08:00:06Z",
+    "last_run_by": "app",
+    "self_watch": "watching",
+    "counts": {
+      "targets": 5,
+      "unread": 3,
+      "problems": 0
+    },
+    "named_user_agent": "unconfirmed"
+  }
+}

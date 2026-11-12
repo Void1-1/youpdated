@@ -44,6 +44,11 @@ struct LiveEngineTests {
         let off = try await engine.setSettings(SettingsPatch(digestTime: .some(nil)))
         #expect(off.digestTime == nil)
 
+        #expect(try await engine.privacy().proxy == nil)
+        let fast = try await engine.setPrivacy(fastMode: true)
+        #expect(fast.fastMode && fast.proxy == nil)
+        #expect(try await engine.setPrivacy(fastMode: false).fastMode == false)
+
         let targets = try await engine.targets().targets
         #expect(targets.count == 1)
         #expect(targets.first?.starred == true)

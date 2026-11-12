@@ -15,6 +15,7 @@ import Testing
         "problems.list": ProblemsReply.self, "digest.send": DigestReply.self,
         "snapshot.write": SnapshotReply.self, "config.init": ConfigInitReply.self,
         "shutdown": EmptyReply.self, "icon.get": IconReply.self,
+        "privacy.get": PrivacyReply.self, "privacy.set": PrivacyReply.self,
     ]
 
     @Test func everyOpHasAReplyType() throws {
@@ -113,6 +114,9 @@ import Testing
         ("import.preview/content", Params.Import(.content("httpx>=0.27\nrich\n", format: "requirements.txt"))),
         ("import.apply/ok", Params.Import(.path("/Users/me/project/package.json"))),
         ("settings.set/ok", Params.SetSettings(settings: SettingsPatch(digestTime: .some("18:00")))),
+        ("privacy.set/tor", Params.SetPrivacy(proxy: "socks5://127.0.0.1:9050", fastMode: nil, confirmUserAgent: nil)),
+        ("privacy.set/off", Params.SetPrivacy(proxy: .some(nil), fastMode: false, confirmUserAgent: nil)),
+        ("privacy.set/confirm_user_agent", Params.SetPrivacy(proxy: nil, fastMode: nil, confirmUserAgent: true)),
         ("priority.set/ok", Params.SetPriority(source: "steam", key: "440", priority: .high)),
         ("config.init/existing", Params.ConfigInit(selfWatch: true)),
         ("icon.get/found", Params.Icon(source: "steam", key: "440")),

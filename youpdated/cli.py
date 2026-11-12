@@ -35,6 +35,7 @@ from .cleanup import Trace, find_package, find_traces, remove_package, remove_tr
 from .config import (
     EXAMPLE_CONFIG,
     FAST_MODE_WARNING,
+    NAMED_UA_CONFIRMED,
     NAMED_UA_UNCONFIRMED,
     NAMED_UA_WARNING,
     Command,
@@ -44,6 +45,7 @@ from .config import (
     default_state_path,
     find_config,
     load_config,
+    names_itself_privately,
     parse_config_text,
     read_config_text,
     require_config,
@@ -53,6 +55,7 @@ from .config import (
 from .edit import (
     add_to_config,
     guess_source,
+    move_to_settings,
     remove_from_config,
     requested_urls,
     tidy_config,
@@ -95,7 +98,7 @@ def build_parser() -> argparse.ArgumentParser:
     check.add_argument(
         "--fast", action="store_true",
         help="fast mode for this run: shorter gaps between requests, less private "
-        "(see privacy.fast_mode)",
+        "(see settings.privacy.fast_mode)",
     )
     check.add_argument("--state", help="path to the state database")
     check.add_argument("-v", "--verbose", action="store_true", help="show request detail and bodies")
@@ -341,11 +344,11 @@ def cmd_import(args: argparse.Namespace, console: Console) -> int:
 _QUICK_EDITOR = 2.0
 _DISCARDED = "[dim]Discarded. Nothing was written.[/]"
 _WHEN_SAVED = "Press Enter once you've saved, or Ctrl-C to discard: "
-_SET_EDITOR = "Set `editor:` in the config, or $VISUAL or $EDITOR, to the one you use."
+_SET_EDITOR = "Set `settings.editor` in the config, or $VISUAL or $EDITOR, to the one you use."
 
 
 def _editor_command(configured: str | None = None) -> tuple[list[str], bool]:
-    """`editor:`, $VISUAL, $EDITOR, then system default"""
+    """`settings.editor`, $VISUAL, $EDITOR, then system default"""
     if configured:
         return _configured_editor(configured)
     for name in ("VISUAL", "EDITOR"):
@@ -371,7 +374,7 @@ def _configured_editor(value: str) -> tuple[list[str], bool]:
         return ["open", "-a", os.path.expanduser(value)], True
     if path.is_file():
         return [str(path)], False
-    command = split_command(value, name="`editor`")
+    command = split_command(value, name="`settings.editor`")
     if sys.platform == "darwin" and shutil.which(command[0]) is None:
         # like TextEdit or Visual Studio Code
         return ["open", "-a", os.path.expanduser(value)], True
@@ -441,17 +444,8 @@ def _loads(text: str, path: Path) -> Config | None:
         return None
 
 
-# kv row recording that `user_agent: youpdated` was confirmed on a high security setup
-_NAMED_UA_CONFIRMED = ("meta", "named_user_agent_confirmed")
-
-
-def _names_itself_privately(config: Config, encrypted: bool) -> bool:
-    """`user_agent: youpdated` on an encrypted, proxied setup, see :data:`NAMED_UA_WARNING`"""
-    return encrypted and bool(config.privacy.proxy) and config.privacy.user_agent == "youpdated"
-
-
 def _named_ua_confirmed(state: State) -> bool:
-    return state.cache_get(*_NAMED_UA_CONFIRMED) is not None
+    return state.cache_get(*NAMED_UA_CONFIRMED) is not None
 
 
 def _confirm_named_ua(console: Console) -> bool:
@@ -474,7 +468,7 @@ def _named_ua_confirmed_at(state_path: Path, passphrase: str | None) -> bool:
 def _record_named_ua(state_path: Path, passphrase: str | None, console: Console) -> None:
     try:
         with State(state_path, passphrase=passphrase) as state:
-            state.cache_set(*_NAMED_UA_CONFIRMED, datetime.now(timezone.utc).isoformat())
+            state.cache_set(*NAMED_UA_CONFIRMED, datetime.now(timezone.utc).isoformat())
     except (StateError, crypto.EncryptionError, OSError) as exc:
         console.print(
             f"[yellow]Couldn't record that in the history ({escape(str(exc))}).[/] "
@@ -520,7 +514,14 @@ def cmd_editor(args: argparse.Namespace, console: Console) -> int:
     ) as folder:
         # config's name, so its highlighted as YAML
         draft = Path(folder) / path.name
-        crypto.write_private(draft, original.encode("utf-8"))
+        # saving keeps the move, even if nothing else changed
+        opened, moved = move_to_settings(original)
+        if moved:
+            console.print(
+                f"[dim]Moved {escape(', '.join(f'`{key}`' for key in moved))} under "
+                "`settings:`, where they go now. Saving keeps the move.[/]"
+            )
+        crypto.write_private(draft, opened.encode("utf-8"))
         while True:
             shown = _read(draft)
             if not opens:
@@ -586,7 +587,7 @@ def cmd_editor(args: argparse.Namespace, console: Console) -> int:
             drafted = _loads(edited, path)
             if (
                 drafted is not None
-                and _names_itself_privately(drafted, locked)
+                and names_itself_privately(drafted, locked)
                 and not _named_ua_confirmed_at(state_path, passphrase)
             ):
                 if not _confirm_named_ua(console):
@@ -1013,7 +1014,7 @@ def cmd_check(args: argparse.Namespace, console: Console) -> int:
         config.privacy = replace(config.privacy, fast_mode=True)
     if config.privacy.fast_mode:
         status.print(f"[yellow]warning:[/] {escape(FAST_MODE_WARNING)}")
-    named = _names_itself_privately(config, passphrase is not None)
+    named = names_itself_privately(config, passphrase is not None)
 
     since = None
     if args.since:
@@ -1061,7 +1062,7 @@ def cmd_check(args: argparse.Namespace, console: Console) -> int:
             if not _confirm_named_ua(status):
                 status.print("[dim]Canceled. Nothing was sent.[/]")
                 return 1
-            state.cache_set(*_NAMED_UA_CONFIRMED, datetime.now(timezone.utc).isoformat())
+            state.cache_set(*NAMED_UA_CONFIRMED, datetime.now(timezone.utc).isoformat())
         elif named:
             status.print(f"[yellow]warning:[/] {escape(NAMED_UA_WARNING)}")
         with Client(

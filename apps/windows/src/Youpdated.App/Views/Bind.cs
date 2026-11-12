@@ -16,6 +16,8 @@ public static class Bind
 
     public static bool NotNull(object? value) => value is not null;
 
+    public static bool Not(bool value) => !value;
+
     /// <summary>Segoe Fluent Icons glyph for a source, for the icon's badge</summary>
     public static string SourceGlyph(string source) => source switch
     {

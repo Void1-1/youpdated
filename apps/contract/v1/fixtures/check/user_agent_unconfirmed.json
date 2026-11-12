@@ -1,0 +1,16 @@
+{
+  "description": "A check on a setup whose `user_agent: youpdated` isn't confirmed",
+  "request": {
+    "id": 8,
+    "op": "check"
+  },
+  "events": [],
+  "reply": {
+    "id": 8,
+    "ok": false,
+    "error": {
+      "code": "user_agent_unconfirmed",
+      "message": "`user_agent: youpdated` names Youpdated in requests, and this setup is encrypted and uses a proxy. Confirm it in Youpdated, or set `user_agent: rotate`. Nothing was sent."
+    }
+  }
+}

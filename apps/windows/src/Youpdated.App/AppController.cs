@@ -88,6 +88,8 @@ internal sealed class AppController
         app.ShowRequested += Show;
         app.UnlockNeeded += () => _window?.ShowUnlock();
         app.SelfWatchOfferNeeded += () => Notify(Notice.SelfWatch);
+        // checks wait for it
+        app.UserAgentConfirmationNeeded += () => Show(AppPage.Updates);
         app.AddRequested += _ =>
         {
             Show(AppPage.Updates);

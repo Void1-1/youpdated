@@ -133,6 +133,13 @@ func run() async throws {
         SettingsPaneView(.view).environment(settingsModel).frame(width: 480).padding(20)
     }
 
+    // Settings → Privacy
+    let (privacyModel, _) = await makeModel()
+    await privacyModel.loadPrivacy()
+    try await render("settings-privacy", size: CGSize(width: 520, height: 640), title: "Privacy") {
+        SettingsPaneView(.privacy).environment(privacyModel).frame(width: 480).padding(20)
+    }
+
     // Settings → Advanced
     let (advancedModel, _) = await makeModel()
     try await render("settings-advanced", size: CGSize(width: 520, height: 420), title: "Advanced") {

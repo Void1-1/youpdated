@@ -17,7 +17,7 @@ youpdated init --encrypt
 
 For any other edit, run `youpdated edit`. It asks for the passphrase, opens a decrypted copy in your editor, and writes it back encrypted with the same passphrase. The history is left alone.
 Note: an editor can only open a file, so the copy is plaintext on disk while the editor is open: in a folder only you can read, under `/dev/shm` (memory) where the system has one, or the temp folder otherwise. It is deleted once the editor closes, *but* it may survive in free space on disk, and editors might keep their own copies.
-> A config that also sets `privacy.proxy` asks before writing the copy. (Considered 'advanced security')
+> A config that also sets `settings.privacy.proxy` asks before writing the copy. (Considered 'advanced security')
 
 `youpdated decrypt`, edit, then `youpdated encrypt` still works, but it leaves both files in plaintext until you encrypt again.
 

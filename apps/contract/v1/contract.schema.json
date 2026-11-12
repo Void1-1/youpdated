@@ -54,6 +54,8 @@
             "bad_entry",
             "not_found",
             "io_error",
+            "proxy_unreachable",
+            "user_agent_unconfirmed",
             "internal"
           ]
         },
@@ -371,6 +373,10 @@
           "description": "If the config has Youpdated; null while locked or without config",
           "enum": ["watching", "declined", "absent", null]
         },
+        "named_user_agent": {
+          "description": "`user_agent: youpdated` on an encrypted, proxied setup. Missing from older engines",
+          "enum": ["unconfirmed", "confirmed", null]
+        },
         "counts": {
           "description": "null while locked or without config",
           "oneOf": [
@@ -624,6 +630,51 @@
       "properties": { "settings": { "$ref": "#/$defs/SettingsPatch" } }
     },
     "settings.set.reply": { "$ref": "#/$defs/settings.get.reply" },
+
+    "Privacy": {
+      "description": "The config's `settings.privacy`. The apps can only change `proxy` and `fast_mode`",
+      "type": "object",
+      "required": ["proxy", "fast_mode", "user_agent", "jitter", "concurrency", "timeout"],
+      "additionalProperties": false,
+      "properties": {
+        "proxy": { "type": ["string", "null"], "description": "Every request goes through it, or null for none" },
+        "fast_mode": { "type": "boolean" },
+        "user_agent": { "type": "string", "description": "`rotate`, `youpdated`, or a fixed user agent" },
+        "jitter": {
+          "description": "Random gap between requests to one site, [min, max] seconds",
+          "type": "array",
+          "items": { "type": "number", "minimum": 0 },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "concurrency": { "type": "integer", "minimum": 1 },
+        "timeout": { "type": "number", "exclusiveMinimum": 0 }
+      }
+    },
+
+    "privacy.get.request": { "type": "object", "additionalProperties": false },
+    "privacy.get.reply": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["privacy"],
+      "properties": { "privacy": { "$ref": "#/$defs/Privacy" } }
+    },
+
+    "privacy.set.request": {
+      "description": "Writes the config, keeping comments. A new proxy is tested and isn't saved if `proxy_unreachable`. A change that leaves `user_agent: youpdated` on an encrypted, proxied setup fails with `user_agent_unconfirmed` unless `confirm_user_agent`",
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "proxy": { "type": ["string", "null"], "description": "URL (socks5://127.0.0.1:9050), or null" },
+        "fast_mode": { "type": "boolean" },
+        "confirm_user_agent": {
+          "type": "boolean",
+          "description": "The user agreed to send `user_agent: youpdated` on an encrypted, proxied setup."
+        }
+      }
+    },
+    "privacy.set.reply": { "$ref": "#/$defs/privacy.get.reply" },
 
     "priority.set.request": {
       "type": "object",

@@ -9,7 +9,7 @@ import Testing
         await harness.model.launch()
         let model = harness.model
         #expect(model.engineState == .ready)
-        #expect(harness.engine.ops == ["hello", "status", "settings.get", "problems.list", "inbox.list", "targets.list"])
+        #expect(harness.engine.ops == ["hello", "status", "settings.get", "privacy.get", "problems.list", "inbox.list", "targets.list"])
         #expect(model.engineVersion == "1.0.0")
         #expect(model.inbox.items.count == 6)
         #expect(model.unread == 4)
@@ -174,6 +174,66 @@ import Testing
         await harness.model.didWake()
         #expect(harness.engine.requests("digest.send").count == 1)
         #expect(harness.platform.posted.last?.title == "Team Fortress 2")
+    }
+
+    @Test func privacyIsReadAtLaunchAndAProxyThatFailsIsExplained() async {
+        let harness = Harness()
+        await harness.model.launch()
+        #expect(harness.model.privacy?.proxy == nil)
+        harness.engine.script("privacy.set", "privacy.set/unreachable", "privacy.set/tor")
+        guard case .failed(let problem) = await harness.model.setPrivacy(proxy: "socks5://127.0.0.1:9050") else {
+            Issue.record("expected a failure")
+            return
+        }
+        #expect(problem.contains("cannot reach the proxy"))
+        #expect(harness.model.privacy?.proxy == nil)
+        #expect(harness.model.appProblems.isEmpty)
+        #expect(await harness.model.setPrivacy(proxy: "socks5://127.0.0.1:9050") == .saved)
+        #expect(harness.model.privacy?.proxy == "socks5://127.0.0.1:9050")
+        #expect(harness.engine.requests("privacy.set").last?["proxy"] as? String == "socks5://127.0.0.1:9050")
+    }
+
+    @Test func anUnconfirmedUserAgentWaitsForTheUser() async {
+        let harness = Harness {
+            $0.script("status", "status/named_user_agent")
+            $0.script("privacy.set", "privacy.set/confirm_user_agent")
+        }
+        harness.clock.advance(6 * 3600)
+        await harness.model.launch()
+        // a check is due, but nothing is sent and it isn't an error
+        #expect(harness.model.needsUserAgentConfirmation)
+        #expect(harness.engine.requests("check").isEmpty)
+        #expect(harness.model.appProblems.isEmpty)
+
+        await harness.model.confirmUserAgent()
+        #expect(harness.engine.requests("privacy.set").last?["confirm_user_agent"] as? Bool == true)
+        #expect(!harness.model.needsUserAgentConfirmation)
+        #expect(harness.engine.requests("check").count == 1)
+    }
+
+    @Test func aRefusedCheckAsksInsteadOfReportingAProblem() async {
+        let harness = Harness {
+            $0.script("check", "check/user_agent_unconfirmed")
+            $0.script("status", "status/ok", "status/ok", "status/named_user_agent")
+        }
+        await harness.model.launch()
+        await harness.model.checkNow()
+        #expect(harness.model.needsUserAgentConfirmation)
+        #expect(harness.model.appProblems.isEmpty)
+    }
+
+    @Test func aProxyThatNeedsTheUserAgentConfirmedAsksFirst() async {
+        let harness = Harness {
+            $0.script("privacy.set", "privacy.set/user_agent_unconfirmed", "privacy.set/confirm_user_agent")
+        }
+        await harness.model.launch()
+        #expect(await harness.model.setPrivacy(proxy: "socks5://127.0.0.1:9050") == .needsUserAgentConfirmation)
+        #expect(harness.model.privacy?.proxy == nil)
+        #expect(await harness.model.setPrivacy(proxy: "socks5://127.0.0.1:9050", confirmUserAgent: true) == .saved)
+        let sent = harness.engine.requests("privacy.set").last
+        #expect(sent?["proxy"] as? String == "socks5://127.0.0.1:9050")
+        #expect(sent?["confirm_user_agent"] as? Bool == true)
+        #expect(harness.model.appProblems.isEmpty)
     }
 
     @Test func selfWatchOffer() async {

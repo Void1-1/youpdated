@@ -18,9 +18,12 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import IO, Any, Callable, Iterator
 
+import yaml
+
 from . import __version__, crypto, icons, notify
 from .config import (
     DEFAULT_EXPIRY,
+    NAMED_UA_CONFIRMED,
     PRIORITIES,
     Config,
     ConfigError,
@@ -29,9 +32,18 @@ from .config import (
     default_state_path,
     find_config,
     load_config,
+    names_itself_privately,
+    parse_config,
     read_config_text,
 )
-from .edit import add_to_config, claims, remove_from_config, requested_urls, write_config
+from .edit import (
+    add_to_config,
+    claims,
+    remove_from_config,
+    requested_urls,
+    set_privacy,
+    write_config,
+)
 from .http import Client, ProxyUnavailable, probe_proxy
 from .importers import READERS, Found, read_file
 from .models import RunError, Target, Update
@@ -59,6 +71,8 @@ OPS = (
     "import.apply",
     "settings.get",
     "settings.set",
+    "privacy.get",
+    "privacy.set",
     "priority.set",
     "problems.list",
     "icon.get",
@@ -72,6 +86,17 @@ _OPEN_OPS = frozenset({"hello", "status", "unlock", "shutdown"})
 
 # app retries later
 LOCK_TIMEOUT = 5.0
+# longest wait for a proxy that `privacy.set` will save
+PROXY_PROBE = 5.0
+# `user_agent: youpdated` on an encrypted, proxied setup, before the app or CLI confirmed it
+_UNCONFIRMED_UA = (
+    "`user_agent: youpdated` names Youpdated in requests, and this setup is encrypted and "
+    "uses a proxy. Confirm it in Youpdated, or set `user_agent: rotate`. Nothing was sent."
+)
+_UNCONFIRMED_UA_SAVE = (
+    "`user_agent: youpdated` names Youpdated in requests, and this change makes the setup "
+    "encrypted and proxied. Confirm it with `confirm_user_agent`. Nothing was saved."
+)
 # how long a new check waits for the last one to finish fetchin an icon
 ICON_WAIT = 30.0
 
@@ -158,6 +183,9 @@ class _Params:
 
     def __init__(self, raw: dict[str, Any]):
         self._raw = dict(raw)
+
+    def __contains__(self, name: str) -> bool:
+        return name in self._raw
 
     def get(self, name: str, kind: str, default: Any = None, *, required: bool = False) -> Any:
         if name not in self._raw:
@@ -383,6 +411,20 @@ class Engine:
     def _write_config(self, path: Path, text: str) -> None:
         write_config(path, text, self._passphrase_for(path))
 
+    def _names_itself(self, config: Config) -> bool:
+        return names_itself_privately(config, self._setup_passphrase() is not None)
+
+    def _named_ua_confirmed(self, config: Config) -> bool:
+        if not self.state_path.exists() and self._shared is None:
+            return False
+        with self._history(config) as state:
+            return state.cache_get(*NAMED_UA_CONFIRMED) is not None
+
+    def _require_named_ua_confirmed(self, config: Config) -> None:
+        """Before anything is sent, like `youpdated check`"""
+        if self._names_itself(config) and not self._named_ua_confirmed(config):
+            raise ApiError("user_agent_unconfirmed", _UNCONFIRMED_UA)
+
     def _open_state(self, config: Config | None) -> State:
         return State(
             self.state_path,
@@ -529,6 +571,7 @@ class Engine:
             "last_run_by": None,
             "self_watch": None,
             "counts": None,
+            "named_user_agent": None,
         }
         if locked or not path.is_file():
             return reply
@@ -538,7 +581,7 @@ class Engine:
         except (ConfigError, crypto.EncryptionError) as exc:
             reply["config_error"] = str(exc)
 
-        settings, unread, problems = dict(DEFAULT_SETTINGS), 0, 0
+        settings, unread, problems, confirmed = dict(DEFAULT_SETTINGS), 0, 0, False
         # status doesn't create the history
         if self.state_path.exists() or self._shared is not None:
             with self._history(config) as state:
@@ -547,6 +590,7 @@ class Engine:
                 settings = self._settings(state)
                 unread = state.inbox_unread()
                 problems = len(self._problems(state)[0])
+                confirmed = state.cache_get(*NAMED_UA_CONFIRMED) is not None
             reply["last_run"] = stamp(last_run) if last_run else None
             reply["last_run_by"] = by if by in ("app", "cli") else None
         if config is not None:
@@ -562,6 +606,8 @@ class Engine:
                 "unread": unread,
                 "problems": problems,
             }
+            if self._names_itself(config):
+                reply["named_user_agent"] = "confirmed" if confirmed else "unconfirmed"
         return reply
 
     def op_check(self, p: _Params) -> dict[str, Any]:
@@ -612,6 +658,7 @@ class Engine:
         self, sources: list[str] | None, only: list[Key] | None, send: bool
     ) -> dict[str, Any]:
         config = self._config()
+        self._require_named_ua_confirmed(config)
         if config.privacy.proxy:
             probe_proxy(config.privacy.proxy, timeout=config.privacy.timeout)
         with self._cond:
@@ -918,6 +965,8 @@ class Engine:
             target.track_latest = config.track_latest
             configured, _ = build_targets(config)
             watching = any((t.source, t.key) == (name, target.key) for t in configured)
+        if config is not None:
+            self._require_named_ua_confirmed(config)
         newest, fetch_error = None, None
         with Client(config.privacy if config else PrivacyConfig()) as client:
             try:
@@ -1112,6 +1161,45 @@ class Engine:
                 state.clear_icons()
             return {"settings": self._settings(state)}
 
+    def op_privacy_get(self, p: _Params) -> dict[str, Any]:
+        p.done()
+        return {"privacy": _privacy(self._config().privacy)}
+
+    def op_privacy_set(self, p: _Params) -> dict[str, Any]:
+        changes: dict[str, Any] = {}
+        if "proxy" in p:
+            proxy = p.get("proxy", "str?")
+            if proxy is not None:
+                proxy = proxy.strip()
+                if "://" not in proxy:
+                    raise _bad("`proxy` must be a URL like socks5://127.0.0.1:9050")
+            changes["proxy"] = proxy or None
+        if "fast_mode" in p:
+            # off is the default
+            changes["fast_mode"] = p.get("fast_mode", "bool") or None
+        confirm = p.get("confirm_user_agent", "bool", False)
+        p.done()
+        if not changes and not confirm:
+            raise _bad("give `proxy`, `fast_mode`, or `confirm_user_agent`")
+        path, text = self._config_text()
+        current = self._config().privacy
+        edited = set_privacy(text, changes) if changes else text
+        config = parse_config(yaml.safe_load(edited), path, allow_empty=True)
+        unconfirmed = self._names_itself(config) and not self._named_ua_confirmed(config)
+        if unconfirmed and not confirm:
+            raise ApiError("user_agent_unconfirmed", _UNCONFIRMED_UA_SAVE)
+        if new_proxy := changes.get("proxy"):
+            try:
+                probe_proxy(new_proxy, timeout=min(current.timeout, PROXY_PROBE))
+            except ProxyUnavailable as exc:
+                raise ApiError("proxy_unreachable", str(exc)) from exc
+        if edited != text:
+            self._write_config(path, edited)
+        if unconfirmed:
+            with self._history(config) as state:
+                state.cache_set(*NAMED_UA_CONFIRMED, datetime.now(timezone.utc).isoformat())
+        return {"privacy": _privacy(config.privacy)}
+
     def op_priority_set(self, p: _Params) -> dict[str, Any]:
         source = p.get("source", "str", required=True)
         key = p.get("key", "str", required=True)
@@ -1183,6 +1271,8 @@ class Engine:
     def op_digest_send(self, p: _Params) -> dict[str, Any]:
         p.done()
         config = self._config()
+        # before anything is marked sent
+        self._require_named_ua_confirmed(config)
         with self._history(config) as state:
             rows = state.inbox_held()
             if not rows:
@@ -1262,6 +1352,17 @@ class Engine:
     def op_shutdown(self, p: _Params) -> dict[str, Any]:
         p.done()
         return {}
+
+
+def _privacy(privacy: PrivacyConfig) -> dict[str, Any]:
+    return {
+        "proxy": privacy.proxy,
+        "fast_mode": privacy.fast_mode,
+        "user_agent": privacy.user_agent,
+        "jitter": list(privacy.jitter),
+        "concurrency": privacy.concurrency,
+        "timeout": privacy.timeout,
+    }
 
 
 def _ids(updates: list[Update]) -> list[str]:

@@ -41,6 +41,8 @@ Used for the desktop apps and `youpdated api serve` to communicate. [contract.sc
 | `bad_entry` | The source rejects the entry |
 | `not_found` | Nothing matches the request |
 | `io_error` | A file couldn't be read or written |
+| `proxy_unreachable` | `privacy.set` couldn't connect to the proxy; nothing was saved |
+| `user_agent_unconfirmed` | `user_agent: youpdated` on an encrypted, proxied setup isn't confirmed yet. `check`, `targets.preview`, and `digest.send` sent nothing; `privacy.set` saved nothing |
 | `internal` | Bugs. `message` keeps the exception |
 
 `message` is plain English for the user. A client treats a code it doesn't know as a generic failure.
@@ -62,6 +64,8 @@ Used for the desktop apps and `youpdated api serve` to communicate. [contract.sc
   - The same rules filter the config's `notify:` webhooks and commands.
 - **`last_run_by`** is `app` for a check through `api`, and `cli` for `youpdated check`. When it says `cli`, a scheduled job is probably also checking, and the app shows a one-time notice (`cli_notice_shown`).
 - **Snapshot privacy.** When the history is encrypted, `snapshot.write` writes only the unread count and the last check time (`redacted: true`). [snapshot.schema.json](snapshot.schema.json)
+- **Privacy.** `privacy.get` reads the config's `settings.privacy` with defaults filled in. `privacy.set` changes `proxy` and `fast_mode` only. It edits the config text in place, an option set to off is commented out.
+- **Youpdated user agent.** `user_agent: youpdated` identifies its traffic, so like the CLI, the engine sends nothing until it's confirmed when both encryption and a proxy are enabled. `status.named_user_agent` is `unconfirmed` until then. The answer is kept and shared with the CLI.
 - **Icons** are off unless `show_icons` is set.
   - After replying, a check fetches icons for a few targets without one. After enabling, icons arrive over a check or two. Each is refreshed monthly.
   - `icon` events tell each target whose icon arrived
