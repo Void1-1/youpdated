@@ -18,7 +18,8 @@ import respx
 
 from youpdated import api, crypto, icons
 from youpdated.cli import main
-from youpdated.http import USER_AGENTS
+from youpdated.http import USER_AGENTS, Client
+from youpdated.models import Target
 from youpdated.state import State, stamp
 
 from .conftest import get_source
@@ -52,6 +53,17 @@ def engine(tmp_path, fake):
 
 def shown(engine) -> dict | None:
     return engine("icon.get", source="fake", key="alpha")["icon"]
+
+
+def icon_shown(engine) -> dict:
+    icon = shown(engine)
+    assert icon is not None
+    return icon
+
+
+def icon_url(source: str, target: Target, client: Client) -> str | list[str] | None:
+    """`icon` is optional on a source, so it isn't part of `Source`"""
+    return getattr(get_source(source), "icon")(target, client)
 
 
 @respx.mock
@@ -110,7 +122,7 @@ def test_icon_waits_for_the_reply_then_says_it_arrived(engine):
     engine.follow_up()
     assert route.call_count == 1 and not engine.fetching_icons
     assert engine.events[-1] == {"event": "icon", "target": {"source": "fake", "key": "alpha"}}
-    assert shown(engine)["mime"] == "image/png"
+    assert icon_shown(engine)["mime"] == "image/png"
 
 
 @respx.mock
@@ -218,7 +230,7 @@ def test_a_failed_fetch_is_tried_again_later(engine, tmp_path):
 
     engine("check")
 
-    assert shown(engine)["mime"] == "image/png"
+    assert icon_shown(engine)["mime"] == "image/png"
 
 
 @respx.mock
@@ -277,7 +289,7 @@ def test_icons_are_encrypted_with_the_history(tmp_path, fake):
 
     engine("check")
 
-    assert shown(engine)["data"] == base64.b64encode(IMAGE).decode()
+    assert icon_shown(engine)["data"] == base64.b64encode(IMAGE).decode()
     blob = (tmp_path / "state.db").read_bytes()
     assert crypto.is_encrypted(blob) and IMAGE not in blob
 
@@ -321,11 +333,11 @@ def test_steam_uses_the_store_header(client):
     respx.get(url__startswith="https://store.steampowered.com/api/appdetails").mock(
         return_value=httpx.Response(200, json={"440": {"success": True, "data": {"header_image": header}}})
     )
-    assert get_source("steam").icon(_target("steam", "440"), client) == header
+    assert icon_url("steam", _target("steam", "440"), client) == header
 
 
 def test_github_names_the_owners_avatar_without_a_request(client):
-    url = get_source("git").icon(_target("git", "python/cpython"), client)
+    url = icon_url("git", _target("git", "python/cpython"), client)
     assert url == "https://github.com/python.png?size=128"
 
 
@@ -337,11 +349,10 @@ def test_gitlab_and_forgejo_ask_the_repo_api(client):
     respx.get("https://codeberg.org/api/v1/repos/forgejo/forgejo").mock(
         return_value=httpx.Response(200, json={"owner": {"avatar_url": "https://codeberg.org/avatars/abc"}})
     )
-    git = get_source("git")
-    assert git.icon(_target("git", "gitlab.com/gnome/gtk"), client) == (
+    assert icon_url("git", _target("git", "gitlab.com/gnome/gtk"), client) == (
         "https://gitlab.com/uploads/-/system/group/avatar/8/gnome.png"
     )
-    assert git.icon(_target("git", "codeberg.org/forgejo/forgejo"), client) == (
+    assert icon_url("git", _target("git", "codeberg.org/forgejo/forgejo"), client) == (
         "https://codeberg.org/avatars/abc"
     )
 
@@ -350,31 +361,29 @@ def test_gitlab_and_forgejo_ask_the_repo_api(client):
 def test_youtube_uses_the_channel_picture_at_a_small_size(client):
     page = '<meta content="https://yt3.googleusercontent.com/abc=s900-c-k-c0x00ffffff-no-rj" property="og:image">'
     respx.get("https://www.youtube.com/@NASA").mock(return_value=httpx.Response(200, text=page))
-    youtube = get_source("youtube")
-    assert youtube.icon(_target("youtube", "@NASA"), client) == (
+    assert icon_url("youtube", _target("youtube", "@NASA"), client) == (
         "https://yt3.googleusercontent.com/abc=s176-c-k-c0x00ffffff-no-rj"
     )
-    assert youtube.icon(_target("youtube", {"playlist": "PLabcdefghijkl"}), client) is None
+    assert icon_url("youtube", _target("youtube", {"playlist": "PLabcdefghijkl"}), client) is None
 
 
 @respx.mock
 def test_itch_uses_the_cover(client):
     page = "<meta property='og:image' content='https://img.itch.zone/aW1n/315x250%23c/cover.png'/>"
     respx.get("https://foo.itch.io/bar").mock(return_value=httpx.Response(200, text=page))
-    assert get_source("itch").icon(_target("itch", "https://foo.itch.io/bar"), client) == (
+    assert icon_url("itch", _target("itch", "https://foo.itch.io/bar"), client) == (
         "https://img.itch.zone/aW1n/315x250%23c/cover.png"
     )
 
 
 @respx.mock
 def test_a_feed_uses_its_image_else_its_sites_icon(client):
-    feed = get_source("feed")
     with_image = (
         "<rss><channel><title>Blog</title><link>https://blog.example.com/</link>"
         "<image><url>https://blog.example.com/logo.png</url></image></channel></rss>"
     )
     respx.get("https://blog.example.com/feed.xml").mock(return_value=httpx.Response(200, text=with_image))
-    assert feed.icon(_target("feed", "https://blog.example.com/feed.xml"), client) == [
+    assert icon_url("feed", _target("feed", "https://blog.example.com/feed.xml"), client) == [
         "https://blog.example.com/logo.png",
         "https://blog.example.com/favicon.ico",
     ]
@@ -386,7 +395,7 @@ def test_a_feed_uses_its_image_else_its_sites_icon(client):
     )
     respx.get("https://news.example.org/rss.xml").mock(return_value=httpx.Response(200, text=plain))
     respx.get("https://news.example.org/").mock(return_value=httpx.Response(200, text=home))
-    assert feed.icon(_target("feed", "https://news.example.org/rss.xml"), client) == [
+    assert icon_url("feed", _target("feed", "https://news.example.org/rss.xml"), client) == [
         "https://news.example.org/apple-touch-icon.png"
     ]
 

@@ -212,21 +212,40 @@ public sealed partial class SettingsViewModel : ObservableObject
     public Task SetFastModeAsync(bool on) =>
         on == FastMode ? Task.CompletedTask : SavePrivacyAsync(new PrivacyPatch().FastMode(on));
 
+    /// <summary>Asks before Youpdated names itself in requests on an encrypted, proxied setup; the page shows a dialog</summary>
+    public Func<Task<bool>>? AskToConfirmUserAgent { get; set; }
+
+    /// <summary>Agreed to in Settings → Privacy, kept in the history</summary>
+    public event Action? UserAgentConfirmed;
+
     private async Task SavePrivacyAsync(PrivacyPatch patch)
     {
         PrivacyError = null;
         PrivacySaving = true;
         try
         {
-            ApplyPrivacy((await _engine.PrivacySetAsync(patch)).Privacy);
+            try
+            {
+                ApplyPrivacy((await _engine.PrivacySetAsync(patch)).Privacy);
+            }
+            catch (EngineException exc) when (exc.Is(ErrorCodes.UserAgentUnconfirmed))
+            {
+                if (AskToConfirmUserAgent is not { } ask || !await ask())
+                {
+                    RevertPrivacy();
+                    return;
+                }
+                ApplyPrivacy((await _engine.PrivacySetAsync(patch.ConfirmUserAgent())).Privacy);
+                UserAgentConfirmed?.Invoke();
+            }
         }
         catch (Exception exc) when (exc is EngineException or EngineUnavailableException or EngineExitedException or EngineProtocolException)
         {
             PrivacyError = exc.Message;
             // a custom address that failed stays
-            if (ProxyChoice != ProxyChoice.Custom && Privacy is { } privacy)
+            if (ProxyChoice != ProxyChoice.Custom)
             {
-                ApplyPrivacy(privacy);
+                RevertPrivacy();
             }
             else
             {
@@ -238,6 +257,16 @@ public sealed partial class SettingsViewModel : ObservableObject
             PrivacySaving = false;
             OnPropertyChanged(nameof(CanUseAddress));
         }
+    }
+
+    /// <summary>Back to what the config has</summary>
+    private void RevertPrivacy()
+    {
+        if (Privacy is { } privacy)
+        {
+            ApplyPrivacy(privacy);
+        }
+        OnPropertyChanged(nameof(FastMode));
     }
 
     private void ApplyPrivacy(Privacy privacy)

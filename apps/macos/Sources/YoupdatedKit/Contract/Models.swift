@@ -248,6 +248,8 @@ public struct UnlockReply: Codable, Sendable {
 public struct StatusReply: Codable, Sendable {
     public enum RunBy: String, Codable, Sendable { case app, cli }
     public enum SelfWatch: String, Codable, Sendable { case watching, declined, absent }
+    /// `user_agent: youpdated` on an encrypted, proxied setup
+    public enum NamedUserAgent: String, Codable, Sendable { case unconfirmed, confirmed }
 
     public struct Counts: Codable, Sendable, Hashable {
         public var targets: Int
@@ -265,6 +267,7 @@ public struct StatusReply: Codable, Sendable {
     public var lastRunBy: RunBy?
     public var selfWatch: SelfWatch?
     public var counts: Counts?
+    public var namedUserAgent: NamedUserAgent?
 }
 
 public struct CheckReply: Codable, Sendable {
@@ -444,7 +447,7 @@ public struct EngineError: Error, Sendable, Hashable, Codable, LocalizedError {
     public enum Code: Sendable, Hashable {
         case badRequest, unknownOp, locked, wrongPassphrase, encryptionUnavailable, noConfig
         case configError, historyBusy, busy, ambiguous, unrecognized, badEntry, notFound
-        case ioError, proxyUnreachable, `internal`
+        case ioError, proxyUnreachable, userAgentUnconfirmed, `internal`
         case other(String)
 
         static let wire: [String: Code] = [
@@ -453,7 +456,8 @@ public struct EngineError: Error, Sendable, Hashable, Codable, LocalizedError {
             "no_config": .noConfig, "config_error": .configError, "history_busy": .historyBusy,
             "busy": .busy, "ambiguous": .ambiguous, "unrecognized": .unrecognized,
             "bad_entry": .badEntry, "not_found": .notFound, "io_error": .ioError,
-            "proxy_unreachable": .proxyUnreachable, "internal": .internal,
+            "proxy_unreachable": .proxyUnreachable, "user_agent_unconfirmed": .userAgentUnconfirmed,
+            "internal": .internal,
         ]
 
         public init(wire: String) {

@@ -23,6 +23,7 @@ import yaml
 from . import __version__, crypto, icons, notify
 from .config import (
     DEFAULT_EXPIRY,
+    NAMED_UA_CONFIRMED,
     PRIORITIES,
     Config,
     ConfigError,
@@ -31,6 +32,7 @@ from .config import (
     default_state_path,
     find_config,
     load_config,
+    names_itself_privately,
     parse_config,
     read_config_text,
 )
@@ -86,6 +88,15 @@ _OPEN_OPS = frozenset({"hello", "status", "unlock", "shutdown"})
 LOCK_TIMEOUT = 5.0
 # longest wait for a proxy that `privacy.set` will save
 PROXY_PROBE = 5.0
+# `user_agent: youpdated` on an encrypted, proxied setup, before the app or CLI confirmed it
+_UNCONFIRMED_UA = (
+    "`user_agent: youpdated` names Youpdated in requests, and this setup is encrypted and "
+    "uses a proxy. Confirm it in Youpdated, or set `user_agent: rotate`. Nothing was sent."
+)
+_UNCONFIRMED_UA_SAVE = (
+    "`user_agent: youpdated` names Youpdated in requests, and this change makes the setup "
+    "encrypted and proxied. Confirm it with `confirm_user_agent`. Nothing was saved."
+)
 # how long a new check waits for the last one to finish fetchin an icon
 ICON_WAIT = 30.0
 
@@ -400,6 +411,20 @@ class Engine:
     def _write_config(self, path: Path, text: str) -> None:
         write_config(path, text, self._passphrase_for(path))
 
+    def _names_itself(self, config: Config) -> bool:
+        return names_itself_privately(config, self._setup_passphrase() is not None)
+
+    def _named_ua_confirmed(self, config: Config) -> bool:
+        if not self.state_path.exists() and self._shared is None:
+            return False
+        with self._history(config) as state:
+            return state.cache_get(*NAMED_UA_CONFIRMED) is not None
+
+    def _require_named_ua_confirmed(self, config: Config) -> None:
+        """Before anything is sent, like `youpdated check`"""
+        if self._names_itself(config) and not self._named_ua_confirmed(config):
+            raise ApiError("user_agent_unconfirmed", _UNCONFIRMED_UA)
+
     def _open_state(self, config: Config | None) -> State:
         return State(
             self.state_path,
@@ -546,6 +571,7 @@ class Engine:
             "last_run_by": None,
             "self_watch": None,
             "counts": None,
+            "named_user_agent": None,
         }
         if locked or not path.is_file():
             return reply
@@ -555,7 +581,7 @@ class Engine:
         except (ConfigError, crypto.EncryptionError) as exc:
             reply["config_error"] = str(exc)
 
-        settings, unread, problems = dict(DEFAULT_SETTINGS), 0, 0
+        settings, unread, problems, confirmed = dict(DEFAULT_SETTINGS), 0, 0, False
         # status doesn't create the history
         if self.state_path.exists() or self._shared is not None:
             with self._history(config) as state:
@@ -564,6 +590,7 @@ class Engine:
                 settings = self._settings(state)
                 unread = state.inbox_unread()
                 problems = len(self._problems(state)[0])
+                confirmed = state.cache_get(*NAMED_UA_CONFIRMED) is not None
             reply["last_run"] = stamp(last_run) if last_run else None
             reply["last_run_by"] = by if by in ("app", "cli") else None
         if config is not None:
@@ -579,6 +606,8 @@ class Engine:
                 "unread": unread,
                 "problems": problems,
             }
+            if self._names_itself(config):
+                reply["named_user_agent"] = "confirmed" if confirmed else "unconfirmed"
         return reply
 
     def op_check(self, p: _Params) -> dict[str, Any]:
@@ -629,6 +658,7 @@ class Engine:
         self, sources: list[str] | None, only: list[Key] | None, send: bool
     ) -> dict[str, Any]:
         config = self._config()
+        self._require_named_ua_confirmed(config)
         if config.privacy.proxy:
             probe_proxy(config.privacy.proxy, timeout=config.privacy.timeout)
         with self._cond:
@@ -935,6 +965,8 @@ class Engine:
             target.track_latest = config.track_latest
             configured, _ = build_targets(config)
             watching = any((t.source, t.key) == (name, target.key) for t in configured)
+        if config is not None:
+            self._require_named_ua_confirmed(config)
         newest, fetch_error = None, None
         with Client(config.privacy if config else PrivacyConfig()) as client:
             try:
@@ -1145,20 +1177,27 @@ class Engine:
         if "fast_mode" in p:
             # off is the default
             changes["fast_mode"] = p.get("fast_mode", "bool") or None
+        confirm = p.get("confirm_user_agent", "bool", False)
         p.done()
-        if not changes:
-            raise _bad("give `proxy`, `fast_mode`, or both")
+        if not changes and not confirm:
+            raise _bad("give `proxy`, `fast_mode`, or `confirm_user_agent`")
         path, text = self._config_text()
         current = self._config().privacy
-        if changes.get("proxy"):
+        edited = set_privacy(text, changes) if changes else text
+        config = parse_config(yaml.safe_load(edited), path, allow_empty=True)
+        unconfirmed = self._names_itself(config) and not self._named_ua_confirmed(config)
+        if unconfirmed and not confirm:
+            raise ApiError("user_agent_unconfirmed", _UNCONFIRMED_UA_SAVE)
+        if new_proxy := changes.get("proxy"):
             try:
-                probe_proxy(changes["proxy"], timeout=min(current.timeout, PROXY_PROBE))
+                probe_proxy(new_proxy, timeout=min(current.timeout, PROXY_PROBE))
             except ProxyUnavailable as exc:
                 raise ApiError("proxy_unreachable", str(exc)) from exc
-        edited = set_privacy(text, changes)
-        config = parse_config(yaml.safe_load(edited), path, allow_empty=True)
         if edited != text:
             self._write_config(path, edited)
+        if unconfirmed:
+            with self._history(config) as state:
+                state.cache_set(*NAMED_UA_CONFIRMED, datetime.now(timezone.utc).isoformat())
         return {"privacy": _privacy(config.privacy)}
 
     def op_priority_set(self, p: _Params) -> dict[str, Any]:
@@ -1232,6 +1271,8 @@ class Engine:
     def op_digest_send(self, p: _Params) -> dict[str, Any]:
         p.done()
         config = self._config()
+        # before anything is marked sent
+        self._require_named_ua_confirmed(config)
         with self._history(config) as state:
             rows = state.inbox_held()
             if not rows:

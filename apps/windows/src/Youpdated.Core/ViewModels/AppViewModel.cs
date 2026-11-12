@@ -79,6 +79,7 @@ public sealed partial class AppViewModel : ObservableObject, IAsyncDisposable
         Settings = new SettingsViewModel(
             _engine, services.Startup, services.Credentials, () => _passphrase, services.AppVersion, services.LocalState);
         Unlock = new UnlockViewModel(UnlockAsync);
+        Settings.UserAgentConfirmed += () => _ = RefreshStatusAsync();
         Downloader = new UpdateDownloader(services.Http);
 
         _host.Started += hello => _services.Ui.Post(() => _ = OnEngineStartedAsync(hello));
@@ -139,6 +140,9 @@ public sealed partial class AppViewModel : ObservableObject, IAsyncDisposable
 
     /// <summary>A scheduled CLI check is also running</summary>
     public event Action? CliNoticeNeeded;
+
+    /// <summary><c>user_agent: youpdated</c> on an encrypted, proxied setup isn't confirmed</summary>
+    public event Action? UserAgentConfirmationNeeded;
 
     /// <summary>First launch: offer "Add to Start menu"</summary>
     public event Action? StartMenuOfferNeeded;
@@ -218,6 +222,59 @@ public sealed partial class AppViewModel : ObservableObject, IAsyncDisposable
     [ObservableProperty]
     public partial bool ShowCliNotice { get; private set; }
 
+    /// <summary><c>user_agent: youpdated</c> on an encrypted, proxied setup isn't confirmed</summary>
+    [ObservableProperty]
+    public partial bool NeedsUserAgentConfirmation { get; private set; }
+
+    partial void OnStatusChanged(StatusReply? value)
+    {
+        var needs = value?.NamedUserAgent == NamedUserAgent.Unconfirmed;
+        if (needs == NeedsUserAgentConfirmation)
+        {
+            return;
+        }
+        NeedsUserAgentConfirmation = needs;
+        if (needs)
+        {
+            Scheduler.Stop();
+            UserAgentConfirmationNeeded?.Invoke();
+        }
+        else if (IsReady)
+        {
+            Scheduler.Start();
+        }
+        UpdateTray();
+    }
+
+    /// <summary>The user agreed to send requests as Youpdated</summary>
+    public async Task<string?> ConfirmUserAgentAsync()
+    {
+        try
+        {
+            await _engine.PrivacySetAsync(new PrivacyPatch().ConfirmUserAgent());
+        }
+        catch (Exception exc) when (exc is EngineException or EngineUnavailableException or EngineExitedException or EngineProtocolException)
+        {
+            return exc.Message;
+        }
+        await Settings.LoadPrivacyAsync();
+        await RefreshStatusAsync();
+        return null;
+    }
+
+    private async Task RefreshStatusAsync()
+    {
+        try
+        {
+            Status = await _engine.StatusAsync();
+            Settings.SetStatus(Status);
+        }
+        catch (Exception exc) when (exc is EngineException or EngineUnavailableException or EngineExitedException or EngineProtocolException)
+        {
+            // the next status read catches up
+        }
+    }
+
     /// <summary>Launch: register the link handler and start the engine</summary>
     public async Task StartAsync(CancellationToken cancellationToken = default)
     {
@@ -261,6 +318,11 @@ public sealed partial class AppViewModel : ObservableObject, IAsyncDisposable
         catch (EngineException exc) when (exc.Is(ErrorCodes.Locked))
         {
             Locked();
+            return false;
+        }
+        catch (EngineException exc) when (exc.Is(ErrorCodes.UserAgentUnconfirmed))
+        {
+            await RefreshStatusAsync();
             return false;
         }
         catch (Exception exc) when (exc is EngineException or EngineUnavailableException or EngineExitedException or EngineProtocolException)
@@ -639,7 +701,10 @@ public sealed partial class AppViewModel : ObservableObject, IAsyncDisposable
         await RefreshAsync();
         IsReady = true;
         UpdateWindowState();
-        Scheduler.Start();
+        if (!NeedsUserAgentConfirmation)
+        {
+            Scheduler.Start();
+        }
         // Last, so anything waiting on Ready sees the finished window
         _ready.TrySetResult();
     }
@@ -722,6 +787,11 @@ public sealed partial class AppViewModel : ObservableObject, IAsyncDisposable
             PostAlerts(reply.Alerts, reply.Items);
             await Problems.RefreshAsync();
             return true;
+        }
+        catch (EngineException exc) when (exc.Is(ErrorCodes.UserAgentUnconfirmed))
+        {
+            await RefreshStatusAsync();
+            return false;
         }
         catch (Exception exc) when (exc is EngineException or EngineUnavailableException or EngineExitedException or EngineProtocolException)
         {
@@ -811,7 +881,7 @@ public sealed partial class AppViewModel : ObservableObject, IAsyncDisposable
         TrayState = IsLocked ? TrayState.Locked
             : IsChecking ? TrayState.Checking
             : Scheduler.IsPaused ? TrayState.Paused
-            : Problems.Any ? TrayState.Problems
+            : Problems.Any || NeedsUserAgentConfirmation ? TrayState.Problems
             : TrayState.Idle;
     }
 }

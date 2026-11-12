@@ -152,7 +152,15 @@ public static class ErrorCodes
     public const string NotFound = "not_found";
     public const string IoError = "io_error";
     public const string ProxyUnreachable = "proxy_unreachable";
+    public const string UserAgentUnconfirmed = "user_agent_unconfirmed";
     public const string Internal = "internal";
+}
+
+/// <summary><c>status.named_user_agent</c>: <c>user_agent: youpdated</c> on an encrypted, proxied setup</summary>
+public static class NamedUserAgent
+{
+    public const string Unconfirmed = "unconfirmed";
+    public const string Confirmed = "confirmed";
 }
 
 public static class SelfWatch

@@ -207,6 +207,7 @@ public sealed partial class MainWindow : Window, IMainWindow
                     UpdateChecking();
                     break;
                 case nameof(AppViewModel.ShowCliNotice):
+                case nameof(AppViewModel.NeedsUserAgentConfirmation):
                     UpdateBars();
                     break;
                 case nameof(ProblemsViewModel.Problems):
@@ -259,6 +260,7 @@ public sealed partial class MainWindow : Window, IMainWindow
     private void UpdateBars()
     {
         CliBar.IsOpen = _app.ShowCliNotice;
+        UserAgentBar.IsOpen = _app.NeedsUserAgentConfirmation;
     }
 
     private void UpdateProblems()
@@ -437,6 +439,18 @@ public sealed partial class MainWindow : Window, IMainWindow
     {
         SelfWatchBar.IsOpen = false;
         await _app.AnswerSelfWatchOfferAsync(watch: true);
+    }
+
+    private async void OnConfirmUserAgent(object sender, RoutedEventArgs e)
+    {
+        if (Content.XamlRoot is not { } root || !await Dialogs.ConfirmUserAgentAsync(root))
+        {
+            return;
+        }
+        if (await _app.ConfirmUserAgentAsync() is { } problem)
+        {
+            UserAgentBar.Message = problem;
+        }
     }
 
     /// <summary>Remember closing to not reshow</summary>

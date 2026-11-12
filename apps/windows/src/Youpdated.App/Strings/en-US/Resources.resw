@@ -749,4 +749,25 @@
   <data name="MenuDeleteMany" xml:space="preserve">
     <value>Delete {0} updates</value>
   </data>
+  <data name="UserAgentBar.Title" xml:space="preserve">
+    <value>Checks paused</value>
+  </data>
+  <data name="UserAgentBar.Message" xml:space="preserve">
+    <value>Confirm Youpdated may name itself in requests.</value>
+  </data>
+  <data name="UserAgentConfirm.Content" xml:space="preserve">
+    <value>Confirm…</value>
+  </data>
+  <data name="TrayUserAgent" xml:space="preserve">
+    <value>Checks paused for a confirmation</value>
+  </data>
+  <data name="UserAgentConfirmTitle" xml:space="preserve">
+    <value>Send requests as Youpdated?</value>
+  </data>
+  <data name="UserAgentConfirmBody" xml:space="preserve">
+    <value>The config's user agent setting is "youpdated" which names Youpdated and its version. This setup is encrypted and uses a proxy, but that setting identifies its traffic. "rotate" blends in more.</value>
+  </data>
+  <data name="UserAgentConfirmButton" xml:space="preserve">
+    <value>Send as Youpdated</value>
+  </data>
 </root>

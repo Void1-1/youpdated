@@ -128,6 +128,66 @@ public class AppViewModelTests
     }
 
     [Fact]
+    public async Task AnUnconfirmedUserAgentStopsChecksUntilConfirmed()
+    {
+        var engine = new FakeEngine().Next("status", "named_user_agent").Next("privacy.set", "confirm_user_agent");
+        await using var test = new TestApp(engine);
+        var asked = 0;
+        test.App.UserAgentConfirmationNeeded += () => asked++;
+        await test.StartAsync();
+
+        Assert.True(test.App.NeedsUserAgentConfirmation);
+        Assert.Equal(1, asked);
+        Assert.Null(test.App.Scheduler.NextCheck);
+
+        Assert.Null(await test.App.ConfirmUserAgentAsync());
+        Assert.True(engine.RequestsFor("privacy.set").Single()["confirm_user_agent"]!.GetValue<bool>());
+        Assert.False(test.App.NeedsUserAgentConfirmation);
+        Assert.NotNull(test.App.Scheduler.NextCheck);
+    }
+
+    [Fact]
+    public async Task ARefusedCheckWaitsForTheConfirmation()
+    {
+        var engine = new FakeEngine();
+        await using var test = new TestApp(engine);
+        await test.StartAsync();
+        var problems = test.App.Problems.Problems.Count;
+
+        engine.Next("check", "user_agent_unconfirmed").Next("status", "named_user_agent");
+        Assert.False(await test.App.CheckAsync());
+        Assert.True(test.App.NeedsUserAgentConfirmation);
+        Assert.Null(test.App.Scheduler.NextCheck);
+        Assert.Equal(problems, test.App.Problems.Problems.Count);
+    }
+
+    [Fact]
+    public async Task AProxyThatNeedsTheUserAgentConfirmedAsksFirst()
+    {
+        var engine = new FakeEngine();
+        await using var test = new TestApp(engine);
+        await test.StartAsync();
+        var settings = test.App.Settings;
+        var answer = false;
+        settings.AskToConfirmUserAgent = () => Task.FromResult(answer);
+
+        engine.Next("privacy.set", "user_agent_unconfirmed");
+        await settings.ChooseProxyAsync(ProxyChoice.Tor);
+        Assert.Single(engine.RequestsFor("privacy.set"));
+        Assert.Equal(ProxyChoice.None, settings.ProxyChoice);
+        Assert.Null(settings.PrivacyError);
+
+        answer = true;
+        engine.Next("privacy.set", "user_agent_unconfirmed").Next("privacy.set", "tor");
+        await settings.ChooseProxyAsync(ProxyChoice.Tor);
+        var confirmed = engine.RequestsFor("privacy.set").Last();
+        Assert.True(confirmed["confirm_user_agent"]!.GetValue<bool>());
+        Assert.Equal("socks5://127.0.0.1:9050", confirmed["proxy"]!.GetValue<string>());
+        Assert.Equal(ProxyChoice.Tor, settings.ProxyChoice);
+        Assert.Null(settings.PrivacyError);
+    }
+
+    [Fact]
     public async Task HiddenSelfWatchSuggestionsAreNotOfferedAndAreRemembered()
     {
         var engine = new FakeEngine().Then("status", _ => FakeEngine.Reply(FixtureReply("status/ok", r => r["self_watch"] = "absent")));

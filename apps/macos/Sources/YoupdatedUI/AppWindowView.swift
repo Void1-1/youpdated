@@ -9,6 +9,7 @@ public struct AppWindowView: View {
     @Environment(WindowState.self) private var window
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @FocusState private var filterFocused: Bool
+    @State private var confirmsUserAgent = false
 
     public init() {}
 
@@ -71,6 +72,15 @@ public struct AppWindowView: View {
             if model.isChecking {
                 ProgressLine(fraction: progress)
                     .transition(.opacity)
+            }
+            if model.needsUserAgentConfirmation {
+                SlimBar(symbol: "hand.raised", text: String(localized: "Checks paused: confirm Youpdated may name itself in requests.")) {
+                    Link(String(localized: "Learn More"), destination: URL(string: "https://github.com/Void1-1/youpdated/blob/main/docs/privacy.md#user-agent")!)
+                    Button(String(localized: "Confirm…")) { confirmsUserAgent = true }
+                }
+                .userAgentConfirmation(isPresented: $confirmsUserAgent) {
+                    Task { await model.confirmUserAgent() }
+                }
             }
             if model.showsCLINotice {
                 SlimBar(symbol: "terminal", text: String(localized: "Checks are also running from the command line. Updates they find won't appear here.")) {

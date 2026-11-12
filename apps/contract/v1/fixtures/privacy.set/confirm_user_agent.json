@@ -1,0 +1,21 @@
+{
+  "description": "The user agreed to send `user_agent: youpdated` on an encrypted setup with a proxy",
+  "request": {
+    "id": 64,
+    "op": "privacy.set",
+    "confirm_user_agent": true
+  },
+  "events": [],
+  "reply": {
+    "id": 64,
+    "ok": true,
+    "privacy": {
+      "proxy": "socks5://127.0.0.1:9050",
+      "fast_mode": false,
+      "user_agent": "youpdated",
+      "jitter": [0.5, 3.0],
+      "concurrency": 4,
+      "timeout": 20.0
+    }
+  }
+}

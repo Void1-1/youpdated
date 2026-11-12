@@ -41,6 +41,8 @@ public sealed partial class SettingsPage : Page
         var app = (AppViewModel)e.Parameter;
         Settings = app.Settings;
         Settings.PropertyChanged += OnSettingsChanged;
+        Settings.AskToConfirmUserAgent = () =>
+            XamlRoot is { } root ? Dialogs.ConfirmUserAgentAsync(root) : Task.FromResult(false);
         _app = app;
         _feed = app.Feed;
         Bindings.Update();
@@ -72,6 +74,7 @@ public sealed partial class SettingsPage : Page
     protected override void OnNavigatedFrom(NavigationEventArgs e)
     {
         Settings.PropertyChanged -= OnSettingsChanged;
+        Settings.AskToConfirmUserAgent = null;
         base.OnNavigatedFrom(e);
     }
 

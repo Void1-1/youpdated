@@ -52,6 +52,8 @@ public final class AppModel {
     public private(set) var showsCLINotice = false
     /// The config is empty -> show the 'add' box in inbox
     public private(set) var isFirstRun = false
+    /// `user_agent: youpdated` on an encrypted, proxied setup isn't confirmed
+    public var needsUserAgentConfirmation: Bool { status?.namedUserAgent == .unconfirmed }
 
     @ObservationIgnored let supervisor: EngineSupervisor
     @ObservationIgnored private let now: @Sendable () -> Date
@@ -287,6 +289,8 @@ public final class AppModel {
                 restartScheduler()
             case .locked:
                 needsPassphrase = true
+            case .userAgentUnconfirmed:
+                await refreshStatus()
             default:
                 report(error, doing: String(localized: "The check didn't finish."))
             }
@@ -346,7 +350,7 @@ public final class AppModel {
 
     /// Runs a due check and a due digest
     public func tick() async {
-        guard engine != nil, !needsPassphrase, status?.locked != true else { return }
+        guard engine != nil, !needsPassphrase, status?.locked != true, !needsUserAgentConfirmation else { return }
         pause = pause.settled(at: now())
         let due = Schedule.isDue(lastRun: lastCheck, interval: settings.checkInterval, pause: pause, now: now())
         let retry = retryAt.map { $0 <= now() && !pause.isActive(at: now()) } ?? false
@@ -370,6 +374,8 @@ public final class AppModel {
             defaults.lastDigest = now()
             problems = (problems + reply.notifyFailures).uniqued()
             platform.post(AlertComposer.compose(reply.alerts, items: reply.items, currentVersion: appVersion))
+        } catch let error as EngineError where error.code == .userAgentUnconfirmed {
+            await refreshStatus()
         } catch {
             report(error, doing: String(localized: "Couldn't send the digest."))
         }
@@ -471,15 +477,42 @@ public final class AppModel {
         }
     }
 
+    public enum PrivacyOutcome: Equatable, Sendable {
+        case saved
+        /// The change leaves `user_agent: youpdated` on an encrypted, proxied setup
+        case needsUserAgentConfirmation
+        case failed(String)
+    }
+
     /// Changes the config
-    public func setPrivacy(proxy: String?? = nil, fastMode: Bool? = nil) async -> String? {
-        guard let engine else { return String(localized: "Youpdated's engine isn't running.") }
+    public func setPrivacy(
+        proxy: String?? = nil, fastMode: Bool? = nil, confirmUserAgent: Bool = false
+    ) async -> PrivacyOutcome {
+        guard let engine else { return .failed(String(localized: "Youpdated's engine isn't running.")) }
         do {
-            privacy = try await engine.setPrivacy(proxy: proxy, fastMode: fastMode)
-            return nil
+            privacy = try await engine.setPrivacy(proxy: proxy, fastMode: fastMode, confirmUserAgent: confirmUserAgent)
+        } catch let error as EngineError where error.code == .userAgentUnconfirmed {
+            return .needsUserAgentConfirmation
         } catch {
-            return SourcesModel.message(for: error)
+            return .failed(SourcesModel.message(for: error))
         }
+        if confirmUserAgent || needsUserAgentConfirmation {
+            await refreshStatus()
+        }
+        return .saved
+    }
+
+    /// The user agreed to send requests as Youpdated
+    public func confirmUserAgent() async {
+        guard let engine else { return }
+        do {
+            privacy = try await engine.setPrivacy(confirmUserAgent: true)
+        } catch {
+            report(error, doing: String(localized: "Couldn't save that Youpdated may identify itself."))
+            return
+        }
+        await refreshStatus()
+        await tick()
     }
 
     public enum NotificationAction: String, Sendable {

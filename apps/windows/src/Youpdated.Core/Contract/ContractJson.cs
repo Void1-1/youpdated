@@ -138,5 +138,12 @@ public sealed class PrivacyPatch
         return this;
     }
 
+    /// <summary>The user agreed to send <c>user_agent: youpdated</c> on an encrypted, proxied setup</summary>
+    public PrivacyPatch ConfirmUserAgent()
+    {
+        _fields["confirm_user_agent"] = true;
+        return this;
+    }
+
     public JsonObject ToJson() => (JsonObject)_fields.DeepClone();
 }

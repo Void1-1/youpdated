@@ -223,7 +223,8 @@ public sealed class EngineClient(IEngineChannel channel)
     public Task<PrivacyReply> PrivacyGetAsync(CancellationToken cancellationToken = default) =>
         channel.SendAsync("privacy.get", null, ContractJson.Default.PrivacyReply, cancellationToken);
 
-    /// <summary>An unreachable proxy is <c>proxy_unreachable</c>, and not saved</summary>
+    /// <summary>An unreachable proxy is <c>proxy_unreachable</c>, and not saved. A change that leaves
+    /// <c>user_agent: youpdated</c> unconfirmed is <c>user_agent_unconfirmed</c> without <see cref="PrivacyPatch.ConfirmUserAgent"/></summary>
     public Task<PrivacyReply> PrivacySetAsync(PrivacyPatch patch, CancellationToken cancellationToken = default) =>
         channel.SendAsync("privacy.set", patch.ToJson(), ContractJson.Default.PrivacyReply, cancellationToken);
 

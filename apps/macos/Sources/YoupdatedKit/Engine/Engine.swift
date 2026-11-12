@@ -126,10 +126,14 @@ public struct Engine: Sendable {
         return reply.privacy
     }
 
-    /// `proxy: .some(nil)` stops using one. A new proxy that can't be reached is `proxyUnreachable`
-    public func setPrivacy(proxy: String?? = nil, fastMode: Bool? = nil) async throws -> Privacy {
+    /// `proxy: .some(nil)` stops using one. A new proxy that can't be reached is `proxyUnreachable`.
+    /// A change that needs `user_agent: youpdated` confirmed is `userAgentUnconfirmed` without `confirmUserAgent`
+    public func setPrivacy(
+        proxy: String?? = nil, fastMode: Bool? = nil, confirmUserAgent: Bool = false
+    ) async throws -> Privacy {
         let reply: PrivacyReply = try await client.call(
-            "privacy.set", Params.SetPrivacy(proxy: proxy, fastMode: fastMode))
+            "privacy.set",
+            Params.SetPrivacy(proxy: proxy, fastMode: fastMode, confirmUserAgent: confirmUserAgent ? true : nil))
         return reply.privacy
     }
 
@@ -225,13 +229,15 @@ enum Params {
     struct SetPrivacy: Encodable, Sendable {
         let proxy: String??
         let fastMode: Bool?
+        let confirmUserAgent: Bool?
 
-        enum CodingKeys: String, CodingKey { case proxy, fastMode }
+        enum CodingKeys: String, CodingKey { case proxy, fastMode, confirmUserAgent }
 
         func encode(to encoder: Encoder) throws {
             var container = encoder.container(keyedBy: CodingKeys.self)
             if let proxy { try container.encode(proxy, forKey: .proxy) }
             try container.encodeIfPresent(fastMode, forKey: .fastMode)
+            try container.encodeIfPresent(confirmUserAgent, forKey: .confirmUserAgent)
         }
     }
     struct SetPriority: Encodable, Sendable {

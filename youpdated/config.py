@@ -692,6 +692,13 @@ NAMED_UA_UNCONFIRMED = (
     "anything is sent: run `youpdated check` in a terminal, or set `user_agent: rotate`. "
     "Nothing was sent."
 )
+# kv row in the history: `user_agent: youpdated` was confirmed
+NAMED_UA_CONFIRMED = ("meta", "named_user_agent_confirmed")
+
+
+def names_itself_privately(config: Config, encrypted: bool) -> bool:
+    """`user_agent: youpdated` on an encrypted, proxied setup, see :data:`NAMED_UA_WARNING`"""
+    return encrypted and bool(config.privacy.proxy) and config.privacy.user_agent == "youpdated"
 
 
 EXAMPLE_CONFIG = """\

@@ -35,6 +35,7 @@ from .cleanup import Trace, find_package, find_traces, remove_package, remove_tr
 from .config import (
     EXAMPLE_CONFIG,
     FAST_MODE_WARNING,
+    NAMED_UA_CONFIRMED,
     NAMED_UA_UNCONFIRMED,
     NAMED_UA_WARNING,
     Command,
@@ -44,6 +45,7 @@ from .config import (
     default_state_path,
     find_config,
     load_config,
+    names_itself_privately,
     parse_config_text,
     read_config_text,
     require_config,
@@ -442,17 +444,8 @@ def _loads(text: str, path: Path) -> Config | None:
         return None
 
 
-# kv row recording that `user_agent: youpdated` was confirmed on a high security setup
-_NAMED_UA_CONFIRMED = ("meta", "named_user_agent_confirmed")
-
-
-def _names_itself_privately(config: Config, encrypted: bool) -> bool:
-    """`user_agent: youpdated` on an encrypted, proxied setup, see :data:`NAMED_UA_WARNING`"""
-    return encrypted and bool(config.privacy.proxy) and config.privacy.user_agent == "youpdated"
-
-
 def _named_ua_confirmed(state: State) -> bool:
-    return state.cache_get(*_NAMED_UA_CONFIRMED) is not None
+    return state.cache_get(*NAMED_UA_CONFIRMED) is not None
 
 
 def _confirm_named_ua(console: Console) -> bool:
@@ -475,7 +468,7 @@ def _named_ua_confirmed_at(state_path: Path, passphrase: str | None) -> bool:
 def _record_named_ua(state_path: Path, passphrase: str | None, console: Console) -> None:
     try:
         with State(state_path, passphrase=passphrase) as state:
-            state.cache_set(*_NAMED_UA_CONFIRMED, datetime.now(timezone.utc).isoformat())
+            state.cache_set(*NAMED_UA_CONFIRMED, datetime.now(timezone.utc).isoformat())
     except (StateError, crypto.EncryptionError, OSError) as exc:
         console.print(
             f"[yellow]Couldn't record that in the history ({escape(str(exc))}).[/] "
@@ -594,7 +587,7 @@ def cmd_editor(args: argparse.Namespace, console: Console) -> int:
             drafted = _loads(edited, path)
             if (
                 drafted is not None
-                and _names_itself_privately(drafted, locked)
+                and names_itself_privately(drafted, locked)
                 and not _named_ua_confirmed_at(state_path, passphrase)
             ):
                 if not _confirm_named_ua(console):
@@ -1021,7 +1014,7 @@ def cmd_check(args: argparse.Namespace, console: Console) -> int:
         config.privacy = replace(config.privacy, fast_mode=True)
     if config.privacy.fast_mode:
         status.print(f"[yellow]warning:[/] {escape(FAST_MODE_WARNING)}")
-    named = _names_itself_privately(config, passphrase is not None)
+    named = names_itself_privately(config, passphrase is not None)
 
     since = None
     if args.since:
@@ -1069,7 +1062,7 @@ def cmd_check(args: argparse.Namespace, console: Console) -> int:
             if not _confirm_named_ua(status):
                 status.print("[dim]Canceled. Nothing was sent.[/]")
                 return 1
-            state.cache_set(*_NAMED_UA_CONFIRMED, datetime.now(timezone.utc).isoformat())
+            state.cache_set(*NAMED_UA_CONFIRMED, datetime.now(timezone.utc).isoformat())
         elif named:
             status.print(f"[yellow]warning:[/] {escape(NAMED_UA_WARNING)}")
         with Client(

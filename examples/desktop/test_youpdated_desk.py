@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import queue
 import subprocess
 import sys
 import tkinter as tk
 from datetime import datetime, time, timedelta, timezone
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -117,17 +119,17 @@ def test_labels_use_the_resolved_display_name():
 def test_once_reports_a_bad_config_instead_of_raising(tmp_path):
     bad = tmp_path / "bad.yaml"
     bad.write_text("sources: [not, a, mapping]\n")
-    outcome = desk.Checker(str(bad), str(tmp_path / "s.db"), 60, None)._once()
+    outcome = desk.Checker(str(bad), str(tmp_path / "s.db"), 60, queue.Queue())._once()
     assert outcome.error and not outcome.updates
 
 
 def test_once_reports_a_missing_config(tmp_path):
-    outcome = desk.Checker(str(tmp_path / "nope.yaml"), str(tmp_path / "s.db"), 60, None)._once()
+    outcome = desk.Checker(str(tmp_path / "nope.yaml"), str(tmp_path / "s.db"), 60, queue.Queue())._once()
     assert outcome.error
 
 
 def test_state_path_defaults_when_not_given():
-    assert desk.Checker(None, None, 60, None).state_path is not None
+    assert desk.Checker(None, None, 60, queue.Queue()).state_path is not None
 
 
 # priority and sorting
@@ -263,7 +265,7 @@ def root():
         pass  # a test already closed it
 
 
-class FakeChecker:
+class _FakeChecker:
     passphrase = None
     state_path = None
 
@@ -276,10 +278,14 @@ class FakeChecker:
     def check_now(self): self.checks += 1
 
 
+def FakeChecker() -> Any:
+    """Stands in for `desk.Checker`"""
+    return _FakeChecker()
+
+
 @pytest.fixture
 def app(root, monkeypatch):
     monkeypatch.setattr(desk, "notify", lambda *a: None)
-    import queue
     built = desk.App(root, FakeChecker(), queue.Queue())
     root.update_idletasks()
     return built
@@ -349,7 +355,6 @@ def test_updates_accumulate_newest_first_and_stay_capped(app):
 
 
 def test_a_result_with_updates_notifies(root, monkeypatch):
-    import queue
     sent = []
     monkeypatch.setattr(desk, "notify", lambda title, body: sent.append((title, body)))
     built = desk.App(root, FakeChecker(), queue.Queue())
@@ -358,7 +363,6 @@ def test_a_result_with_updates_notifies(root, monkeypatch):
 
 
 def test_an_empty_result_does_not_notify(root, monkeypatch):
-    import queue
     sent = []
     monkeypatch.setattr(desk, "notify", lambda title, body: sent.append(1))
     built = desk.App(root, FakeChecker(), queue.Queue())
@@ -455,7 +459,6 @@ def test_check_now_button_asks_the_checker(app):
 
 
 def test_closing_stops_the_checker(root):
-    import queue
     checker = FakeChecker()
     built = desk.App(root, checker, queue.Queue())
     built.quit()
@@ -484,7 +487,6 @@ def test_the_list_follows_the_chosen_sort(app):
 
 
 def test_setting_a_priority_reorders_tags_and_saves(root, monkeypatch, tmp_path):
-    import queue
     monkeypatch.setattr(desk, "notify", lambda *a: None)
     prefs = desk.Prefs(tmp_path / "state.desk.json")
     built = desk.App(root, FakeChecker(), queue.Queue(), prefs)
@@ -497,6 +499,7 @@ def test_setting_a_priority_reorders_tags_and_saves(root, monkeypatch, tmp_path)
     assert card_texts(built) == ["b", "a"]
     top = cards(built)[0].winfo_children()[1].winfo_children()[0]
     assert "high" in [w.cget("text") for w in top.winfo_children()]
+    assert prefs.path is not None
     assert desk.Prefs.load(prefs.path).priority("github", "b/b") == "high"
 
 
@@ -522,7 +525,6 @@ def sent(monkeypatch):
 
 
 def make_app(root, **kw):
-    import queue
     built = desk.App(root, FakeChecker(), queue.Queue(), desk.Prefs(), **kw)
     built.prefs.set_priority("steam", "440", "high")
     built.prefs.set_priority("npm", "left-pad", "low")

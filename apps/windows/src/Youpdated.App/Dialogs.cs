@@ -76,6 +76,21 @@ internal static class Dialogs
         return await dialog.ShowAsync() == ContentDialogResult.Primary;
     }
 
+    /// <summary>Asks before Youpdated identifies itself in requests on an encrypted, proxied setup</summary>
+    public static async Task<bool> ConfirmUserAgentAsync(XamlRoot root)
+    {
+        var dialog = new ContentDialog
+        {
+            XamlRoot = root,
+            Title = Text.Get("UserAgentConfirmTitle"),
+            Content = new TextBlock { Text = Text.Get("UserAgentConfirmBody"), TextWrapping = TextWrapping.Wrap, MaxWidth = 420 },
+            PrimaryButtonText = Text.Get("UserAgentConfirmButton"),
+            CloseButtonText = Text.Get("Cancel"),
+            DefaultButton = ContentDialogButton.Close,
+        };
+        return await dialog.ShowAsync() == ContentDialogResult.Primary;
+    }
+
     /// <summary>Settings → Remove Youpdated from this PC</summary>
     public static async Task<bool?> RemoveFromThisPcAsync(XamlRoot root)
     {

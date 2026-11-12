@@ -191,8 +191,15 @@ struct PrivacySettings: View {
     @State private var saving = false
     @State private var error: String?
     @State private var confirmsFastMode = false
+    /// A change waiting on `user_agent: youpdated` being confirmed
+    @State private var unconfirmed: Change?
 
     enum ProxyChoice: Hashable { case none, tor, torBrowser, custom }
+
+    struct Change {
+        var proxy: String??
+        var fastMode: Bool?
+    }
 
     /// The Tor service's and Tor Browser's SOCKS ports
     static let tor = "socks5://127.0.0.1:9050"
@@ -228,6 +235,19 @@ struct PrivacySettings: View {
             Button(String(localized: "Cancel"), role: .cancel) {}
         } message: {
             Text(String(localized: "Requests may look automated. Sites are more likely to rate limit or block them, and they're easier to link to you, even through a proxy."))
+        }
+        .userAgentConfirmation(isPresented: Binding(
+            get: { unconfirmed != nil },
+            set: { shown in
+                if !shown, unconfirmed != nil {
+                    unconfirmed = nil
+                    sync()
+                }
+            }
+        )) {
+            guard let change = unconfirmed else { return }
+            unconfirmed = nil
+            save(proxy: change.proxy, fastMode: change.fastMode, confirmUserAgent: true)
         }
     }
 
@@ -353,15 +373,22 @@ struct PrivacySettings: View {
         save(proxy: trimmed)
     }
 
-    private func save(proxy: String?? = nil, fastMode: Bool? = nil) {
+    private func save(proxy: String?? = nil, fastMode: Bool? = nil, confirmUserAgent: Bool = false) {
         error = nil
         saving = true
         Task {
-            let problem = await model.setPrivacy(proxy: proxy, fastMode: fastMode)
+            let outcome = await model.setPrivacy(proxy: proxy, fastMode: fastMode, confirmUserAgent: confirmUserAgent)
             saving = false
-            error = problem
-            // a custom address that failed stays
-            if problem == nil || choice != .custom { sync() }
+            switch outcome {
+            case .saved:
+                sync()
+            case .needsUserAgentConfirmation:
+                unconfirmed = Change(proxy: proxy, fastMode: fastMode)
+            case .failed(let problem):
+                error = problem
+                // a custom address that failed stays
+                if choice != .custom { sync() }
+            }
         }
     }
 }

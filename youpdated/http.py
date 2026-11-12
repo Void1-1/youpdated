@@ -567,7 +567,7 @@ class Client:
                 url, cache_key, headers, conditional, soft, retries, follow_redirects
             )
         finally:
-            if leader:
+            if leader and flight is not None:
                 with self._bodies_lock:
                     self._flights.pop(cache_key, None)
                 flight.set()

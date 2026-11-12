@@ -56,6 +56,8 @@ In desktop apps, **Settings → Privacy** can set `proxy` and `fast_mode`. The a
 
 **On encrypted setups with a proxy**, `youpdated` identifies your traffic explicitly. Youpdated warns about it on every check and confirms once, when `youpdated edit` saves the change or on the first `youpdated check`. A check that can't ask (no terminal, `--json`, a scheduled run) sends nothing until it's been confirmed. The answer is kept in the history.
 
+The desktop apps ask too. Choosing a proxy in **Settings → Privacy** that leads to this setup asks before it's saved. If the setup still needs confirming, the app pauses checks and digests, opens its window, and shows a bar with a **Confirm** button. Confirming in the CLI or an app counts for both, since they share the history.
+
 ## Fast mode
 
 ```yaml

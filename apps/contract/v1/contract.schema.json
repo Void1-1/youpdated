@@ -55,6 +55,7 @@
             "not_found",
             "io_error",
             "proxy_unreachable",
+            "user_agent_unconfirmed",
             "internal"
           ]
         },
@@ -372,6 +373,10 @@
           "description": "If the config has Youpdated; null while locked or without config",
           "enum": ["watching", "declined", "absent", null]
         },
+        "named_user_agent": {
+          "description": "`user_agent: youpdated` on an encrypted, proxied setup. Missing from older engines",
+          "enum": ["unconfirmed", "confirmed", null]
+        },
         "counts": {
           "description": "null while locked or without config",
           "oneOf": [
@@ -656,13 +661,17 @@
     },
 
     "privacy.set.request": {
-      "description": "Writes the config, keeping comments. A new proxy is tested and isn't saved if `proxy_unreachable`",
+      "description": "Writes the config, keeping comments. A new proxy is tested and isn't saved if `proxy_unreachable`. A change that leaves `user_agent: youpdated` on an encrypted, proxied setup fails with `user_agent_unconfirmed` unless `confirm_user_agent`",
       "type": "object",
       "additionalProperties": false,
       "minProperties": 1,
       "properties": {
         "proxy": { "type": ["string", "null"], "description": "URL (socks5://127.0.0.1:9050), or null" },
-        "fast_mode": { "type": "boolean" }
+        "fast_mode": { "type": "boolean" },
+        "confirm_user_agent": {
+          "type": "boolean",
+          "description": "The user agreed to send `user_agent: youpdated` on an encrypted, proxied setup."
+        }
       }
     },
     "privacy.set.reply": { "$ref": "#/$defs/privacy.get.reply" },
