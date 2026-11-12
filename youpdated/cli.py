@@ -33,6 +33,7 @@ from . import __version__, crypto, notify
 from .cleanup import Trace, find_package, find_traces, remove_package, remove_traces
 from .config import (
     EXAMPLE_CONFIG,
+    FAST_MODE_WARNING,
     Command,
     Config,
     ConfigError,
@@ -88,6 +89,11 @@ def build_parser() -> argparse.ArgumentParser:
     check.add_argument(
         "--test", action="store_true",
         help="show what would have been requested",
+    )
+    check.add_argument(
+        "--fast", action="store_true",
+        help="fast mode for this run: shorter gaps between requests, less private "
+        "(see settings.privacy.fast_mode)",
     )
     check.add_argument("--state", help="path to the state database")
     check.add_argument("-v", "--verbose", action="store_true", help="show request detail and bodies")
@@ -945,8 +951,14 @@ def cmd_check(args: argparse.Namespace, console: Console) -> int:
     passphrase = None
     if _setup_is_encrypted(find_config(args.config), state_path):
         passphrase = crypto.prompt_passphrase()
+        # derived while the config is decrypted
+        crypto.derive_ahead(state_path, passphrase)
 
     config: Config = load_config(args.config, passphrase=passphrase)
+    if args.fast:
+        config.privacy = replace(config.privacy, fast_mode=True)
+    if config.privacy.fast_mode:
+        status.print(f"[yellow]warning:[/] {escape(FAST_MODE_WARNING)}")
 
     since = None
     if args.since:

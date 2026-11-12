@@ -38,6 +38,8 @@ class PrivacyConfig:
     jitter: tuple[float, float] = (0.5, 3.0)
     concurrency: int = 4
     timeout: float = 20.0
+    # Shorter gaps, and each host paced on its own instead of each site. See FAST_MODE_WARNING
+    fast_mode: bool = False
 
 # More to be added potentially
 WEBHOOK_FORMATS = ("json", "discord", "slack", "ntfy")
@@ -283,7 +285,7 @@ def legacy_settings_warning(keys: list[str]) -> str:
     """Settings still at the top level, accepted until v1.0.0"""
     named = ", ".join(f"`{key}`" for key in keys)
     return (
-        f"{named} belongs under `settings:`, and will stop working as is in v1.0.0. Run `youpdated edit` to fix"
+        f"{named} {'belongs' if len(keys) == 1 else 'belong'} under `settings:`, and will stop working as is in v1.0.0. Run `youpdated edit` to fix"
     )
 
 
@@ -648,6 +650,12 @@ def _parse_privacy(raw: Any, where: str) -> PrivacyConfig:
             raise ConfigError(f"{where}`settings.privacy.jitter` min must not exceed max")
         privacy.jitter = (low, high)
 
+    fast_mode = raw.get("fast_mode")
+    if fast_mode is not None:
+        if not isinstance(fast_mode, bool):
+            raise ConfigError(f"{where}`settings.privacy.fast_mode` must be true or false")
+        privacy.fast_mode = fast_mode
+
     for name, cast, check in (
         ("concurrency", int, lambda v: v >= 1),
         ("timeout", float, lambda v: v > 0),
@@ -662,6 +670,14 @@ def _parse_privacy(raw: Any, where: str) -> PrivacyConfig:
     return privacy
 
 
+# Shown on every check in fast mode
+FAST_MODE_WARNING = (
+    "fast mode: requests to one host are 0.1-0.5s apart instead of `settings.privacy.jitter`, and "
+    "hosts of one site are paced apart. Traffic will look automated, so sites may rate limit or block it, "
+    "and it's easier to single out and link to you, even through a proxy. See docs/privacy.md."
+)
+
+
 EXAMPLE_CONFIG = """\
 # youpdated config: every source entry is a bare value or a mapping.
 
@@ -670,9 +686,12 @@ settings:
     # Route every request through a proxy. Works with Tor's default SOCKS port.
     # proxy: socks5://127.0.0.1:9050
     user_agent: rotate     # 'rotate' or a fixed UA string
-    jitter: [0.5, 3.0]     # random delay, in seconds, between hits on one host
-    concurrency: 4
+    jitter: [0.5, 3.0]     # random delay, in seconds, between hits on one site
+    concurrency: 4         # requests in flight at once
     timeout: 20
+    # Faster checks: much shorter gaps, but traffic can look automated and it is easier
+    # to single out and link to you. Read docs/privacy.md before enabling.
+    # fast_mode: true
 
   # Forget items that haven't appeared in any fetch for this long. Default 1y
   # expiry: 1y

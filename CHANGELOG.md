@@ -7,6 +7,16 @@ All notable changes to this project are documented here. The format follows [Kee
 ### Added
 
 - **Youpdated for Windows (beta).** A notification area app for Windows 10 22H2 and 11, x64, with its own copy of the engine (no Python needed). It shares a config and history with the CLI. See [docs/windows-app.md](docs/windows-app.md). Released on `app-windows-v*` tags. And the Mac app's releases move from `app-v*` to `app-macos-v*`!
+- **Fast mode**: `settings.privacy.fast_mode: true`, or `check --fast` for a check. Requests to one host are 0.1 to 0.5s apart instead of `jitter`, and hosts are paced on their own instead of by site. Traffic will look automated, is more likely to be rate limited, and is easier to single out and link to you, even through a proxy, so checks in fast mode print a warning. Off by default.
+
+### Changed
+
+- **Requests are paced per site, not per host.** `github.com` and `api.github.com`, or every `<user>.itch.io` game, share a space. A `429` or error without `Retry-After` now makes every request to that host wait, not only the one that received it, and a host that fails every attempt isn't asked again that check. With `user_agent: rotate`, each site is sent one user agent per check, instead of a different browser every request.
+- **Checks finish sooner.** A host's `jitter` gap no longer holds the run: `concurrency` now caps requests in flight, not targets in progress. Targets asking for one document at once (Brave, Firefox, and Edge channels) share a request. With `track_latest`, a list answered `304` is followed by a request for its latest release only every 12 hours. An encrypted setup derives its two keys side by side and writes the history back under the same key it, a fresh nonce each time. Brave asks GitHub for its 30 newest releases instead of 100. `track_latest` doesn't ask for the latest release of a list that holds every release. Without a proxy, a connection that hasn't opened in 8s is given up and tried once more.
+
+### Fixed
+
+- **YouTube reported old videos as new when its feed was down.** The official feed has outages and the Invidious fallback lists only regular videos, not Shorts or streams. A video not seen before and older than the last check is no longer reported when the channel switches path. The error for every path failing no longer blames blocking or suggests a proxy, which doesn't help.
 
 ### Changed
 

@@ -9,12 +9,13 @@ from __future__ import annotations
 import os
 import re
 from dataclasses import replace
+from datetime import datetime, timedelta, timezone
 from typing import Any, ClassVar, Iterable
 from urllib.parse import quote, unquote, urljoin, urlsplit
 
 import httpx
 
-from ..http import Client
+from ..http import Client, Fetched
 from ..models import Target, Update
 from ..registry import register
 from .base import ConfigEntryError, accepted, entry_fields, parse_iso, require
@@ -281,17 +282,18 @@ def _github(source: str, target: Target, client: Client, token: str | None) -> l
     for kind in params.get("watch") or ["releases"]:
         if kind == "releases" and token:
             url = f"{api}/repos/{repo}/releases?per_page={PER_PAGE}"
-            releases = _github_releases_via_api(source, target, client, url, token)
-            if target.track_latest:
+            fetched = client.get(url, conditional=True, headers=_github_api_headers(token))
+            releases = _github_releases_via_api(source, target, fetched)
+            if _wants_latest(client, target, fetched, _api_complete(fetched)):
                 latest = f"{api}/repos/{repo}/releases/latest"
                 releases = _with_latest(
                     releases, _github_latest_via_api(source, target, client, latest, token)
                 )
             updates.extend(releases)
         elif kind == "releases":
-            url = f"{base}/{repo}/releases.atom"
-            releases = _github_atom(source, target, client, url, "release")
-            if target.track_latest:
+            fetched = client.get(f"{base}/{repo}/releases.atom", conditional=True)
+            releases = _github_atom_updates(source, target, fetched, "release")
+            if _wants_latest(client, target, fetched, _atom_complete(fetched)):
                 latest = f"{base}/{repo}/releases/latest"
                 releases = _with_latest(releases, _github_latest(source, target, client, latest))
             updates.extend(releases)
@@ -305,8 +307,66 @@ def _github(source: str, target: Target, client: Client, token: str | None) -> l
     return updates
 
 
+# `track_latest:` asks again at least this often, even while the list is unchanged
+LATEST_EVERY = timedelta(hours=12)
+LATEST_ASKED = "latest_asked"
+# In place of a time: the list held every release, so the latest too
+LATEST_LISTED = "listed"
+# GitHub's .atom feeds have this many entries
+ATOM_PAGE = 10
+_ATOM_ENTRY = re.compile(rb"<entry[\s>]")
+
+
+def _atom_complete(fetched: Fetched | None) -> bool:
+    """If a GitHub .atom list holds every release: a page short of full"""
+    return fetched is not None and len(_ATOM_ENTRY.findall(fetched.content)) < ATOM_PAGE
+
+
+def _api_complete(fetched: Fetched | None) -> bool:
+    """If a forge API list holds every release: short of a page, with no next one"""
+    if fetched is None or 'rel="next"' in fetched.headers.get("link", ""):
+        return False
+    try:
+        listed = fetched.json()
+    except ValueError:
+        return False
+    return isinstance(listed, list) and len(listed) < PER_PAGE
+
+
+def _wants_latest(
+    client: Client, target: Target, fetched: Fetched | None, complete: bool = False
+) -> bool:
+    """If `track_latest:` asks for the latest release this check"""
+    if not target.track_latest:
+        return False
+    state = client.state
+    if complete:
+        if state is not None and not client.test:
+            state.cache_set(LATEST_ASKED, target.key, LATEST_LISTED)
+        return False
+    if client.test or state is None:
+        return True
+    now = datetime.now(timezone.utc)
+    if fetched is None:  # 304
+        asked = state.cache_get(LATEST_ASKED, target.key)
+        if asked == LATEST_LISTED:
+            return False
+        try:
+            if asked and now - datetime.fromisoformat(asked) < LATEST_EVERY:
+                return False
+        except ValueError:
+            pass
+    state.cache_set(LATEST_ASKED, target.key, now.isoformat())
+    return True
+
+
 def _github_atom(source: str, target: Target, client: Client, url: str, tag: str) -> list[Update]:
-    fetched = client.get(url, conditional=True)
+    return _github_atom_updates(source, target, client.get(url, conditional=True), tag)
+
+
+def _github_atom_updates(
+    source: str, target: Target, fetched: Fetched | None, tag: str
+) -> list[Update]:
     if fetched is None:  # 304 Not Modified, or test
         return []
     updates = parse_feed(
@@ -337,10 +397,7 @@ def _github_api_headers(token: str) -> dict[str, str]:
     }
 
 
-def _github_releases_via_api(
-    source: str, target: Target, client: Client, url: str, token: str
-) -> list[Update]:
-    fetched = client.get(url, conditional=True, headers=_github_api_headers(token))
+def _github_releases_via_api(source: str, target: Target, fetched: Fetched | None) -> list[Update]:
     if fetched is None:
         return []
     return [
@@ -444,7 +501,7 @@ def _gitlab(source: str, target: Target, client: Client, token: str | None) -> l
                 for release in (fetched.json() if fetched else [])
                 if (update := _gitlab_release(source, target, web, release)) is not None
             ]
-            if target.track_latest:
+            if _wants_latest(client, target, fetched, _api_complete(fetched)):
                 # Redirects to the release itself
                 latest = client.get(f"{api}/releases/permalink/latest", conditional=True,
                                     headers=headers, soft_statuses=(404,))
@@ -543,7 +600,7 @@ def _forgejo(source: str, target: Target, client: Client, token: str | None) -> 
                 for release in (fetched.json() if fetched else [])
                 if (update := _forgejo_release(source, target, web, release)) is not None
             ]
-            if target.track_latest:
+            if _wants_latest(client, target, fetched, _api_complete(fetched)):
                 latest = client.get(f"{api}/releases/latest", conditional=True,
                                     headers=headers, soft_statuses=(404,))
                 if latest is not None and latest.status != 404:

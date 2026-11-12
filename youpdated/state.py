@@ -221,6 +221,8 @@ class State:
         self.encrypted = passphrase is not None and self.path is not None
         self._closed = False
         self._dirty = False
+        # Salt the file was read or first written with
+        self._salt: bytes | None = None
         self._file_lock: _FileLock | None = None
         if self.path is not None:
             self.path.parent.mkdir(parents=True, exist_ok=True)
@@ -313,7 +315,9 @@ class State:
                 f"{self.path} is not encrypted, but a passphrase was given. "
                 "Run `youpdated encrypt` to convert it."
             )
-        return crypto.decrypt(blob, self.passphrase)
+        payload = crypto.decrypt(blob, self.passphrase)
+        self._salt = crypto.salt_of(blob)
+        return payload
 
     def flush(self) -> None:
         """Write the in-memory database back out, encrypted."""
@@ -322,7 +326,9 @@ class State:
         assert self.path is not None and self.passphrase is not None
         with self._lock:
             image = self._conn.serialize()
-        crypto.write_private(self.path, crypto.encrypt(image, self.passphrase))
+        blob = crypto.encrypt(image, self.passphrase, salt=self._salt)
+        crypto.write_private(self.path, blob)
+        self._salt = crypto.salt_of(blob)
         self._dirty = False
 
     def close(self) -> None:

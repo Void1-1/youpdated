@@ -20,6 +20,8 @@ GL_API = "https://gitlab.com/api/v4/projects/gitlab-org%2Fcli"
 CB_API = "https://codeberg.org/api/v1/repos/forgejo/forgejo"
 STEAM_FEED = "https://store.steampowered.com/feeds/news/app/440/"
 STEAM_EVENTS = "https://store.steampowered.com/events/ajaxgetadjacentpartnerevents/"
+# A list with more pages: the latest may be on one of them
+MORE = {"Link": '<https://example.com/?page=2>; rel="next"'}
 # In steam_news.xml
 LISTED_POST = "715661485108363783"
 
@@ -165,7 +167,9 @@ def _release(tag, **extra):
 def test_github_api_adds_the_latest_release(client, monkeypatch):
     monkeypatch.setenv("GITHUB_TOKEN", "t")
     respx.get(f"{API}?per_page=20").mock(
-        return_value=httpx.Response(200, json=[_release("v3.16.0a1", prerelease=True)])
+        return_value=httpx.Response(
+            200, json=[_release("v3.16.0a1", prerelease=True)], headers=MORE
+        )
     )
     latest = respx.get(f"{API}/latest").mock(
         return_value=httpx.Response(200, json=_release("v3.15.4"))
@@ -191,7 +195,7 @@ def test_github_api_without_releases_adds_nothing(client, monkeypatch):
 @respx.mock
 def test_gitlab_follows_the_latest_permalink(client):
     respx.get(f"{GL_API}/releases?per_page=20").mock(
-        return_value=httpx.Response(200, content=fixture("gitlab_releases.json"))
+        return_value=httpx.Response(200, content=fixture("gitlab_releases.json"), headers=MORE)
     )
     respx.get(f"{GL_API}/releases/permalink/latest").mock(
         return_value=httpx.Response(
@@ -212,7 +216,7 @@ def test_gitlab_follows_the_latest_permalink(client):
 @respx.mock
 def test_forgejo_adds_the_latest_release_once(client):
     respx.get(f"{CB_API}/releases?limit=20").mock(
-        return_value=httpx.Response(200, content=fixture("forgejo_releases.json"))
+        return_value=httpx.Response(200, content=fixture("forgejo_releases.json"), headers=MORE)
     )
     latest = respx.get(f"{CB_API}/releases/latest").mock(
         return_value=httpx.Response(200, json={"tag_name": "v14.0.2"})
@@ -283,3 +287,162 @@ def test_steam_without_an_update_post_adds_nothing(client, events):
 def test_steam_without_track_latest_asks_for_no_events(client):
     _, route = _steam(client, [], latest=False)
     assert not route.called
+
+
+def _asked(state, key, hours_ago):
+    from datetime import timedelta
+
+    from youpdated.sources.git import LATEST_ASKED
+
+    when = datetime.now(timezone.utc) - timedelta(hours=hours_ago)
+    state.cache_set(LATEST_ASKED, key, when.isoformat())
+
+
+@respx.mock
+def test_github_unchanged_feed_asks_for_no_latest(client, state, monkeypatch):
+    monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+    _asked(state, "github.com/python/cpython", 1)
+    respx.get(RELEASES).mock(return_value=httpx.Response(304))
+    latest = respx.get(LATEST)
+
+    assert list(get_source("git").fetch(_git("python/cpython"), client)) == []
+    assert not latest.called
+
+
+@respx.mock
+def test_github_api_unchanged_list_asks_for_no_latest(client, state, monkeypatch):
+    monkeypatch.setenv("GITHUB_TOKEN", "t")
+    _asked(state, "github.com/python/cpython", 1)
+    respx.get(f"{API}?per_page=20").mock(return_value=httpx.Response(304))
+    latest = respx.get(f"{API}/latest")
+
+    assert list(get_source("git").fetch(_git("python/cpython"), client)) == []
+    assert not latest.called
+
+
+@respx.mock
+def test_gitlab_unchanged_list_asks_for_no_latest(client, state):
+    _asked(state, "gitlab.com/gitlab-org/cli", 1)
+    respx.get(f"{GL_API}/releases?per_page=20").mock(return_value=httpx.Response(304))
+    latest = respx.get(f"{GL_API}/releases/permalink/latest")
+
+    assert list(get_source("git").fetch(_git("https://gitlab.com/gitlab-org/cli"), client)) == []
+    assert not latest.called
+
+
+@respx.mock
+def test_forgejo_unchanged_list_asks_for_no_latest(client, state):
+    _asked(state, "codeberg.org/forgejo/forgejo", 1)
+    respx.get(f"{CB_API}/releases?limit=20").mock(return_value=httpx.Response(304))
+    latest = respx.get(f"{CB_API}/releases/latest")
+
+    assert list(get_source("git").fetch(_git("codeberg.org/forgejo/forgejo"), client)) == []
+    assert not latest.called
+
+
+@pytest.mark.parametrize("hours_ago", [None, 13])
+@respx.mock
+def test_an_unchanged_list_still_asks_when_the_latest_is_stale(client, state, monkeypatch, hours_ago):
+    """Turning track_latest on, and every 12h after, so it never ages out of history"""
+    monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+    if hours_ago is not None:
+        _asked(state, "github.com/python/cpython", hours_ago)
+    respx.get(RELEASES).mock(return_value=httpx.Response(304))
+    latest = respx.get(LATEST).mock(
+        return_value=httpx.Response(
+            302, headers={"Location": "https://github.com/python/cpython/releases/tag/v3.9.25"}
+        )
+    )
+
+    updates = list(get_source("git").fetch(_git("python/cpython"), client))
+
+    assert latest.called
+    assert _uids(updates) == ["release:v3.9.25"]
+    # and not again for a while
+    respx.get(LATEST).calls.reset()
+    list(get_source("git").fetch(_git("python/cpython"), client))
+    assert latest.call_count == 1
+
+
+@respx.mock
+def test_a_changed_list_always_asks_for_the_latest(client, state, monkeypatch):
+    _atom(monkeypatch)
+    _asked(state, "github.com/python/cpython", 1)
+    latest = respx.get(LATEST).mock(return_value=httpx.Response(302, headers={"Location": "x"}))
+    list(get_source("git").fetch(_git("python/cpython"), client))
+    assert latest.called
+
+
+def test_test_mode_still_plans_the_latest(state, monkeypatch):
+    """--test sends nothing, so nothing is known unchanged"""
+    from youpdated.config import PrivacyConfig
+    from youpdated.http import Client
+
+    monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+    _asked(state, "github.com/python/cpython", 1)
+    with Client(PrivacyConfig(jitter=(0.0, 0.0)), state, test=True) as dry:
+        list(get_source("git").fetch(_git("python/cpython"), dry))
+    assert dry.requested_urls == [RELEASES, LATEST]
+
+
+# A list holding every release holds the latest too
+
+
+def _short_atom(entries: int) -> bytes:
+    entry = "<entry><id>tag:github.com,2008:Repository/1/v{n}</id><title>v{n}</title>" \
+        '<link rel="alternate" href="https://github.com/python/cpython/releases/tag/v{n}"/>' \
+        "<updated>2026-01-0{n}T00:00:00Z</updated></entry>"
+    body = "".join(entry.format(n=n) for n in range(1, entries + 1))
+    return f'<?xml version="1.0"?><feed xmlns="http://www.w3.org/2005/Atom">{body}</feed>'.encode()
+
+
+@respx.mock
+def test_github_feed_short_of_a_page_asks_for_no_latest(client, state):
+    respx.get(RELEASES).mock(
+        return_value=httpx.Response(200, content=_short_atom(3), headers={"ETag": '"a"'})
+    )
+    latest = respx.get(LATEST)
+    target = _git("python/cpython")
+    assert len(list(get_source("git").fetch(target, client))) == 3
+    assert not latest.called
+
+    # .. nor once it's unchanged, however long since
+    respx.get(RELEASES).mock(return_value=httpx.Response(304))
+    list(get_source("git").fetch(target, client))
+    assert not latest.called
+
+
+@respx.mock
+def test_github_full_feed_still_asks_for_the_latest(client, state):
+    respx.get(RELEASES).mock(
+        return_value=httpx.Response(200, content=fixture("github_releases.atom"))
+    )
+    latest = respx.get(LATEST).mock(return_value=httpx.Response(302, headers={"Location": "x"}))
+    list(get_source("git").fetch(_git("python/cpython"), client))
+    assert latest.called
+
+
+@pytest.mark.parametrize("headers, asked", [({}, False), (MORE, True)])
+@respx.mock
+def test_forgejo_asks_for_the_latest_only_with_more_pages(client, state, headers, asked):
+    respx.get(f"{CB_API}/releases?limit=20").mock(
+        return_value=httpx.Response(200, json=[{"tag_name": "v1.0.0"}], headers=headers)
+    )
+    latest = respx.get(f"{CB_API}/releases/latest").mock(
+        return_value=httpx.Response(200, json={"tag_name": "v1.0.0"})
+    )
+    list(get_source("git").fetch(_git("codeberg.org/forgejo/forgejo"), client))
+    assert latest.called is asked
+
+
+@respx.mock
+def test_a_full_page_without_a_next_link_still_asks(client, state):
+    """A server leaving the Link header out isn't taken for a complete list"""
+    respx.get(f"{GL_API}/releases?per_page=20").mock(
+        return_value=httpx.Response(200, json=[{"tag_name": f"v1.{n}"} for n in range(20)])
+    )
+    latest = respx.get(f"{GL_API}/releases/permalink/latest").mock(
+        return_value=httpx.Response(404, json={})
+    )
+    list(get_source("git").fetch(_git("https://gitlab.com/gitlab-org/cli"), client))
+    assert latest.called

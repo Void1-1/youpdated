@@ -20,7 +20,7 @@ import sys
 from datetime import datetime, timezone
 from typing import Any, ClassVar, Iterable
 
-from ..http import Client, FetchError
+from ..http import Client, Fetched, FetchError
 from ..models import Target, Update
 from ..registry import register
 from .base import ConfigEntryError, accepted, entry_fields, parse_iso, require
@@ -55,6 +55,10 @@ EDGE_RELNOTES = {
     "beta": "https://learn.microsoft.com/deployedge/microsoft-edge-relnote-beta-channel",
 }
 EDGE_RELNOTE_FALLBACK = "https://www.microsoft.com/edge/download/insider"
+
+BRAVE_API = "https://api.github.com/repos/brave/brave-browser/releases?per_page={}"
+BRAVE_PAGE = 30
+BRAVE_PAGE_FULL = 100
 
 # Brave publishes every channel into one repo feed, distinguished by title prefix ("Release v1.95.79", "Beta v1.94.112", "Nightly v1.96.0")
 BRAVE_CHANNELS = {
@@ -211,12 +215,7 @@ class BrowserSource:
         prefix = BRAVE_CHANNELS[channel].lower()
 
         try:
-            fetched = client.get(
-                "https://api.github.com/repos/brave/brave-browser/releases?per_page=100",
-                conditional=True,
-                headers={"Accept": "application/vnd.github+json"},
-                soft_statuses=(403, 429),
-            )
+            fetched = self._brave_page(client, BRAVE_PAGE)
         except FetchError as exc:
             client.note(f"brave: GitHub API failed ({exc}), falling back to the atom feed")
             return self._brave_from_atom(target, client, channel, prefix, "GitHub API failed")
@@ -224,7 +223,18 @@ class BrowserSource:
         if fetched is None:
             return []  # 304: nothing changed
         if fetched.status == 200:
-            return self._brave_from_api(target, fetched.json(), channel, prefix)
+            releases = fetched.json()
+            updates = self._brave_from_api(target, releases, channel, prefix)
+            if self._brave_reaches_back(client, target, releases, updates):
+                return updates
+            try:
+                full = self._brave_page(client, BRAVE_PAGE_FULL)
+            except FetchError as exc:
+                client.note(f"brave: no older releases ({exc})")
+                return updates
+            if full is None or full.status != 200:
+                return updates
+            return self._brave_from_api(target, full.json(), channel, prefix)
 
         client.note(
             f"brave: GitHub API returned {fetched.status}, falling back to the atom feed"
@@ -232,6 +242,25 @@ class BrowserSource:
         return self._brave_from_atom(
             target, client, channel, prefix, f"GitHub API returned {fetched.status}"
         )
+
+    def _brave_page(self, client: Client, size: int) -> Fetched | None:
+        return client.get(
+            BRAVE_API.format(size),
+            conditional=True,
+            headers={"Accept": "application/vnd.github+json"},
+            soft_statuses=(403, 429),
+        )
+
+    def _brave_reaches_back(
+        self, client: Client, target: Target, releases: list[dict], updates: list[Update]
+    ) -> bool:
+        """If the short page holds every ``target`` release since the last check"""
+        state = client.state
+        if len(releases) < BRAVE_PAGE or len(updates) >= MAX_VERSIONS or state is None:
+            return True
+        if not state.is_baselined(self.name, target.key):
+            return True
+        return any(not state.is_new(u) for u in updates)
 
     def _brave_from_api(
         self, target: Target, releases: list[dict], channel: str, prefix: str

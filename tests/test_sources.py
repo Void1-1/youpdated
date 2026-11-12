@@ -583,3 +583,81 @@ def test_parse_iso_gives_none_for_what_it_cannot_read(value):
     from youpdated.sources.base import parse_iso
 
     assert parse_iso(value) is None
+
+
+_FEED = "https://www.youtube.com/feeds/videos.xml"
+_INVIDIOUS = "https://inv.example/api/v1/channels/UCLA_DiR1FfKNvjuUpBHmylQ/latest"
+
+
+def _invidious(*videos):
+    respx.get("https://api.invidious.io/instances.json").mock(
+        return_value=httpx.Response(
+            200, json=[["inv.example", {"type": "https", "api": True, "uri": "https://inv.example"}]]
+        )
+    )
+    return respx.get(_INVIDIOUS).mock(
+        return_value=httpx.Response(
+            200,
+            json=[
+                {"videoId": vid, "title": vid, "published": int(when.timestamp()), "author": "NASA"}
+                for vid, when in videos
+            ],
+        )
+    )
+
+
+@respx.mock
+def test_youtube_fallback_reaching_further_back_reports_no_old_videos(state, client):
+    """Invidious lists a channel's videos without its Shorts and streams"""
+    from datetime import datetime, timedelta, timezone
+
+    config = parse_config({"sources": {"youtube": ["UCLA_DiR1FfKNvjuUpBHmylQ"]}})
+    respx.get(url__startswith=_FEED).mock(
+        return_value=httpx.Response(200, content=fixture("youtube_feed.xml"))
+    )
+    run(config, state, client)
+
+    respx.get(url__startswith=_FEED).mock(return_value=httpx.Response(404, text="down"))
+    now = datetime.now(timezone.utc)
+    _invidious(("newvideo001", now - timedelta(hours=2)), ("oldvideo001", now - timedelta(days=200)))
+    later = run(config, state, client)
+    assert [u.uid for u in later.updates] == ["yt:video:newvideo001"]
+    assert not later.errors
+
+    # Back on the feed, what the fallback listed isn't new either
+    respx.get(url__startswith=_FEED).mock(
+        return_value=httpx.Response(200, content=fixture("youtube_feed.xml"))
+    )
+    assert run(config, state, client).updates == []
+
+
+@respx.mock
+def test_youtube_feed_back_after_an_outage_reports_no_old_shorts(state, client):
+    """A channel first checked through Invidious never saw Shorts and streams"""
+    from datetime import datetime, timedelta, timezone
+
+    config = parse_config({"sources": {"youtube": ["UCLA_DiR1FfKNvjuUpBHmylQ"]}})
+    respx.get(url__startswith=_FEED).mock(return_value=httpx.Response(404, text="down"))
+    _invidious(("newvideo001", datetime.now(timezone.utc) - timedelta(days=3)))
+    assert run(config, state, client).baseline
+
+    respx.get(url__startswith=_FEED).mock(
+        return_value=httpx.Response(200, content=fixture("youtube_feed.xml"))
+    )
+    back = run(config, state, client)
+    assert back.updates == [] and not back.errors
+
+
+@respx.mock
+def test_youtube_on_one_path_reports_old_videos_it_finds(state, client):
+    from datetime import datetime, timedelta, timezone
+
+    config = parse_config({"sources": {"youtube": ["UCLA_DiR1FfKNvjuUpBHmylQ"]}})
+    respx.get(url__startswith=_FEED).mock(return_value=httpx.Response(404, text="down"))
+    now = datetime.now(timezone.utc)
+    route = _invidious(("newvideo001", now - timedelta(hours=2)))
+    run(config, state, client)
+    route.return_value = httpx.Response(
+        200, json=[{"videoId": "oldvideo001", "title": "x", "published": int((now - timedelta(days=90)).timestamp())}]
+    )
+    assert [u.uid for u in run(config, state, client).updates] == ["yt:video:oldvideo001"]

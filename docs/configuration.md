@@ -55,9 +55,10 @@ settings:                            # run-wide options
   privacy:
     # proxy: socks5://127.0.0.1:9050 # Tor's default SOCKS port
     user_agent: rotate               # 'rotate', or a fixed UA string
-    jitter: [0.5, 3.0]               # random gap between hits on one host
-    concurrency: 4
-    timeout: 20
+    jitter: [0.5, 3.0]               # random gap between hits on one site
+    concurrency: 4                   # requests in flight at once
+    timeout: 20                      # seconds; connecting gets 8 of them, unless through a proxy
+    # fast_mode: true                # faster, less private: see docs/privacy.md
   expiry: 1y                         # forget items missing from every fetch this long
   track_latest: true                 # also ask forges and Steam for the latest release
   editor: code                       # what `youpdated edit` opens
@@ -115,9 +116,9 @@ sources:
       name: Counter-Strike 2
 
   itch:
-    - https://hempuli.itch.io/baba-is-you    # devlogs and builds (default)
+    - https://hempuli.itch.io/baba-is-you # devlogs and builds (default)
     - url: https://aak581.itch.io/engineering-marvels-from-hell
-      watch: [devlog, releases]              # choose one if you prefer
+      watch: [devlog, releases]      # choose one if you prefer
 
   youtube:
     - "@NASA"                        # handle, channel id, or channel URL
@@ -293,7 +294,7 @@ settings:
   track_latest: true
 ```
 
-With it, a `git` entry watching releases also asks the forge for its latest release: where `/releases/latest` points on GitHub (the API, with a token), GitLab's latest permalink, or Forgejo's latest release. A `steam` entry asks for the newest post the developer marked as an update. It's added only when the list doesn't have it already, so nothing is reported twice. Without a GitHub token, that release has no date. `check --test -v` lists the extra requests.
+With it, a `git` entry watching releases also asks the forge for its latest release: where `/releases/latest` points on GitHub (the API, with a token), GitLab's latest permalink, or Forgejo's latest release. A `steam` entry asks for the newest post the developer marked as an update. It's added only when the list doesn't have it already, so nothing is reported twice. When the list comes back unchanged (`304 Not Modified`), the latest release is likely unchanged, so it's asked for again only every 12 hours. A list holding every release (fewer than a page, with no next one) already has the latest, so it isn't asked for at all. Without a GitHub token, that release has no date. `check --test -v` lists the extra requests.
 
 ## How long history is kept
 

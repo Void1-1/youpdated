@@ -1,0 +1,59 @@
+name: Windows app
+
+# Runs when something the Windows app builds or tests against changes: its
+# own source, the contract fixtures and shared cases both apps read, and the engine
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/windows/**"
+      - "apps/contract/**"
+      - "apps/shared/**"
+      - "youpdated/**"
+      - "pyproject.toml"
+      - ".github/workflows/windows-app.yml"
+  pull_request:
+    paths:
+      - "apps/windows/**"
+      - "apps/contract/**"
+      - "apps/shared/**"
+      - "youpdated/**"
+      - "pyproject.toml"
+      - ".github/workflows/windows-app.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    name: Windows app
+    runs-on: windows-latest
+    # global.json, which picks the test runner, only applies from here
+    defaults:
+      run:
+        working-directory: apps/windows
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: apps/windows/global.json
+
+      - name: Test
+        run: dotnet test --project tests/Youpdated.Core.Tests
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+
+      # In a temporary setup, and sends no real requests
+      - name: Test against the real engine
+        shell: pwsh
+        run: |
+          python -m pip install ../..
+          $env:YOUPDATED_LIVE_ENGINE = "`"$((Get-Command python).Source)`" -m youpdated"
+          dotnet test --project tests/Youpdated.Core.Tests --filter-class Youpdated.Core.Tests.LiveEngineTests
+
+      - name: Build the app
+        run: dotnet build src/Youpdated.App -c Release

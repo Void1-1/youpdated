@@ -50,6 +50,13 @@ On macOS or Linux, only Core and its tests build, from `apps/windows`:
 dotnet test --project tests/Youpdated.Core.Tests
 ```
 
+`LiveEngineTests` is skipped unless `YOUPDATED_LIVE_ENGINE` names an engine to run, in a temporary setup:
+
+```powershell
+$env:YOUPDATED_LIVE_ENGINE = "C:\src\youpdated\.venv\Scripts\python.exe -m youpdated"
+dotnet test --project tests\Youpdated.Core.Tests --filter-class Youpdated.Core.Tests.LiveEngineTests
+```
+
 ## Releasing
 
 Releases are built on GitHub's Windows runner by `.github/workflows/windows-release.yml`, for an `app-windows-v*` tag. It checks the tag against `<Version>` in `Directory.Build.props`, runs the tests, builds the app, freezes the engine, launches the result, and keeps `Youpdated-<version>-Windows-x64.zip` and its SHA-256 as the run's artifact.

@@ -141,6 +141,83 @@ def probe_proxy(proxy: str, timeout: float = 5.0) -> None:
         ) from exc
 
 
+# Without a proxy, a connection that hasn't opened in this long stops
+CONNECT_TIMEOUT = 8.0
+# once it has timed out, it's tried only this many more times
+CONNECT_TIMEOUT_RETRIES = 1
+
+# Gaps between hits on one host in fast mode, instead of `privacy.jitter`
+FAST_JITTER: tuple[float, float] = (0.1, 0.5)
+
+# (Some) platforms that give each user a subdomain, paced as one host
+SHARED_HOST_SUFFIXES: frozenset[str] = frozenset({
+    "itch.io",
+    "github.io",
+    "gitlab.io",
+    "codeberg.page",
+    "substack.com",
+    "blogspot.com",
+    "wordpress.com",
+    "tumblr.com",
+    "medium.com",
+    "bandcamp.com",
+    "neocities.org",
+})
+
+# Public suffixes two labels long
+_TWO_LABEL_SUFFIXES: frozenset[str] = frozenset({
+    "co.uk", "org.uk", "ac.uk", "gov.uk", "me.uk", "ltd.uk", "plc.uk",
+    "com.au", "net.au", "org.au", "edu.au", "gov.au",
+    "co.nz", "org.nz", "co.jp", "ne.jp", "or.jp", "ac.jp", "co.kr", "or.kr",
+    "co.in", "org.in", "co.za", "co.il", "com.br", "com.cn", "com.tw", "com.hk",
+    "com.mx", "com.ar", "com.tr", "com.sg", "com.my", "com.pl", "com.ua",
+})
+
+
+def _hostname(netloc: str) -> str:
+    """``netloc`` without login, port, or trailing dot, lowercased"""
+    host = netloc.rpartition("@")[2].lower()
+    if host.startswith("["):  # IPv6 literal
+        return host.partition("]")[0] + "]"
+    return host.partition(":")[0].rstrip(".")
+
+
+def site_of(netloc: str) -> str:
+    """The site a host belongs to"""
+    host = _hostname(netloc)
+    if host.startswith("[") or host.replace(".", "").isdigit():
+        return host
+    labels = host.split(".")
+    keep = 3 if ".".join(labels[-2:]) in _TWO_LABEL_SUFFIXES else 2
+    return ".".join(labels[-keep:])
+
+
+def pace_key(netloc: str, *, by_site: bool = True) -> str:
+    """What requests to ``netloc`` are paced as"""
+    if by_site:
+        return site_of(netloc)
+    host = _hostname(netloc)
+    labels = host.split(".")
+    for i in range(1, len(labels) - 1):
+        suffix = ".".join(labels[i:])
+        if suffix in SHARED_HOST_SUFFIXES:
+            return suffix
+    return host
+
+
+class _Host:
+    """Pacing state of a host, see :meth:`Client._turn`"""
+
+    __slots__ = ("cond", "next_at", "busy", "holds")
+
+    def __init__(self) -> None:
+        self.cond = threading.Condition(threading.Lock())
+        self.next_at = 0.0
+        # a thread has the next turn and is waiting out the gap
+        self.busy = False
+        self.holds: dict[str, float] = {}
+
+
 @dataclass
 class Fetched:
     url: str
@@ -186,9 +263,12 @@ class Client:
         self._log = logger
         self.requested_urls: list[str] = []
 
-        self._host_locks: dict[str, threading.Lock] = {}
-        self._host_last: dict[str, float] = {}
+        self._hosts: dict[str, _Host] = {}
+        # With `user_agent: rotate`, the one each site is sent: a browser keeps its own
+        self._agents: dict[str, str] = {}
         self._registry_lock = threading.Lock()
+        # `privacy.concurrency` caps requests in flight
+        self._in_flight = threading.BoundedSemaphore(max(1, self.privacy.concurrency))
 
         # One upstream document can back several targets: every Brave channel lives
         # in one releases feed, every Firefox channel in one JSON. Bodies fetched
@@ -199,12 +279,16 @@ class Client:
         # Only reuse bodies inside :meth:`run_scope`. A client used directly,
         # outside a run, keeps the plain one-GET-per-call contract.
         self._run_active = False
+        # GETs in progress, by the same key
+        self._flights: dict[tuple[str, tuple[tuple[str, str], ...]], threading.Event] = {}
+        # Hosts that gave up on this run (unreachable, rate limited), by pace key
+        self._down: dict[str, str] = {}
         # Per worker thread: send no validators, see :meth:`unconditional`
         self._local = threading.local()
 
         self._client = httpx.Client(
             proxy=self.privacy.proxy,
-            timeout=self.privacy.timeout,
+            timeout=self._timeout(),
             # Followed by hand in _send, so headers can be dropped on the way off-host
             follow_redirects=False,
             transport=transport,
@@ -228,9 +312,9 @@ class Client:
         ua = "rotating" if self.privacy.user_agent == "rotate" else self.privacy.user_agent
         return (
             f"proxy={proxy} user_agent={ua} "
-            f"jitter={self.privacy.jitter[0]}-{self.privacy.jitter[1]}s "
+            f"jitter={self._jitter()[0]}-{self._jitter()[1]}s "
             f"concurrency={self.privacy.concurrency} timeout={self.privacy.timeout}s"
-        )
+        ) + (" fast_mode=on" if self.privacy.fast_mode else "")
 
     @contextmanager
     def run_scope(self) -> "Generator[Client, None, None]":
@@ -240,12 +324,14 @@ class Client:
         """
         with self._bodies_lock:
             self._run_bodies.clear()
+            self._down.clear()
             self._run_active = True
         try:
             yield self
         finally:
             with self._bodies_lock:
                 self._run_bodies.clear()
+                self._down.clear()
                 self._run_active = False
 
     @contextmanager
@@ -282,33 +368,117 @@ class Client:
 
     # internals
 
-    def _user_agent(self) -> str:
-        if self.privacy.user_agent == "rotate":
-            return random.choice(USER_AGENTS)
-        return self.privacy.user_agent
+    def _user_agent(self, host: str) -> str:
+        if self.privacy.user_agent != "rotate":
+            return self.privacy.user_agent
+        with self._registry_lock:
+            return self._agents.setdefault(self._key(host), random.choice(USER_AGENTS))
+
+    def _key(self, host: str) -> str:
+        """The site lane ``host`` is paced in"""
+        return pace_key(host, by_site=not self.privacy.fast_mode)
+
+    @staticmethod
+    def _held_key(host: str) -> str:
+        """What a 429, backoff, or give-up applies to"""
+        return pace_key(host, by_site=False)
+
+    def _host(self, host: str) -> _Host:
+        host = self._key(host)
+        with self._registry_lock:
+            state = self._hosts.get(host)
+            if state is None:
+                state = self._hosts[host] = _Host()
+            return state
+
+    def _jitter(self) -> tuple[float, float]:
+        return FAST_JITTER if self.privacy.fast_mode else self.privacy.jitter
+
+    def _gap(self) -> float:
+        low, high = self._jitter()
+        return random.uniform(low, high)
+
+    def _give_up_on(self, host: str, why: str) -> None:
+        """Fail this run's other requests to ``host`` without sending"""
+        with self._bodies_lock:
+            if self._run_active:
+                self._down.setdefault(self._held_key(host), why)
+
+    def _check_up(self, host: str, url: str) -> None:
+        with self._bodies_lock:
+            why = self._down.get(self._held_key(host)) if self._run_active else None
+        if why is not None:
+            raise FetchError(f"{url}: not sent, {self._held_key(host)} {why} earlier this run")
+
+    @contextmanager
+    def _turn(self, host: str) -> "Generator[None, None, None]":
+        """Hold a request slot for one send to ``host``"""
+        state = self._host(host)
+        held_key = self._held_key(host)
+        queued = acquired = False
+        try:
+            while True:
+                with state.cond:
+                    held = state.holds.get(held_key, 0.0)
+                wait = held - time.monotonic()
+                if wait > 0:
+                    time.sleep(wait)
+                with state.cond:
+                    while state.busy:
+                        state.cond.wait()
+                    state.busy = queued = True
+                    slot = state.next_at
+                wait = slot - time.monotonic()
+                if wait > 0:
+                    time.sleep(wait)
+                acquired = self._in_flight.acquire()
+                # Shown before the next gap is measured from now, so it can't eat into it
+                announce = getattr(self._local, "announce", None)
+                if announce is not None:
+                    self._local.announce = None
+                    announce()
+                with state.cond:
+                    state.busy = queued = False
+                    state.cond.notify_all()
+                    # Unless a 429 pushed this host or the site out while this thread waited
+                    if state.next_at == slot and state.holds.get(held_key, 0.0) == held:
+                        # A slot in the past means the site has been idle for a gap
+                        state.next_at = max(slot, time.monotonic()) + self._gap()
+                        break
+                acquired = False
+                self._in_flight.release()
+            yield
+        finally:
+            if acquired:
+                self._in_flight.release()
+            if queued:
+                with state.cond:
+                    state.busy = False
+                    state.cond.notify_all()
 
     def _pace(self, host: str) -> None:
-        """Leave a rand gap between hits on one host, so traffic never looks like a burst"""
-        with self._registry_lock:
-            lock = self._host_locks.setdefault(host, threading.Lock())
-        with lock:
-            low, high = self.privacy.jitter
-            now = time.monotonic()
-            last = self._host_last.get(host)
-            # A slot in the past means the host has been idle for a gap
-            slot = now if last is None else max(now, last + random.uniform(low, high))
-            self._host_last[host] = slot
-        wait = slot - time.monotonic()
-        if wait > 0:
-            time.sleep(wait)
+        """Wait for ``host``'s next turn, without sending anything in it"""
+        with self._turn(host):
+            pass
 
     def _hold_host(self, host: str, seconds: float) -> None:
-        """Push the host's next slot ``seconds`` out"""
-        with self._registry_lock:
-            lock = self._host_locks.setdefault(host, threading.Lock())
-        with lock:
-            until = time.monotonic() + seconds
-            self._host_last[host] = max(self._host_last.get(host, until), until)
+        """Push the host's next request ``seconds`` out, plus the usual gap"""
+        state = self._host(host)
+        key = self._held_key(host)
+        with state.cond:
+            until = time.monotonic() + seconds + self._gap()
+            state.holds[key] = max(state.holds.get(key, 0.0), until)
+            state.cond.notify_all()
+
+    @contextmanager
+    def first_request(self, callback) -> "Generator[None, None, None]":
+        """Call ``callback`` when this thread's next request is about to be sent"""
+        previous = getattr(self._local, "announce", None)
+        self._local.announce = callback
+        try:
+            yield
+        finally:
+            self._local.announce = previous
 
     def _cached_body(
         self, key: tuple[str, tuple[tuple[str, str], ...]]
@@ -316,6 +486,18 @@ class Client:
         """The 200 body already fetched for this key during this run, if any."""
         with self._bodies_lock:
             return self._run_bodies.get(key) if self._run_active else None
+
+    def _timeout(self) -> httpx.Timeout:
+        timeout = self.privacy.timeout
+        if self.privacy.proxy:
+            return httpx.Timeout(timeout)
+        return httpx.Timeout(timeout, connect=min(timeout, CONNECT_TIMEOUT))
+
+    def _retries_after(self, exc: Exception, retries: int) -> int:
+        """How many tries ``exc`` leaves of ``retries``"""
+        if isinstance(exc, httpx.ConnectTimeout) and not self.privacy.proxy:
+            return min(retries, CONNECT_TIMEOUT_RETRIES)
+        return retries
 
     def note(self, message: str) -> None:
         if self.verbose and self._log:
@@ -355,28 +537,72 @@ class Client:
         if cached is not None:
             self.note(f"GET {url} -> reusing the copy already fetched this run")
             return cached
-        request_headers = {"User-Agent": self._user_agent()}
+
+        with self._bodies_lock:
+            # The first one may have landed since the check above
+            cached = self._run_bodies.get(cache_key) if self._run_active else None
+            flight = self._flights.get(cache_key) if self._run_active else None
+            leader = cached is None and flight is None and self._run_active
+            if leader:
+                flight = self._flights[cache_key] = threading.Event()
+        if cached is not None:
+            self.note(f"GET {url} -> reusing the copy already fetched this run")
+            return cached
+        if flight is not None and not leader:
+            flight.wait()
+            cached = self._cached_body(cache_key)
+            if cached is not None:
+                self.note(f"GET {url} -> reusing the copy already fetched this run")
+                return cached
+            # The first one's answer had no body to share (304, an error): ask for ourselves
+        try:
+            return self._fetch(
+                url, cache_key, headers, conditional, soft, retries, follow_redirects
+            )
+        finally:
+            if leader:
+                with self._bodies_lock:
+                    self._flights.pop(cache_key, None)
+                flight.set()
+
+    def _fetch(
+        self,
+        url: str,
+        cache_key: tuple[str, tuple[tuple[str, str], ...]],
+        headers: dict[str, str] | None,
+        conditional: bool,
+        soft: frozenset[int],
+        retries: int,
+        follow_redirects: bool,
+    ) -> Fetched | None:
+        """The network part of :meth:`get`"""
+        host = urlsplit(url).netloc
+        request_headers = {"User-Agent": self._user_agent(host)}
         if headers:
             request_headers.update(headers)
         send_validators = not getattr(self._local, "unconditional", False)
         if conditional and send_validators and self.state is not None:
             request_headers.update(self.state.conditional_headers(url))
 
-        host = urlsplit(url).netloc
         last_error: Exception | None = None
 
         for attempt in range(retries + 1):
-            self._pace(host)
+            self._check_up(host, url)
             try:
-                response = self._send(
-                    "GET", url, request_headers, private=headers or (), follow=follow_redirects
-                )
+                with self._turn(host):
+                    # It may have given up while this one waited its turn
+                    self._check_up(host, url)
+                    response = self._send(
+                        "GET", url, request_headers, private=headers or (), follow=follow_redirects
+                    )
             except NETWORK_ERRORS as exc:
                 last_error = exc
                 self.note(f"GET {url} -> {type(exc).__name__}: {exc}")
-                if attempt < retries:
-                    time.sleep(self.retry_backoff * (attempt + 1))
+                if attempt < self._retries_after(exc, retries):
+                    # Every request to the host waits, not just this one
+                    self._hold_host(host, self.retry_backoff * (attempt + 1))
                     continue
+                self._give_up_on(host, f"didn't answer ({type(exc).__name__})")
                 raise FetchError(f"{url}: {type(exc).__name__}: {exc}") from exc
 
             self.note(f"GET {url} -> {response.status_code}")
@@ -423,6 +649,8 @@ class Client:
                 self._wait_to_retry(response, attempt, host, "GET", url)
                 continue
 
+            if response.status_code in RETRY_AFTER_STATUSES:
+                self._give_up_on(host, f"kept answering HTTP {response.status_code}")
             raise FetchError(f"{url}: HTTP {response.status_code}")
 
         raise FetchError(f"{url}: {last_error}")
@@ -445,22 +673,22 @@ class Client:
             self.note(f"[test] POST {shown}")
             return None
 
-        request_headers = {"User-Agent": self._user_agent()}
+        host = urlsplit(url).netloc
+        request_headers = {"User-Agent": self._user_agent(host)}
         if headers:
             request_headers.update(headers)
-        host = urlsplit(url).netloc
 
         for attempt in range(retries + 1):
-            self._pace(host)
             try:
-                response = self._send(
-                    "POST", url, request_headers, private=headers or (), json=json
-                )
+                with self._turn(host):
+                    response = self._send(
+                        "POST", url, request_headers, private=headers or (), json=json
+                    )
             except NETWORK_ERRORS as exc:
                 self.note(f"POST {shown} -> {type(exc).__name__}")
                 # A read timeout or dropped connection can come after a delivered notification
                 if attempt < retries and isinstance(exc, UNSENT_ERRORS):
-                    time.sleep(self.retry_backoff * (attempt + 1))
+                    self._hold_host(host, self.retry_backoff * (attempt + 1))
                     continue
                 raise FetchError(f"{shown}: {type(exc).__name__}") from exc
 
@@ -522,8 +750,10 @@ class Client:
         if response.status_code in RETRY_AFTER_STATUSES:
             wait = retry_after_seconds(response.headers.get("retry-after"))
         if wait is None:
-            time.sleep(self.retry_backoff * (attempt + 1))
+            # Every request to the host waits, not just this one
+            self._hold_host(host, self.retry_backoff * (attempt + 1))
         elif wait > self.retry_after_max:
+            self._give_up_on(host, f"asked to wait {wait:.0f}s")
             raise FetchError(
                 f"{url}: HTTP {response.status_code} (server asked to retry "
                 f"after {wait:.0f}s, over the {self.retry_after_max:.0f}s limit)"

@@ -10,7 +10,7 @@
 | `unknown source 'X'` | Check spelling against `youpdated sources`. |
 | `can't tell which forge X runs` | A self-hosted `git` host with no hint in its name. Add `forge: github`, `gitlab`, or `forgejo`. |
 | `notify` in the `problems` panel | A webhook or command failed. The updates were still recorded, so they won't be sent again. Check the URL, or run the command by hand. |
-| YouTube fails every path | Its feed throttles intermittently. Retry, or set `settings.privacy.proxy`, or export `YOUTUBE_API_KEY`. |
+| YouTube fails every path | Its feed has outages, answering 404 for every channel for hours, and few Invidious instances still serve an API to fall back on. A later check likely works; `YOUTUBE_API_KEY` adds a path without outages. |
 | An itch game reports nothing | It has neither a devlog nor a file listing. Confirm with `youpdated check -s itch --all -v`. |
 | A `webpage` fails with `more than one version`, `no version found`, or `found X in … but Y in …` | The page doesn't say clearly which version is current, so it isn't guessed. Add `regex:` that matches it; see [Web pages](configuration.md#web-pages). |
 | A `webpage` fails with `earlier checks found the version in …` | The page changed, and the version is now somewhere else. Check the page, then add a `regex:`, or `youpdated rm --wipe webpage URL` and `add` it again. |

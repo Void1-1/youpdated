@@ -233,6 +233,91 @@ def test_encrypted_state_round_trips(tmp_path):
         assert state.last_run() is not None
 
 
+def test_a_given_salt_is_kept_and_the_nonce_is_still_fresh():
+    first = crypto.encrypt(b"hello", PASSPHRASE)
+    salt = crypto.salt_of(first)
+    again = crypto.encrypt(b"hello", PASSPHRASE, salt=salt)
+
+    assert crypto.salt_of(again) == salt
+    assert again != first  # a new nonce every write
+    assert crypto.decrypt(again, PASSPHRASE) == b"hello"
+
+
+def test_a_salt_of_the_wrong_size_is_refused():
+    with pytest.raises(crypto.EncryptionError, match="salt must be"):
+        crypto.encrypt(b"hello", PASSPHRASE, salt=b"short")
+
+
+def test_a_key_is_derived_once_per_salt(monkeypatch):
+    derived = []
+    real = crypto._derive
+
+    def counting(*args):
+        derived.append(args[1])
+        return real(*args)
+
+    monkeypatch.setattr(crypto, "_derive", counting)
+    blob = crypto.encrypt(b"hello", PASSPHRASE)
+    crypto.decrypt(blob, PASSPHRASE)
+    crypto.encrypt(b"again", PASSPHRASE, salt=crypto.salt_of(blob))
+    with pytest.raises(crypto.EncryptionError, match="wrong passphrase"):
+        crypto.decrypt(blob, "not it")
+
+    assert derived == [crypto.salt_of(blob)] * 2  # the right passphrase, then the wrong one
+
+
+def test_derive_ahead_leaves_unreadable_files_to_decrypt(tmp_path):
+    crypto.derive_ahead(tmp_path / "missing", PASSPHRASE)
+    (tmp_path / "plain").write_bytes(b"not a container")
+    crypto.derive_ahead(tmp_path / "plain", PASSPHRASE)
+
+
+def test_derive_ahead_has_the_key_ready_for_decrypt(tmp_path, monkeypatch):
+    path = tmp_path / "blob"
+    path.write_bytes(crypto.encrypt(b"hello", "a passphrase only this test uses"))
+    crypto.derive_ahead(path, "a passphrase only this test uses")
+    with crypto._keys_lock:
+        assert any(salt == crypto.salt_of(path.read_bytes()) for _, salt, *_ in crypto._keys)
+    monkeypatch.setattr(crypto, "_derive", lambda *a: pytest.fail("derived twice"))
+    assert crypto.decrypt(path.read_bytes(), "a passphrase only this test uses") == b"hello"
+
+
+def test_a_failed_derivation_ahead_prints_nothing(tmp_path, monkeypatch):
+    """decrypt reports it; the background thread stays quiet"""
+    import threading
+
+    path = tmp_path / "blob"
+    path.write_bytes(crypto.encrypt(b"hello", PASSPHRASE))
+    hooked = []
+    monkeypatch.setattr(threading, "excepthook", hooked.append)
+
+    def fail(*args):
+        raise MemoryError
+
+    monkeypatch.setattr(crypto, "_derive", fail)
+    crypto.derive_ahead(path, "a passphrase that fails to derive")
+    for thread in threading.enumerate():
+        if thread.name == "youpdated-derive":
+            thread.join(timeout=5)
+    assert hooked == []
+
+
+def test_encrypted_state_keeps_its_salt_across_saves(tmp_path):
+    path = tmp_path / "state.sqlite3"
+    with State(path, passphrase=PASSPHRASE) as state:
+        state.mark_seen([update("v1")])
+        state.flush()
+        first = path.read_bytes()
+        state.mark_seen([update("v2")])
+    second = path.read_bytes()
+
+    assert crypto.salt_of(second) == crypto.salt_of(first)
+    with State(path, passphrase=PASSPHRASE) as state:
+        assert state.seen_count() == 2
+        state.mark_seen([update("v3")])
+    assert crypto.salt_of(path.read_bytes()) == crypto.salt_of(first)
+
+
 def test_encrypted_state_is_not_readable_as_sqlite(tmp_path):
     path = tmp_path / "state.sqlite3"
     with State(path, passphrase=PASSPHRASE) as state:

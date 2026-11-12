@@ -42,6 +42,7 @@ youpdated check --json                 # machine-readable output
 youpdated check --rss ~/feeds/you.xml  # aggregated Atom feed for a reader
 youpdated check --test -v              # show what it would request, and any config problems
 youpdated check --no-save              # report without recording anything as seen
+youpdated check --fast                 # shorter gaps between requests, less private (docs/privacy.md)
 youpdated check --fail-on-error        # exit 2 if any source or notification failed
 youpdated check --notify-cmd 'notify-send {title} {url}'  # run a command per new update
 youpdated check --no-notify            # skip notifications this run
