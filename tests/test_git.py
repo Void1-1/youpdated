@@ -285,6 +285,18 @@ def test_a_fixed_user_agent_is_still_respected(client):
     assert route.calls.last.request.headers["User-Agent"] == "my-agent/1.0"
 
 
+def test_forge_apis_are_sent_the_youpdated_user_agent(client):
+    from youpdated.http import YOUPDATED_USER_AGENT
+
+    client.privacy.user_agent = "youpdated"
+    with respx.mock:
+        route = respx.get(f"{CB_API}/releases?limit=20").mock(
+            return_value=httpx.Response(200, json=[])
+        )
+        list(get_source("git").fetch(one("codeberg.org/forgejo/forgejo"), client))
+    assert route.calls.last.request.headers["User-Agent"] == YOUPDATED_USER_AGENT
+
+
 @respx.mock
 def test_forgejo_token_needs_token_env(client, monkeypatch):
     monkeypatch.setenv("CODEBERG_TOKEN", "abc")

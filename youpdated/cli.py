@@ -12,6 +12,7 @@ import threading
 import time
 from contextlib import ExitStack
 from dataclasses import replace
+from datetime import datetime, timezone
 from pathlib import Path
 
 from rich.console import Console, ConsoleOptions, RenderableType, RenderResult
@@ -34,6 +35,8 @@ from .cleanup import Trace, find_package, find_traces, remove_package, remove_tr
 from .config import (
     EXAMPLE_CONFIG,
     FAST_MODE_WARNING,
+    NAMED_UA_UNCONFIRMED,
+    NAMED_UA_WARNING,
     Command,
     Config,
     ConfigError,
@@ -154,6 +157,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     editor = sub.add_parser("edit", help="open the config in your editor")
     editor.add_argument("-c", "--config", help="path to a config file")
+    editor.add_argument("--state", help="path to the state database")
 
     init = sub.add_parser("init", help="write a starter config file")
     init.add_argument("-c", "--config", help="where to write it")
@@ -437,12 +441,55 @@ def _loads(text: str, path: Path) -> Config | None:
         return None
 
 
+# kv row recording that `user_agent: youpdated` was confirmed on a high security setup
+_NAMED_UA_CONFIRMED = ("meta", "named_user_agent_confirmed")
+
+
+def _names_itself_privately(config: Config, encrypted: bool) -> bool:
+    """`user_agent: youpdated` on an encrypted, proxied setup, see :data:`NAMED_UA_WARNING`"""
+    return encrypted and bool(config.privacy.proxy) and config.privacy.user_agent == "youpdated"
+
+
+def _named_ua_confirmed(state: State) -> bool:
+    return state.cache_get(*_NAMED_UA_CONFIRMED) is not None
+
+
+def _confirm_named_ua(console: Console) -> bool:
+    """Warn, then ask"""
+    console.print(f"[yellow]Warning:[/] {escape(NAMED_UA_WARNING)}")
+    return _ask("Send requests as Youpdated anyway? [y/N] ") in ("y", "yes")
+
+
+def _named_ua_confirmed_at(state_path: Path, passphrase: str | None) -> bool:
+    """If the history records the confirmation"""
+    if not state_path.is_file():
+        return False
+    try:
+        with State(state_path, passphrase=passphrase) as state:
+            return _named_ua_confirmed(state)
+    except (StateError, crypto.EncryptionError, OSError):
+        return False
+
+
+def _record_named_ua(state_path: Path, passphrase: str | None, console: Console) -> None:
+    try:
+        with State(state_path, passphrase=passphrase) as state:
+            state.cache_set(*_NAMED_UA_CONFIRMED, datetime.now(timezone.utc).isoformat())
+    except (StateError, crypto.EncryptionError, OSError) as exc:
+        console.print(
+            f"[yellow]Couldn't record that in the history ({escape(str(exc))}).[/] "
+            "The next check will ask again."
+        )
+
+
 def cmd_editor(args: argparse.Namespace, console: Console) -> int:
     """`edit`: the config through a copy, checked, then written back"""
     path = require_config(args.config)
+    state_path = Path(args.state).expanduser() if args.state else default_state_path()
     locked = crypto.is_encrypted_file(path)
     passphrase = crypto.prompt_passphrase() if locked else None
     before = path.read_bytes()
+    named_confirmed = False
     original = read_config_text(path, passphrase)
     loaded = _loads(original, path)
 
@@ -526,16 +573,29 @@ def cmd_editor(args: argparse.Namespace, console: Console) -> int:
                 return 0
 
             problems, warnings = _draft_problems(edited, path)
-            if not problems:
-                break
-            for problem in problems:
-                console.print(f"[red]Config error:[/] {escape(problem)}")
-            choice = _after_problems(can_save=True)
-            if choice == "s":
-                break
-            if choice == "d":
-                console.print(_DISCARDED)
-                return 1
+            if problems:
+                for problem in problems:
+                    console.print(f"[red]Config error:[/] {escape(problem)}")
+                choice = _after_problems(can_save=True)
+                if choice == "d":
+                    console.print(_DISCARDED)
+                    return 1
+                if choice == "e":
+                    continue
+
+            drafted = _loads(edited, path)
+            if (
+                drafted is not None
+                and _names_itself_privately(drafted, locked)
+                and not _named_ua_confirmed_at(state_path, passphrase)
+            ):
+                if not _confirm_named_ua(console):
+                    if _after_problems(can_save=False) == "e":
+                        continue
+                    console.print(_DISCARDED)
+                    return 1
+                named_confirmed = True
+            break
 
     for warning in warnings:
         console.print(f"[yellow]Warning:[/] {escape(warning)}")
@@ -552,6 +612,8 @@ def cmd_editor(args: argparse.Namespace, console: Console) -> int:
     console.print(
         f"Saved {'encrypted ' if locked else ''}changes to [bold]{escape(str(path))}[/]"
     )
+    if named_confirmed:
+        _record_named_ua(state_path, passphrase, console)
     return 0
 
 
@@ -951,6 +1013,7 @@ def cmd_check(args: argparse.Namespace, console: Console) -> int:
         config.privacy = replace(config.privacy, fast_mode=True)
     if config.privacy.fast_mode:
         status.print(f"[yellow]warning:[/] {escape(FAST_MODE_WARNING)}")
+    named = _names_itself_privately(config, passphrase is not None)
 
     since = None
     if args.since:
@@ -992,6 +1055,15 @@ def cmd_check(args: argparse.Namespace, console: Console) -> int:
                 status.print(f"[dim]proxy:  {escape(config.privacy.proxy)} reachable[/]")
 
     with State(state_path, passphrase=passphrase, expiry=config.expiry) as state:
+        if named and not args.test and not _named_ua_confirmed(state):
+            if args.json or not sys.stdin.isatty():
+                raise ConfigError(NAMED_UA_UNCONFIRMED)
+            if not _confirm_named_ua(status):
+                status.print("[dim]Canceled. Nothing was sent.[/]")
+                return 1
+            state.cache_set(*_NAMED_UA_CONFIRMED, datetime.now(timezone.utc).isoformat())
+        elif named:
+            status.print(f"[yellow]warning:[/] {escape(NAMED_UA_WARNING)}")
         with Client(
             config.privacy,
             state,

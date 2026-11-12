@@ -38,12 +38,20 @@
 ```yaml
 privacy:
   # proxy: socks5://127.0.0.1:9050   # Tor's default SOCKS port
-  user_agent: rotate                 # 'rotate', or a fixed UA string
+  user_agent: rotate                 # 'rotate', 'youpdated', or a fixed UA string
   jitter: [0.5, 3.0]                 # random gap between hits on one site
   concurrency: 4                     # requests in flight at once
   timeout: 20
   # fast_mode: true                  # see "Fast mode" below
 ```
+
+## User agent
+
+- `rotate` (default) sends each site one of a few current desktop browser strings per check, so requests blend in with ordinary browsing. Forge APIs (GitHub, GitLab, Codeberg) are sent `python-httpx/<version>` instead.
+- `youpdated` sends `Youpdated/<version> (+https://github.com/Void1-1/youpdated)`. Sites can see what is asking and rate limit rather than block it. Every request says it comes from Youpdated, so `rotate` is still suggested for privacy.
+- Any other string is sent as is, to every site.
+
+**On encrypted setups with a proxy**, `youpdated` identifies your traffic explicitly. Youpdated warns about it on every check and confirms once, when `youpdated edit` saves the change or on the first `youpdated check`. A check that can't ask (no terminal, `--json`, a scheduled run) sends nothing until it's been confirmed. The answer is kept in the history.
 
 ## Fast mode
 
