@@ -231,7 +231,7 @@ struct PrivacySettings: View {
 
     private func proxySection(_ privacy: Privacy) -> some View {
         Section {
-            Picker(String(localized: "Proxy"), selection: Binding(get: { choice }, set: choose)) {
+            Picker(String(localized: "Proxy"), selection: Binding(get: { choice }, set: { choose($0) })) {
                 Text(String(localized: "None")).tag(ProxyChoice.none)
                 Text(String(localized: "Tor")).tag(ProxyChoice.tor)
                 Text(String(localized: "Tor Browser")).tag(ProxyChoice.torBrowser)
