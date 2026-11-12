@@ -118,7 +118,8 @@ sources:
 
   youtube:
     - "@NASA"                        # handle, channel id, or channel URL
-    - playlist: PLxxxxxxxxxxxxxxxx
+    - https://www.youtube.com/playlist?list=PLxxxxxxxxxxxxxxxx
+    - playlist: PLxxxxxxxxxxxxxxxx   # or just the playlist's id
 
   browser:
     - chrome

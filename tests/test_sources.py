@@ -33,6 +33,16 @@ from .conftest import fixture, get_source
         ("youtube", ["@NASA"], ["@NASA"]),
         ("youtube", ["UCLA_DiR1FfKNvjuUpBHmylQ"], ["UCLA_DiR1FfKNvjuUpBHmylQ"]),
         ("youtube", [{"playlist": "PLabcdefghijk"}], ["playlist:PLabcdefghijk"]),
+        (
+            "youtube",
+            [
+                "https://www.youtube.com/playlist?list=PLabcdefghijk",
+                "www.youtube.com/playlist?list=PLabcdefghijk&si=share",
+                "https://m.youtube.com/playlist?si=x&list=PLabcdefghijk",
+                {"playlist": "https://youtube.com/playlist?list=PLabcdefghijk"},
+            ],
+            ["playlist:PLabcdefghijk"] * 4,
+        ),
     ],
 )
 def test_scalar_and_mapping_entries_normalize(source, entries, expected_keys):
@@ -48,6 +58,8 @@ def test_scalar_and_mapping_entries_normalize(source, entries, expected_keys):
         ("steam", ["no-digits-here"]),
         ("itch", ["https://example.com/game"]),
         ("youtube", ["just-a-string"]),
+        ("youtube", ["https://www.youtube.com/playlist?list=not-a-playlist"]),
+        ("youtube", ["https://www.youtube.com/watch?v=dQw4w9WgXcQ"]),
     ],
 )
 def test_bad_entries_are_rejected(source, entries):
@@ -411,6 +423,269 @@ def test_youtube_api_key_goes_in_a_header_and_is_never_shown(client, monkeypatch
     assert "AIza-secret" not in str(sent.url)
     assert "AIza-secret" not in str(failed.value)
     assert not any("AIza-secret" in url for url in client.requested_urls)
+
+
+PLAYLIST = "https://www.youtube.com/playlist?list=PLabcdefghijk"
+PLAYLIST_FEED = b"""<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xmlns:yt="http://www.youtube.com/xml/schemas/2015">
+  <title>Select Lectures</title>
+  <author><name>Lex Fridman</name></author>
+  <entry>
+    <id>yt:video:abcdefghijk</id>
+    <title>A video</title>
+    <link rel="alternate" href="https://www.youtube.com/watch?v=abcdefghijk"/>
+    <author><name>Someone else</name></author>
+    <published>2026-11-01T00:00:00+00:00</published>
+  </entry>
+</feed>"""
+
+
+@respx.mock
+def test_a_playlist_is_named_by_its_title_from_the_official_feed(client):
+    respx.get(url__startswith="https://www.youtube.com/feeds/videos.xml").mock(
+        return_value=httpx.Response(200, content=PLAYLIST_FEED)
+    )
+    (target,) = get_source("youtube").targets([PLAYLIST])
+    list(get_source("youtube").fetch(target, client))
+
+    assert target.label == "Select Lectures"
+
+
+@respx.mock
+def test_a_playlist_is_named_by_its_title_from_invidious(client):
+    _blocked_feed_and(["https://inv.example"])
+    respx.get("https://inv.example/api/v1/playlists/PLabcdefghijk").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "title": "Select Lectures",
+                "author": "Lex Fridman",
+                "videos": [_video(author="Someone else")],
+            },
+        )
+    )
+    (target,) = get_source("youtube").targets([PLAYLIST])
+    list(get_source("youtube").fetch(target, client))
+
+    assert target.label == "Select Lectures"
+
+
+@respx.mock
+def test_a_playlist_is_named_by_its_title_from_the_data_api(client, monkeypatch):
+    monkeypatch.setenv("YOUTUBE_API_KEY", "AIza-secret")
+    _blocked_feed_and()
+    item = {
+        "snippet": {
+            "title": "A video",
+            "channelTitle": "Lex Fridman",
+            "resourceId": {"videoId": "abcdefghijk"},
+        }
+    }
+    respx.get(url__startswith=DATA_API).mock(
+        return_value=httpx.Response(200, json={"items": [item]})
+    )
+    named = respx.get(url__startswith="https://www.googleapis.com/youtube/v3/playlists?").mock(
+        return_value=httpx.Response(200, json={"items": [{"snippet": {"title": "Select Lectures"}}]})
+    )
+    (target,) = get_source("youtube").targets([PLAYLIST])
+    list(get_source("youtube").fetch(target, client))
+
+    assert target.label == "Select Lectures"
+    assert named.calls.last.request.headers["X-Goog-Api-Key"] == "AIza-secret"
+
+
+@respx.mock
+def test_a_playlist_without_a_title_from_the_data_api_still_has_its_videos(client, monkeypatch):
+    monkeypatch.setenv("YOUTUBE_API_KEY", "AIza-secret")
+    _blocked_feed_and()
+    item = {"snippet": {"title": "A video", "resourceId": {"videoId": "abcdefghijk"}}}
+    respx.get(url__startswith=DATA_API).mock(
+        return_value=httpx.Response(200, json={"items": [item]})
+    )
+    respx.get(url__startswith="https://www.googleapis.com/youtube/v3/playlists?").mock(
+        return_value=httpx.Response(403, json={"error": {"message": "quota"}})
+    )
+    (target,) = get_source("youtube").targets([PLAYLIST])
+
+    assert [u.uid for u in get_source("youtube").fetch(target, client)] == ["yt:video:abcdefghijk"]
+    assert target.display == "playlist:PLabcdefghijk"
+
+
+@respx.mock
+def test_a_playlist_name_in_config_is_kept_over_its_title(client):
+    respx.get(url__startswith="https://www.youtube.com/feeds/videos.xml").mock(
+        return_value=httpx.Response(200, content=PLAYLIST_FEED)
+    )
+    (target,) = get_source("youtube").targets([{"playlist": PLAYLIST, "name": "Lectures"}])
+    list(get_source("youtube").fetch(target, client))
+
+    assert target.label == "Lectures"
+
+
+# long playlists: new videos go at the end, past the first page
+
+
+def _vid(n: int) -> str:
+    return f"v{n:010d}"
+
+
+def _uids(updates) -> list[str]:
+    return [u.uid.removeprefix("yt:video:") for u in updates]
+
+
+def _ends(count: int) -> list[str]:
+    """What a playlist of ``count`` videos should be checked for: both ends"""
+    return [_vid(n) for n in [*range(15), *range(max(15, count - 15), count)]]
+
+
+@respx.mock
+def test_a_full_official_feed_leaves_a_playlist_to_paths_that_reach_its_end(client):
+    entries = "".join(
+        f"<entry><id>yt:video:{_vid(n)}</id><title>{n}</title>"
+        f'<link rel="alternate" href="https://www.youtube.com/watch?v={_vid(n)}"/></entry>'
+        for n in range(15)
+    )
+    respx.get(url__startswith="https://www.youtube.com/feeds/videos.xml").mock(
+        return_value=httpx.Response(
+            200, content=f'<feed xmlns="http://www.w3.org/2005/Atom">{entries}</feed>'.encode()
+        )
+    )
+    respx.get("https://api.invidious.io/instances.json").mock(
+        return_value=httpx.Response(
+            200, json=[["i", {"type": "https", "api": True, "uri": "https://inv.example"}]]
+        )
+    )
+    respx.get("https://inv.example/api/v1/playlists/PLabcdefghijk").mock(
+        return_value=httpx.Response(
+            200, json={"videoCount": 16, "videos": [_video(_vid(n)) for n in range(16)]}
+        )
+    )
+    (target,) = get_source("youtube").targets([PLAYLIST])
+
+    assert _uids(get_source("youtube").fetch(target, client)) == _ends(16)
+
+
+@respx.mock
+def test_a_short_official_feed_is_the_whole_playlist(client):
+    respx.get(url__startswith="https://www.youtube.com/feeds/videos.xml").mock(
+        return_value=httpx.Response(200, content=PLAYLIST_FEED)
+    )
+    (target,) = get_source("youtube").targets([PLAYLIST])
+
+    assert _uids(get_source("youtube").fetch(target, client)) == ["abcdefghijk"]
+
+
+@respx.mock
+def test_invidious_reads_the_last_page_of_a_long_playlist(client):
+    _blocked_feed_and(["https://inv.example"])
+    url = "https://inv.example/api/v1/playlists/PLabcdefghijk"
+    last = respx.get(f"{url}?page=5").mock(
+        return_value=httpx.Response(
+            200, json={"videoCount": 448, "videos": [_video(_vid(n)) for n in range(350, 448)]}
+        )
+    )
+    respx.get(url).mock(
+        return_value=httpx.Response(
+            200, json={"videoCount": 448, "videos": [_video(_vid(n)) for n in range(200)]}
+        )
+    )
+    (target,) = get_source("youtube").targets([PLAYLIST])
+
+    assert _uids(get_source("youtube").fetch(target, client)) == _ends(448)
+    assert last.called
+
+
+@respx.mock
+def test_invidious_moves_on_when_a_playlist_page_is_empty(client, monkeypatch):
+    import youpdated.sources.youtube as youtube
+
+    monkeypatch.setattr(youtube.random, "sample", lambda seq, k: list(seq)[:k])
+    _blocked_feed_and(["https://bad.example", "https://good.example"])
+    for base, tail in (("https://bad.example", []), ("https://good.example", [449])):
+        url = f"{base}/api/v1/playlists/PLabcdefghijk"
+        respx.get(f"{url}?page=5").mock(
+            return_value=httpx.Response(200, json={"videos": [_video(_vid(n)) for n in tail]})
+        )
+        respx.get(url).mock(
+            return_value=httpx.Response(
+                200, json={"videoCount": 450, "videos": [_video(_vid(n)) for n in range(200)]}
+            )
+        )
+    (target,) = get_source("youtube").targets([PLAYLIST])
+
+    assert _vid(449) in _uids(get_source("youtube").fetch(target, client))
+
+
+@respx.mock
+def test_invidious_keeps_a_channels_newest_videos(client):
+    _blocked_feed_and(["https://inv.example"])
+    respx.get(f"https://inv.example/api/v1/channels/{CHANNEL}/latest").mock(
+        return_value=httpx.Response(200, json=[_video(_vid(n)) for n in range(30)])
+    )
+    (target,) = get_source("youtube").targets([CHANNEL])
+
+    assert _uids(get_source("youtube").fetch(target, client)) == [_vid(n) for n in range(15)]
+
+
+def _data_api_playlist(count: int, *, bad_tokens: tuple[str, ...] = ()):
+    """A Data API serving a ``count``-video playlist 50 a page, with tokens ``T<offset>``"""
+
+    def page(request):
+        token = request.url.params.get("pageToken")
+        if token in bad_tokens:
+            return httpx.Response(400, json={"error": {"message": "invalid page token"}})
+        offset = int(token[1:]) if token else 0
+        items = [
+            {"snippet": {"title": str(n), "resourceId": {"videoId": _vid(n)}}}
+            for n in range(offset, min(offset + 50, count))
+        ]
+        body = {"items": items, "pageInfo": {"totalResults": count}}
+        if offset + 50 < count:
+            body["nextPageToken"] = f"T{offset + 50}"
+        return httpx.Response(200, json=body)
+
+    respx.get(url__startswith="https://www.googleapis.com/youtube/v3/playlists?").mock(
+        return_value=httpx.Response(200, json={"items": []})
+    )
+    return respx.get(url__startswith=DATA_API).mock(side_effect=page)
+
+
+def _tokens(route) -> list[str | None]:
+    return [call.request.url.params.get("pageToken") for call in route.calls]
+
+
+@respx.mock
+def test_the_data_api_walks_to_a_long_playlists_end_once(client, state, monkeypatch):
+    monkeypatch.setenv("YOUTUBE_API_KEY", "AIza-secret")
+    _blocked_feed_and()
+    api = _data_api_playlist(448)
+    (target,) = get_source("youtube").targets([PLAYLIST])
+
+    assert _uids(get_source("youtube").fetch(target, client)) == _ends(448)
+    assert _tokens(api) == [None, *(f"T{n}" for n in range(50, 448, 50))]
+
+    before = len(api.calls)
+    _data_api_playlist(452)
+    assert _uids(get_source("youtube").fetch(target, client)) == _ends(452)
+    assert _tokens(api)[before:] == [None, "T350", "T400", "T450"]
+
+
+@respx.mock
+def test_the_data_api_walks_from_the_start_when_its_saved_place_is_gone(
+    client, state, monkeypatch
+):
+    monkeypatch.setenv("YOUTUBE_API_KEY", "AIza-secret")
+    _blocked_feed_and()
+    (target,) = get_source("youtube").targets([PLAYLIST])
+
+    state.cache_set("youtube_playlist_pages", target.key, "T900") # the playlist got shorter
+    _data_api_playlist(120)
+    assert _uids(get_source("youtube").fetch(target, client)) == _ends(120)
+
+    state.cache_set("youtube_playlist_pages", target.key, "Tbroken")
+    _data_api_playlist(120, bad_tokens=("Tbroken",))
+    assert _uids(get_source("youtube").fetch(target, client)) == _ends(120)
+    assert state.cache_get("youtube_playlist_pages", target.key) == "T50"
 
 
 @respx.mock
