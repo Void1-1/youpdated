@@ -53,7 +53,7 @@ Every source entry takes **a bare value** or **a mapping**. The bare value is th
 ```yaml
 privacy:
   # proxy: socks5://127.0.0.1:9050   # Tor's default SOCKS port
-  user_agent: rotate                 # 'rotate', or a fixed UA string
+  user_agent: rotate                 # 'rotate', 'youpdated', or a fixed UA string
   jitter: [0.5, 3.0]                 # random gap between hits on one site
   concurrency: 4                     # requests in flight at once
   timeout: 20                        # seconds; connecting gets 8 of them, unless through a proxy

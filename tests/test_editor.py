@@ -477,3 +477,174 @@ def test_tidy_fixes_slips(text, fixed):
 )
 def test_tidy_leaves_alone(text):
     assert tidy_config(text) == (text, [])
+
+
+# `user_agent: youpdated` on an encrypted + proxied setup
+
+NAMED = WITH_PROXY.replace("  user_agent: rotate ", "  user_agent: youpdated ")
+USE_NAMED = (
+    "path.write_text(path.read_text().replace('  user_agent: rotate ', '  user_agent: youpdated '))"
+)
+NAMED_PROMPT = "Send requests as Youpdated anyway? [y/N] "
+
+
+class _Sent(Exception):
+    """Raised where a check would start sending"""
+
+
+@pytest.fixture
+def state_path(tmp_path):
+    return tmp_path / "state.sqlite3"
+
+
+@pytest.fixture
+def sending(monkeypatch):
+    """A check gets as far as building its client, then stops"""
+    monkeypatch.setattr(cli, "probe_proxy", lambda *a, **kw: None)
+
+    def client(*a, **kw):
+        raise _Sent
+
+    monkeypatch.setattr(cli, "Client", client)
+
+
+def tty(monkeypatch, interactive: bool) -> None:
+    class Stdin:
+        def isatty(self) -> bool:
+            return interactive
+
+    monkeypatch.setattr(sys, "stdin", Stdin())
+
+
+def lock(path: Path, text: str) -> None:
+    path.write_bytes(crypto.encrypt(text.encode("utf-8"), PASSPHRASE))
+
+
+@needs_crypto
+def test_switching_to_the_named_agent_asks_and_is_remembered(
+    locked, state_path, tmp_path, monkeypatch, capsys, sending
+):
+    lock(locked, WITH_PROXY)
+    use_editor(tmp_path, monkeypatch, USE_NAMED)
+    # the plaintext copy warning, then this one
+    asked = answers(monkeypatch, "y", "y")
+
+    assert main(["edit", "-c", str(locked), "--state", str(state_path)]) == 0
+    assert asked[1] == NAMED_PROMPT
+    assert "identifies check traffic" in capsys.readouterr().out
+    assert load_config(locked, passphrase=PASSPHRASE).privacy.user_agent == "youpdated"
+    # the history edit made to hold the answer is encrypted like the config
+    assert crypto.is_encrypted_file(state_path)
+    assert b"named_user_agent" not in state_path.read_bytes()
+
+    # the first check doesn't ask again
+    tty(monkeypatch, True)
+    asked = answers(monkeypatch)
+    with pytest.raises(_Sent):
+        main(["check", "-c", str(locked), "--state", str(state_path)])
+    assert asked == []
+    assert "identifies check traffic" in capsys.readouterr().out
+
+
+@needs_crypto
+@pytest.mark.parametrize("reply", ["n", ""])
+def test_declining_the_named_agent_edits_again_or_discards(
+    locked, state_path, tmp_path, monkeypatch, capsys, reply
+):
+    lock(locked, WITH_PROXY)
+    log = use_editor(tmp_path, monkeypatch, USE_NAMED, "pass")
+    # plaintext warning, decline, edit again, still named, decline, discard
+    asked = answers(monkeypatch, "y", reply, "e", "n", "d")
+
+    assert main(["edit", "-c", str(locked), "--state", str(state_path)]) == 1
+    assert asked.count(NAMED_PROMPT) == 2
+    assert len(runs(log)) == 2
+    assert load_config(locked, passphrase=PASSPHRASE).privacy.user_agent == "rotate"
+    assert not state_path.exists()
+
+
+@needs_crypto
+def test_the_named_agent_without_a_proxy_or_encryption_does_not_ask(
+    config, state_path, tmp_path, monkeypatch
+):
+    # a proxy, but not encrypted
+    config.write_text(WITH_PROXY, encoding="utf-8")
+    use_editor(tmp_path, monkeypatch, USE_NAMED)
+    asked = answers(monkeypatch)
+    assert main(["edit", "-c", str(config), "--state", str(state_path)]) == 0
+    assert asked == []
+
+
+@needs_crypto
+def test_first_check_asks_and_remembers(locked, state_path, monkeypatch, capsys, sending):
+    lock(locked, NAMED)
+    tty(monkeypatch, True)
+    asked = answers(monkeypatch, "y")
+    with pytest.raises(_Sent):
+        main(["check", "-c", str(locked), "--state", str(state_path)])
+    assert asked == [NAMED_PROMPT]
+    capsys.readouterr()
+
+    # the answer is in the (encrypted) history
+    assert crypto.is_encrypted_file(state_path)
+    asked = answers(monkeypatch)
+    with pytest.raises(_Sent):
+        main(["check", "-c", str(locked), "--state", str(state_path)])
+    assert asked == []
+
+
+@needs_crypto
+def test_a_plaintext_history_is_left_alone_when_recording_the_answer(
+    locked, state_path, tmp_path, monkeypatch, capsys
+):
+    """An encrypted config beside an unencrypted history"""
+    from youpdated.state import State
+
+    with State(state_path):
+        pass
+    before = state_path.read_bytes()
+    lock(locked, WITH_PROXY)
+    use_editor(tmp_path, monkeypatch, USE_NAMED)
+    answers(monkeypatch, "y", "y")
+
+    assert main(["edit", "-c", str(locked), "--state", str(state_path)]) == 0
+    assert "The next check will ask again" in capsys.readouterr().out
+    assert state_path.read_bytes() == before
+
+
+@needs_crypto
+def test_first_check_declined_sends_nothing(locked, state_path, monkeypatch, capsys, sending):
+    lock(locked, NAMED)
+    tty(monkeypatch, True)
+    answers(monkeypatch, "n")
+    assert main(["check", "-c", str(locked), "--state", str(state_path)]) == 1
+    assert "Nothing was sent" in capsys.readouterr().out
+
+    # and asks again next time
+    asked = answers(monkeypatch, "n")
+    assert main(["check", "-c", str(locked), "--state", str(state_path)]) == 1
+    assert asked == [NAMED_PROMPT]
+
+
+@needs_crypto
+@pytest.mark.parametrize("extra, interactive", [([], False), (["--json"], True)])
+def test_a_check_that_cannot_ask_sends_nothing(
+    locked, state_path, monkeypatch, capsys, sending, extra, interactive
+):
+    lock(locked, NAMED)
+    tty(monkeypatch, interactive)
+    asked = answers(monkeypatch)
+    assert main(["check", "-c", str(locked), "--state", str(state_path), *extra]) == 1
+    assert asked == []
+    out = capsys.readouterr()
+    assert "must be confirmed before" in out.out + out.err
+
+
+@needs_crypto
+def test_a_test_check_warns_without_asking(locked, state_path, monkeypatch, capsys):
+    lock(locked, NAMED)
+    monkeypatch.setattr(cli, "probe_proxy", lambda *a, **kw: None)
+    asked = answers(monkeypatch)
+    main(["check", "--test", "-c", str(locked), "--state", str(state_path)])
+    assert asked == []
+    assert "identifies check traffic" in capsys.readouterr().out
