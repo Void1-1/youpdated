@@ -38,12 +38,16 @@ public final class AppModel {
     public var viewOptions: ViewOptions {
         didSet { defaults.viewOptions = viewOptions }
     }
+    public var hidesSelfWatchSuggestions: Bool {
+        didSet { defaults.hidesSelfWatchSuggestions = hidesSelfWatchSuggestions }
+    }
 
     /// The passphrase prompt is up
     public private(set) var needsPassphrase = false
     public private(set) var passphraseError: String?
-    public private(set) var offersSelfWatch = false
-    /// "Checks are also running from the command line…"
+    public var offersSelfWatch: Bool { offersSelfWatchNow && !hidesSelfWatchSuggestions }
+    private var offersSelfWatchNow = false
+    /// "Checks are also running from the command line..."
     public private(set) var showsCLINotice = false
     /// The config is empty -> show the 'add' box in inbox
     public private(set) var isFirstRun = false
@@ -72,6 +76,7 @@ public final class AppModel {
         self.calendar = calendar
         pause = defaults.pause.settled(at: now())
         viewOptions = defaults.viewOptions
+        hidesSelfWatchSuggestions = defaults.hidesSelfWatchSuggestions
         inbox = InboxModel()
         sources = SourcesModel()
         feed = FeedModel()
@@ -85,7 +90,10 @@ public final class AppModel {
         add.app = self
         icons.app = self
         supervisor.onEvent = { [weak self] event in self?.received(event) }
-        supervisor.onProblem = { [weak self] problem in self?.appProblems.append(problem) }
+        supervisor.onProblem = { [weak self] problem in
+            AppLog.shared.write("\(problem.title) \(problem.detail)")
+            self?.appProblems.append(problem)
+        }
         supervisor.onReady = { [weak self] _, hello in
             self?.hello = hello
             await self?.engineReady()
@@ -218,7 +226,7 @@ public final class AppModel {
         } catch {
             report(error, doing: String(localized: "Couldn't read Settings."))
         }
-        offersSelfWatch = self.status?.selfWatch == .absent && !settings.selfWatchDeclined
+        offersSelfWatchNow = self.status?.selfWatch == .absent && !settings.selfWatchDeclined
         noteCLIRuns()
         if let reply = try? await engine.problems() {
             problems = reply.problems
@@ -404,7 +412,7 @@ public final class AppModel {
         }
         do {
             settings = try await engine.setSettings(patch)
-            if settings.selfWatchDeclined { offersSelfWatch = false }
+            if settings.selfWatchDeclined { offersSelfWatchNow = false }
             if !settings.showIcons { icons.clear() }
         } catch {
             report(error, doing: String(localized: "Couldn't save Settings."))
@@ -416,19 +424,19 @@ public final class AppModel {
         guard let engine else { return }
         do {
             _ = try await engine.initConfig(selfWatch: true)
-            offersSelfWatch = false
+            offersSelfWatchNow = false
             await refreshStatus()
             await sources.reload()
             if let target = sources.selfTarget {
                 await checkNow(targets: [target.id])
             }
         } catch {
-            report(error, doing: String(localized: "Couldn't add Youpdated's own entry."))
+            report(error, doing: String(localized: "Couldn't add Youpdated's entry."))
         }
     }
 
     public func declineSelfWatch() async {
-        offersSelfWatch = false
+        offersSelfWatchNow = false
         await update(SettingsPatch(selfWatchDeclined: true))
     }
 
@@ -526,6 +534,7 @@ public final class AppModel {
         }
         if error is CancellationError { return }
         Self.log.error("\(doing, privacy: .public) \(String(describing: error), privacy: .public)")
+        AppLog.shared.write("\(doing) \(String(describing: error))")
         appProblems.append(AppProblem(title: doing, detail: SourcesModel.message(for: error), date: now()))
     }
 

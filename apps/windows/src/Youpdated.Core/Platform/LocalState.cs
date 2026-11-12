@@ -21,6 +21,9 @@ public sealed record LocalState
 
     /// <summary>Settings → Advanced: write errors to the app's log file. Off unless turned on</summary>
     public bool DiagnosticLog { get; init; }
+
+    /// <summary>Settings → Advanced: no offers to watch Youpdated. Off unless turned on</summary>
+    public bool HideSelfWatchSuggestions { get; init; }
 }
 
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.SnakeCaseLower, WriteIndented = true, UseStringEnumConverter = true)]

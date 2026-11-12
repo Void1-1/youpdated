@@ -135,6 +135,23 @@ public final class InboxModel {
         }
     }
 
+    public var canDelete: Bool { app?.hello?.ops.contains("inbox.delete") == true }
+
+    public func delete(ids: [String]) async {
+        guard !ids.isEmpty, let engine = app?.engine else { return }
+        let wanted = Set(ids)
+        items.removeAll { wanted.contains($0.id) }
+        do {
+            let reply = try await engine.deleteItems(ids: ids)
+            app?.unread = reply.unread
+            await app?.writeSnapshot()
+            app?.platform.withdraw(itemIds: ids)
+        } catch {
+            app?.report(error, doing: String(localized: "Couldn't delete the update."))
+            await reload()
+        }
+    }
+
     public func markAllRead() async {
         guard let engine = app?.engine else { return }
         if let label = sourceFilter {

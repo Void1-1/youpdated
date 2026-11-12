@@ -84,6 +84,11 @@ public final class FeedModel {
         pinned.removeAll()
     }
 
+    public func delete(_ card: FeedCard) async {
+        if expandedID == card.id { expandedID = nil }
+        await app?.inbox.delete(ids: card.items.map(\.id))
+    }
+
     public func snooze(_ card: FeedCard) async {
         await app?.snooze(card.unreadIds.isEmpty ? [card.newest.id] : card.unreadIds)
     }

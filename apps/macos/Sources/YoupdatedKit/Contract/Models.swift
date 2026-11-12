@@ -287,6 +287,11 @@ public struct InboxPage: Codable, Sendable {
     public var unread: Int
 }
 
+public struct DeleteReply: Codable, Sendable {
+    public var deleted: Int
+    public var unread: Int
+}
+
 public struct MarkReply: Codable, Sendable {
     public var changed: Int
     public var unread: Int

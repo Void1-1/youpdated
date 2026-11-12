@@ -58,7 +58,8 @@ public sealed partial class FollowingView : UserControl
         var layout = following.Layout;
         StarredRow.Row = layout.Starred;
         StarredRow.Visibility = Bind.ShowIf(layout.Starred);
-        SelfMissingRow.Visibility = Bind.Show(layout.SelfMissing && string.IsNullOrWhiteSpace(following.Filter));
+        SelfMissingRow.Visibility = Bind.Show(
+            layout.SelfMissing && string.IsNullOrWhiteSpace(following.Filter) && _app?.Settings.HideSelfWatchSuggestions != true);
 
         var wanted = new List<object>();
         foreach (var group in layout.Groups)

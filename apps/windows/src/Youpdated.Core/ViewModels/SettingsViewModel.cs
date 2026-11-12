@@ -15,21 +15,24 @@ public sealed partial class SettingsViewModel : ObservableObject
     private readonly IStartupRegistration _startup;
     private readonly ICredentialStore _credentials;
     private readonly Func<string?> _passphrase;
+    private readonly ILocalStateStore _localState;
     private bool _applying;
 
     public SettingsViewModel(
         EngineClient engine, IStartupRegistration startup, ICredentialStore credentials,
-        Func<string?> passphrase, Version appVersion)
+        Func<string?> passphrase, Version appVersion, ILocalStateStore localState)
     {
         _engine = engine;
         _startup = startup;
         _credentials = credentials;
         _passphrase = passphrase;
+        _localState = localState;
         AppVersion = appVersion;
         _applying = true;
         StartAtLogin = startup.IsEnabled;
         StartAtLoginDisabledByUser = startup.IsDisabledByUser;
         RememberPassphrase = credentials.Read() is not null;
+        HideSelfWatchSuggestions = localState.Load().HideSelfWatchSuggestions;
         _applying = false;
     }
 
@@ -77,7 +80,16 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     /// <summary>If the config watches Youpdated</summary>
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(OffersWatchSelf))]
     public partial bool WatchingSelf { get; private set; } = true;
+
+    /// <summary>Advanced: hide youpdated self-tracking prompts</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(OffersWatchSelf))]
+    public partial bool HideSelfWatchSuggestions { get; set; }
+
+    /// <summary>About's Watch button</summary>
+    public bool OffersWatchSelf => !WatchingSelf && !HideSelfWatchSuggestions;
 
     [ObservableProperty]
     public partial string? Error { get; private set; }
@@ -154,6 +166,14 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     partial void OnShowIconsChanged(bool value) =>
         Save(new SettingsPatch().ShowIcons(value));
+
+    partial void OnHideSelfWatchSuggestionsChanged(bool value)
+    {
+        if (!_applying)
+        {
+            _localState.Save(_localState.Load() with { HideSelfWatchSuggestions = value });
+        }
+    }
 
     partial void OnStartAtLoginChanged(bool value)
     {

@@ -19,6 +19,7 @@ namespace Youpdated.Core.Contract;
 [JsonSerializable(typeof(InboxListReply))]
 [JsonSerializable(typeof(InboxMarkReply))]
 [JsonSerializable(typeof(InboxSnoozeReply))]
+[JsonSerializable(typeof(InboxDeleteReply))]
 [JsonSerializable(typeof(TargetsListReply))]
 [JsonSerializable(typeof(PreviewReply))]
 [JsonSerializable(typeof(TargetsAddReply))]

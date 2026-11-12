@@ -306,6 +306,23 @@ public class FeedViewModelTests
     }
 
     [Fact]
+    public async Task DeletingACardRemovesItsUpdates()
+    {
+        var engine = new FakeEngine();
+        await using var test = await StartAsync(engine);
+        var feed = test.App.Feed;
+        var card = feed.Sections[1].First(c => c.Display == "Bar");
+        var ids = card.Items.Select(item => item.Id).ToList();
+
+        await feed.DeleteAsync(card);
+
+        var sent = engine.RequestsFor("inbox.delete").Single()["ids"]!.AsArray().Select(id => id!.GetValue<string>());
+        Assert.Equal(ids, sent);
+        Assert.DoesNotContain(feed.Cards, c => c.Display == "Bar");
+        Assert.DoesNotContain(test.App.Inbox.Items, item => ids.Contains(item.Id));
+    }
+
+    [Fact]
     public async Task ExpandingMarksTheCardReadButKeepsItInPlace()
     {
         var engine = new FakeEngine();

@@ -387,10 +387,10 @@
     <value>Advanced</value>
   </data>
   <data name="SettingsAdvanced.Description" xml:space="preserve">
-    <value>Troubleshooting</value>
+    <value>Suggestions and troubleshooting</value>
   </data>
   <data name="SettingsDiagnosticLog.Header" xml:space="preserve">
-    <value>Save a diagnostic log</value>
+    <value>Save diagnostic logs</value>
   </data>
   <data name="SettingsDiagnosticLog.Description" xml:space="preserve">
     <value>Saves errors to a local file for bug reporting.</value>
@@ -664,5 +664,17 @@
   </data>
   <data name="TimesAbsolute" xml:space="preserve">
     <value>Absolute</value>
+  </data>
+  <data name="SettingsHideSelfWatch.Header" xml:space="preserve">
+    <value>Hide suggestions to watch Youpdated</value>
+  </data>
+  <data name="SettingsHideSelfWatch.Description" xml:space="preserve">
+    <value>No prompts to add Youpdated to your sources.</value>
+  </data>
+  <data name="MenuDelete" xml:space="preserve">
+    <value>Delete update</value>
+  </data>
+  <data name="MenuDeleteMany" xml:space="preserve">
+    <value>Delete {0} updates</value>
   </data>
 </root>

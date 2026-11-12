@@ -77,6 +77,11 @@ public struct Engine: Sendable {
         try await client.call("inbox.mark", Params.Mark(read: read, ids: nil, all: true, source: source))
     }
 
+    /// Only when `hello.ops` has `inbox.delete`
+    public func deleteItems(ids: [String]) async throws -> DeleteReply {
+        try await client.call("inbox.delete", Params.Delete(ids: ids))
+    }
+
     public func snooze(ids: [String], minutes: Int = 60) async throws -> SnoozeReply {
         try await client.call("inbox.snooze", Params.Snooze(ids: ids, minutes: minutes))
     }
@@ -171,6 +176,7 @@ enum Params {
         let all: Bool?
         let source: String?
     }
+    struct Delete: Encodable, Sendable { let ids: [String] }
     struct Snooze: Encodable, Sendable {
         let ids: [String]
         let minutes: Int

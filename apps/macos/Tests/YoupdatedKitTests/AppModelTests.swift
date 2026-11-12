@@ -186,6 +186,33 @@ import Testing
         #expect(harness.engine.requests("settings.set").last?["settings"] as? [String: Bool] == ["self_watch_declined": true])
     }
 
+    @Test func hidingSelfWatchSuggestionsHidesTheOfferAndIsRemembered() async {
+        let harness = Harness()
+        harness.engine.answer("status", reply: statusReply(["self_watch": "absent"]))
+        await harness.model.launch()
+        #expect(harness.model.offersSelfWatch)
+        harness.model.hidesSelfWatchSuggestions = true
+        #expect(!harness.model.offersSelfWatch)
+        #expect(harness.model.defaults.hidesSelfWatchSuggestions)
+        // nothing is declined for the CLI or the other app
+        #expect(harness.engine.requests("settings.set").isEmpty)
+        harness.model.hidesSelfWatchSuggestions = false
+        #expect(harness.model.offersSelfWatch)
+    }
+
+    @Test func deletingACardsUpdatesRemovesThemForGood() async {
+        let harness = Harness()
+        await harness.model.launch()
+        #expect(harness.model.inbox.canDelete)
+        let before = harness.model.inbox.items.count
+        await harness.model.inbox.delete(ids: ["i_8f3a1c2e9b7d4a10"])
+        #expect(harness.model.inbox.items.count == before - 1)
+        #expect(!harness.model.inbox.items.contains { $0.id == "i_8f3a1c2e9b7d4a10" })
+        #expect(harness.engine.requests("inbox.delete").last?["ids"] as? [String] == ["i_8f3a1c2e9b7d4a10"])
+        #expect(harness.model.unread == 3)
+        #expect(harness.platform.withdrawn == ["i_8f3a1c2e9b7d4a10"])
+    }
+
     @Test func notificationButtons() async throws {
         let harness = Harness()
         await harness.model.launch()

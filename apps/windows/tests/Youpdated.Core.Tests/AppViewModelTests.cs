@@ -82,6 +82,21 @@ public class AppViewModelTests
     }
 
     [Fact]
+    public async Task HiddenSelfWatchSuggestionsAreNotOfferedAndAreRemembered()
+    {
+        var engine = new FakeEngine().Then("status", _ => FakeEngine.Reply(FixtureReply("status/ok", r => r["self_watch"] = "absent")));
+        await using var test = new TestApp(engine);
+        test.App.Settings.HideSelfWatchSuggestions = true;
+        await test.StartAsync();
+
+        Assert.Equal(0, test.SelfWatchOffers);
+        Assert.True(test.LocalState.Load().HideSelfWatchSuggestions);
+        Assert.False(test.App.Settings.OffersWatchSelf);
+        // nothing is declined for the CLI
+        Assert.Empty(engine.RequestsFor("settings.set"));
+    }
+
+    [Fact]
     public async Task ALockedSetupAsksForThePassphrase()
     {
         var engine = new FakeEngine().Next("status", "locked");

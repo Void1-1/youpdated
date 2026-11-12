@@ -284,6 +284,17 @@ public sealed partial class FeedViewModel : ObservableObject
         }
     }
 
+    /// <summary>Delete Updates: items leave the inbox</summary>
+    public async Task DeleteAsync(FeedCard card)
+    {
+        var ids = card.Items.Select(item => item.Id).ToList();
+        _held.ExceptWith(ids);
+        if (await Own(() => _inbox.DeleteAsync(ids)))
+        {
+            Rebuild();
+        }
+    }
+
     public Task ToggleReadAsync(FeedCard card) =>
         LiveUnread(card).Count > 0 ? MarkReadAsync(card) : MarkUnreadAsync(card);
 
