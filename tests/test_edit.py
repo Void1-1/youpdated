@@ -396,6 +396,11 @@ def test_a_symlinked_config_keeps_its_link_and_permissions(tmp_path, config):
         ("https://hempuli.itch.io/baba-is-you", "itch", "https://hempuli.itch.io/baba-is-you"),
         ("@NASA", "youtube", "@NASA"),
         ("https://www.youtube.com/@NASA", "youtube", "https://www.youtube.com/@NASA"),
+        (
+            "https://www.youtube.com/playlist?list=PLabcdefghijk",
+            "youtube",
+            "https://www.youtube.com/playlist?list=PLabcdefghijk",
+        ),
         ("chrome", "browser", "chrome"),
         ("cask:firefox", "homebrew", "cask:firefox"),
         ("https://formulae.brew.sh/formula/wget", "homebrew", "wget"),

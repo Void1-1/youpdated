@@ -19,6 +19,9 @@ All notable changes to this project are documented here. The format follows [Kee
 ### Fixed
 
 - **YouTube reported old videos as new when its feed was down.** The official feed has outages and the Invidious fallback lists only regular videos, not Shorts or streams. A video not seen before and older than the last check is no longer reported when the channel switches path. The error for every path failing no longer blames blocking or suggests a proxy, which doesn't help.
+- **A YouTube playlist's URL works on its own.** `youpdated add https://www.youtube.com/playlist?list=…` adds it under `youtube` instead of `webpage`, and the URL can be listed under `youtube:` without `playlist:`.
+- **YouTube playlists are shown by their title**, instead of `playlist PL…`. A `name:` on the entry still comes first.
+- **Videos added to the end of a long YouTube playlist are reported.** Only a playlist's first 15 videos were read, and most playlists add new videos at the end. Now its first and last 15 are read, so a new video at either end is found. The official feed shows only the first 15, so a longer playlist is read through Invidious or the Data API. The Data API remembers where the playlist ended, so later checks don't page through it again. The first check of a long playlist already watched may report up to 15 videos from its end as new, once.
 
 ## [0.5.0] — 2026-11-06
 

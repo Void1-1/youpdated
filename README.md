@@ -129,7 +129,7 @@ youpdated check
 | A Steam game | `440` | The number in the store URL: `store.steampowered.com/app/`**`440`**`/Team_Fortress_2/`. The full store URL also works. |
 | An itch.io game | `https://user.itch.io/game-name` | The game's page URL, exactly as it appears in the address bar. |
 | A YouTube channel | `"@NASA"` | The `@handle` from the channel URL. **Keep the quotes with `@` characters** |
-| A YouTube playlist | `playlist: PLxxxx` | The `list=` part of the playlist URL. A full playlist URL also works. |
+| A YouTube playlist | `https://www.youtube.com/playlist?list=PLxxxx` | The playlist's URL, as it appears in the address bar. `playlist: PLxxxx`, with just the `list=` section, also works. |
 | A browser | `chrome`, `brave`, `firefox`, `edge` | Just the name. |
 | Anything else | `https://example.com/feed.xml` | Any RSS or Atom feed URL. Many sites publish one at `/feed.xml`, `/releases.atom`, or `/blog/rss`. |
 | Anything without a feed | `https://www.videolan.org/vlc/` | The download page's URL. The version is read off the page. See [Web pages](docs/configuration.md#web-pages). |
