@@ -1009,3 +1009,88 @@ def test_one_op_from_the_command_line(tmp_path, fake, capsys):
 
     assert main(["api", "inbox.list", *files, "--params", '{"limit": 0}']) == 1
     assert json.loads(capsys.readouterr().out)["error"]["code"] == "bad_request"
+
+
+# privacy
+
+
+@pytest.fixture
+def listening():
+    """A proxy URL something accepts connections at"""
+    import socket
+
+    with socket.socket() as server:
+        server.bind(("127.0.0.1", 0))
+        server.listen(4)
+        yield f"socks5://127.0.0.1:{server.getsockname()[1]}"
+
+
+@pytest.fixture
+def unreachable():
+    import socket
+
+    with socket.socket() as sock:
+        sock.bind(("127.0.0.1", 0))
+        port = sock.getsockname()[1]
+    return f"socks5://127.0.0.1:{port}"
+
+
+def test_privacy_get_fills_in_defaults(engine):
+    privacy = engine("privacy.get")["privacy"]
+    assert privacy == {
+        "proxy": None, "fast_mode": False, "user_agent": "rotate",
+        "jitter": [0.0, 0.0], "concurrency": 4, "timeout": 20.0,
+    }
+
+
+def test_privacy_set_saves_a_reachable_proxy_and_keeps_the_rest(engine, tmp_path, listening):
+    config = tmp_path / "config.yaml"
+    before = config.read_text(encoding="utf-8")
+    reply = engine("privacy.set", proxy=listening, fast_mode=True)
+    assert reply["privacy"]["proxy"] == listening and reply["privacy"]["fast_mode"] is True
+    assert engine("privacy.get")["privacy"] == reply["privacy"]
+    after = config.read_text(encoding="utf-8")
+    assert after == before.replace(
+        "    jitter: [0, 0]\n", f"    jitter: [0, 0]\n    proxy: {listening}\n    fast_mode: true\n"
+    )
+
+
+def test_privacy_set_refuses_a_proxy_nothing_answers_at(engine, tmp_path, unreachable):
+    config = tmp_path / "config.yaml"
+    before = config.read_text(encoding="utf-8")
+    reply = engine("privacy.set", proxy=unreachable)
+    assert not reply["ok"] and reply["error"]["code"] == "proxy_unreachable"
+    assert config.read_text(encoding="utf-8") == before
+
+
+def test_privacy_set_off_comments_out(engine, tmp_path, listening):
+    engine("privacy.set", proxy=listening, fast_mode=True)
+    reply = engine("privacy.set", proxy=None, fast_mode=False)
+    assert reply["privacy"]["proxy"] is None and reply["privacy"]["fast_mode"] is False
+    text = (tmp_path / "config.yaml").read_text(encoding="utf-8")
+    assert f"# proxy: {listening}" in text and "# fast_mode: true" in text
+
+
+@pytest.mark.parametrize(
+    "params, message",
+    [
+        ({}, "give `proxy`, `fast_mode`, or both"),
+        ({"proxy": "127.0.0.1:9050"}, "must be a URL"),
+        ({"fast_mode": "yes"}, "`fast_mode` must be true or false"),
+        ({"jitter": [0, 1]}, "unknown param(s): jitter"),
+    ],
+)
+def test_privacy_set_rejects_bad_params(engine, params, message):
+    reply = engine("privacy.set", **params)
+    assert reply["error"]["code"] == "bad_request" and message in reply["error"]["message"]
+
+
+@encryption
+def test_privacy_set_keeps_an_encrypted_config_encrypted(tmp_path, fake, listening):
+    config = make_config(tmp_path)
+    crypto.write_private(config, crypto.encrypt(config.read_bytes(), "pass"))
+    engine = Engine(config, tmp_path / "state.db")
+    engine("unlock", passphrase="pass")
+    engine("privacy.set", proxy=listening)
+    assert crypto.is_encrypted_file(config)
+    assert listening in crypto.decrypt(config.read_bytes(), "pass").decode("utf-8")

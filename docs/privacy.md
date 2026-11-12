@@ -46,6 +46,8 @@ settings:
     # fast_mode: true                # see "Fast mode" below
 ```
 
+In desktop apps, **Settings → Privacy** can set `proxy` and `fast_mode`. The app edits the config in place.
+
 ## Fast mode
 
 ```yaml

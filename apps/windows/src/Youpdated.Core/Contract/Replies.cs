@@ -69,6 +69,8 @@ public sealed record ImportApplyReply(
 
 public sealed record SettingsReply(Settings Settings);
 
+public sealed record PrivacyReply(Privacy Privacy);
+
 public sealed record PriorityReply(Priority Priority);
 
 public sealed record ProblemsListReply(IReadOnlyList<Problem> Problems, DateTimeOffset? CheckedAt);

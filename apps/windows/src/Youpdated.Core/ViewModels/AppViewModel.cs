@@ -475,6 +475,7 @@ public sealed partial class AppViewModel : ObservableObject, IAsyncDisposable
         {
             return;
         }
+        await Settings.LoadPrivacyAsync();
         await RefreshAsync();
     }
 
@@ -609,6 +610,7 @@ public sealed partial class AppViewModel : ObservableObject, IAsyncDisposable
         Settings.SetStatus(status);
         WatchConfig(status.ConfigPath);
         await Settings.LoadAsync();
+        await Settings.LoadPrivacyAsync();
         Scheduler.LastRunWas(status.LastRun);
 
         var local = _services.LocalState.Load();

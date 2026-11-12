@@ -348,6 +348,34 @@ public struct SettingsReply: Codable, Sendable {
     public var settings: Settings
 }
 
+/// `settings.privacy`
+public struct Privacy: Codable, Sendable, Hashable {
+    public var proxy: String?
+    public var fastMode: Bool
+    /// "rotate", or a fixed user agent
+    public var userAgent: String
+    /// [min, max] seconds between requests to a site
+    public var jitter: [Double]
+    public var concurrency: Int
+    public var timeout: Double
+
+    public init(
+        proxy: String? = nil, fastMode: Bool = false, userAgent: String = "rotate",
+        jitter: [Double] = [0.5, 3.0], concurrency: Int = 4, timeout: Double = 20
+    ) {
+        self.proxy = proxy
+        self.fastMode = fastMode
+        self.userAgent = userAgent
+        self.jitter = jitter
+        self.concurrency = concurrency
+        self.timeout = timeout
+    }
+}
+
+public struct PrivacyReply: Codable, Sendable {
+    public var privacy: Privacy
+}
+
 public struct PriorityReply: Codable, Sendable {
     public var priority: Priority
 }
@@ -411,7 +439,7 @@ public struct EngineError: Error, Sendable, Hashable, Codable, LocalizedError {
     public enum Code: Sendable, Hashable {
         case badRequest, unknownOp, locked, wrongPassphrase, encryptionUnavailable, noConfig
         case configError, historyBusy, busy, ambiguous, unrecognized, badEntry, notFound
-        case ioError, `internal`
+        case ioError, proxyUnreachable, `internal`
         case other(String)
 
         static let wire: [String: Code] = [
@@ -420,7 +448,7 @@ public struct EngineError: Error, Sendable, Hashable, Codable, LocalizedError {
             "no_config": .noConfig, "config_error": .configError, "history_busy": .historyBusy,
             "busy": .busy, "ambiguous": .ambiguous, "unrecognized": .unrecognized,
             "bad_entry": .badEntry, "not_found": .notFound, "io_error": .ioError,
-            "internal": .internal,
+            "proxy_unreachable": .proxyUnreachable, "internal": .internal,
         ]
 
         public init(wire: String) {

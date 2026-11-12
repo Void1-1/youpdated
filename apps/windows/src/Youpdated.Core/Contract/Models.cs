@@ -105,6 +105,15 @@ public sealed record Settings(
         DigestTime is { } text && TimeOnly.TryParseExact(text, "HH:mm", out var time) ? time : null;
 }
 
+/// <summary>The config's <c>settings.privacy</c></summary>
+public sealed record Privacy(
+    string? Proxy,
+    bool FastMode,
+    string UserAgent,
+    IReadOnlyList<double> Jitter,
+    int Concurrency,
+    double Timeout);
+
 public sealed record Encrypted(bool Config, bool History)
 {
     public bool Any => Config || History;
@@ -142,6 +151,7 @@ public static class ErrorCodes
     public const string BadEntry = "bad_entry";
     public const string NotFound = "not_found";
     public const string IoError = "io_error";
+    public const string ProxyUnreachable = "proxy_unreachable";
     public const string Internal = "internal";
 }
 

@@ -61,6 +61,21 @@ internal static class Dialogs
         return await dialog.ShowAsync() == ContentDialogResult.Primary;
     }
 
+    /// <summary>Settings → Fast mode</summary>
+    public static async Task<bool> ConfirmFastModeAsync(XamlRoot root)
+    {
+        var dialog = new ContentDialog
+        {
+            XamlRoot = root,
+            Title = Text.Get("FastModeTitle"),
+            Content = new TextBlock { Text = Text.Get("FastModeBody"), TextWrapping = TextWrapping.Wrap, MaxWidth = 420 },
+            PrimaryButtonText = Text.Get("FastModeButton"),
+            CloseButtonText = Text.Get("Cancel"),
+            DefaultButton = ContentDialogButton.Close,
+        };
+        return await dialog.ShowAsync() == ContentDialogResult.Primary;
+    }
+
     /// <summary>Settings → Remove Youpdated from this PC</summary>
     public static async Task<bool?> RemoveFromThisPcAsync(XamlRoot root)
     {

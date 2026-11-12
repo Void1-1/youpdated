@@ -31,6 +31,8 @@
       "import.apply",
       "settings.get",
       "settings.set",
+      "privacy.get",
+      "privacy.set",
       "priority.set",
       "problems.list",
       "icon.get",

@@ -136,8 +136,7 @@ def probe_proxy(proxy: str, timeout: float = 5.0) -> None:
     except OSError as exc:
         raise ProxyUnavailable(
             f"cannot reach the proxy at {host}:{port}: {exc}.\n"
-            "Start the proxy (Tor listens on 9050 by default), or remove "
-            "`settings.privacy.proxy` from your config."
+            "Start the proxy or remove `settings.privacy.proxy`."
         ) from exc
 
 

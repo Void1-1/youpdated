@@ -1,0 +1,21 @@
+{
+  "description": "Using Tor",
+  "request": {
+    "id": 61,
+    "op": "privacy.set",
+    "proxy": "socks5://127.0.0.1:9050"
+  },
+  "events": [],
+  "reply": {
+    "id": 61,
+    "ok": true,
+    "privacy": {
+      "proxy": "socks5://127.0.0.1:9050",
+      "fast_mode": false,
+      "user_agent": "rotate",
+      "jitter": [0.5, 3.0],
+      "concurrency": 4,
+      "timeout": 20.0
+    }
+  }
+}

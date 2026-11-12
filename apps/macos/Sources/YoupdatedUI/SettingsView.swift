@@ -3,7 +3,7 @@ import SwiftUI
 import YoupdatedKit
 
 public struct SettingsView: View {
-    public enum Pane: Hashable, Sendable { case general, view, notifications, about }
+    public enum Pane: Hashable, Sendable { case general, view, notifications, privacy, about }
 
     @State private var pane: Pane
 
@@ -16,6 +16,7 @@ public struct SettingsView: View {
             Tab(String(localized: "General"), systemImage: "gearshape", value: .general) { GeneralSettings() }
             Tab(String(localized: "View"), systemImage: "rectangle.grid.1x2", value: .view) { ViewSettings() }
             Tab(String(localized: "Notifications"), systemImage: "bell.badge", value: .notifications) { NotificationSettings() }
+            Tab(String(localized: "Privacy"), systemImage: "hand.raised", value: .privacy) { PrivacySettings() }
             Tab(String(localized: "About"), systemImage: "info.circle", value: .about) { AboutSettings() }
         }
         .frame(width: 480)
@@ -79,6 +80,7 @@ public struct SettingsPaneView: View {
         case .general: GeneralSettings()
         case .view: ViewSettings()
         case .notifications: NotificationSettings()
+        case .privacy: PrivacySettings()
         case .about: AboutSettings()
         }
     }
@@ -176,6 +178,181 @@ struct NotificationSettings: View {
     static func date(for time: String) -> Date {
         let parts = DigestSchedule.components(time) ?? DateComponents(hour: 18, minute: 0)
         return Calendar.current.date(bySettingHour: parts.hour ?? 18, minute: parts.minute ?? 0, second: 0, of: Date()) ?? Date()
+    }
+}
+
+/// Settings → Privacy. Editable config settings: proxy and fast mode
+struct PrivacySettings: View {
+    @Environment(AppModel.self) private var model
+    @State private var choice: ProxyChoice = .none
+    @State private var address = ""
+    @State private var saving = false
+    @State private var error: String?
+    @State private var confirmsFastMode = false
+
+    enum ProxyChoice: Hashable { case none, tor, torBrowser, custom }
+
+    /// The Tor service's and Tor Browser's SOCKS ports
+    static let tor = "socks5://127.0.0.1:9050"
+    static let torBrowser = "socks5://127.0.0.1:9150"
+
+    var body: some View {
+        Form {
+            if let privacy = model.privacy {
+                proxySection(privacy)
+                fastModeSection(privacy)
+                configSection(privacy)
+            } else if !model.canEditPrivacy {
+                Text(LocalizedStringKey(String(localized: "This engine can't change privacy settings. Edit `settings.privacy` manually.")))
+                    .foregroundStyle(.secondary)
+            } else if let problem = model.status?.configError {
+                Label {
+                    Text(problem)
+                } icon: {
+                    Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.yellow)
+                }
+            } else {
+                ProgressView().controlSize(.small).frame(maxWidth: .infinity)
+            }
+        }
+        .formStyle(.grouped)
+        .task {
+            await model.loadPrivacy()
+            sync()
+        }
+        .onChange(of: model.privacy) { sync() }
+        .confirmationDialog(String(localized: "Turn on fast mode?"), isPresented: $confirmsFastMode) {
+            Button(String(localized: "Turn On Fast Mode")) { save(fastMode: true) }
+            Button(String(localized: "Cancel"), role: .cancel) {}
+        } message: {
+            Text(String(localized: "Requests may look automated. Sites are more likely to rate limit or block them, and they're easier to link to you, even through a proxy."))
+        }
+    }
+
+    private func proxySection(_ privacy: Privacy) -> some View {
+        Section {
+            Picker(String(localized: "Proxy"), selection: Binding(get: { choice }, set: choose)) {
+                Text(String(localized: "None")).tag(ProxyChoice.none)
+                Text(String(localized: "Tor")).tag(ProxyChoice.tor)
+                Text(String(localized: "Tor Browser")).tag(ProxyChoice.torBrowser)
+                Text(String(localized: "Custom")).tag(ProxyChoice.custom)
+            }
+            .disabled(saving)
+            if choice == .custom {
+                LabeledContent(String(localized: "Address")) {
+                    HStack {
+                        TextField(String(localized: "Address"), text: $address, prompt: Text(verbatim: "socks5://127.0.0.1:1080"))
+                            .labelsHidden()
+                            .textFieldStyle(.roundedBorder)
+                            .autocorrectionDisabled()
+                            .onSubmit(apply)
+                        Button(String(localized: "Use"), action: apply)
+                            .disabled(saving || trimmed.isEmpty || trimmed == privacy.proxy)
+                    }
+                }
+            }
+            if saving {
+                HStack(spacing: 6) {
+                    ProgressView().controlSize(.small)
+                    Text(String(localized: "Connecting to the proxy…")).foregroundStyle(.secondary)
+                }
+            }
+            if let error {
+                Text(error).font(.caption).foregroundStyle(.red).textSelection(.enabled)
+            }
+        } footer: {
+            Text(String(localized: "Every request goes through this proxy. If it stops answering, checks stop."))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private func fastModeSection(_ privacy: Privacy) -> some View {
+        Section {
+            Toggle(String(localized: "Fast mode"), isOn: Binding(
+                get: { privacy.fastMode },
+                set: { on in if on { confirmsFastMode = true } else { save(fastMode: false) } }
+            ))
+            .disabled(saving)
+        } footer: {
+            Text(String(localized: "Shorter gaps between requests. Faster checks, but it is easier to identify traffic."))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private func configSection(_ privacy: Privacy) -> some View {
+        Section {
+            LabeledContent(String(localized: "User agent"),
+                           value: privacy.userAgent == "rotate" ? String(localized: "A new browser each check") : privacy.userAgent)
+            LabeledContent(String(localized: "Gap between requests to a site"), value: Self.seconds(privacy.jitter))
+            LabeledContent(String(localized: "Requests at once"), value: privacy.concurrency.formatted())
+            LabeledContent(String(localized: "Timeout"), value: Self.seconds([privacy.timeout]))
+            if let path = model.status?.configPath {
+                Button(String(localized: "Show Config in Finder")) {
+                    NSWorkspace.shared.activateFileViewerSelecting([URL(filePath: path)])
+                }
+            }
+        } header: {
+            Text(String(localized: "Other Config settings"))
+        } footer: {
+            // markdown, for the code spans
+            Text(LocalizedStringKey(model.status?.encrypted.config == true
+                 ? String(localized: "Change these manually with `youpdated edit`.")
+                 : String(localized: "Change these manually under `settings: privacy:`.")))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var trimmed: String { address.trimmingCharacters(in: .whitespacesAndNewlines) }
+
+    /// "0.5-3 s", "20 s"
+    static func seconds(_ values: [Double]) -> String {
+        let style = FloatingPointFormatStyle<Double>.number.precision(.fractionLength(0...1))
+        let parts = (values.first == values.last ? Array(values.prefix(1)) : values).map { $0.formatted(style) }
+        return String(localized: "\(parts.joined(separator: "-")) s")
+    }
+
+    private func sync() {
+        guard let privacy = model.privacy, !saving else { return }
+        switch privacy.proxy {
+        case nil: choice = .none
+        case Self.tor: choice = .tor
+        case Self.torBrowser: choice = .torBrowser
+        case let proxy?:
+            choice = .custom
+            address = proxy
+        }
+    }
+
+    private func choose(_ new: ProxyChoice) {
+        error = nil
+        choice = new
+        switch new {
+        case .none: save(proxy: .some(nil))
+        case .tor: save(proxy: Self.tor)
+        case .torBrowser: save(proxy: Self.torBrowser)
+        case .custom:
+            if address.isEmpty || address == Self.tor || address == Self.torBrowser { address = "" }
+        }
+    }
+
+    private func apply() {
+        guard !trimmed.isEmpty, trimmed != model.privacy?.proxy else { return }
+        save(proxy: trimmed)
+    }
+
+    private func save(proxy: String?? = nil, fastMode: Bool? = nil) {
+        error = nil
+        saving = true
+        Task {
+            let problem = await model.setPrivacy(proxy: proxy, fastMode: fastMode)
+            saving = false
+            error = problem
+            // a custom address that failed stays
+            if problem == nil || choice != .custom { sync() }
+        }
     }
 }
 

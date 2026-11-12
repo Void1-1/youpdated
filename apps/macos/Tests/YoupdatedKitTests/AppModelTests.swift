@@ -9,7 +9,7 @@ import Testing
         await harness.model.launch()
         let model = harness.model
         #expect(model.engineState == .ready)
-        #expect(harness.engine.ops == ["hello", "status", "settings.get", "problems.list", "inbox.list", "targets.list"])
+        #expect(harness.engine.ops == ["hello", "status", "settings.get", "privacy.get", "problems.list", "inbox.list", "targets.list"])
         #expect(model.engineVersion == "1.0.0")
         #expect(model.inbox.items.count == 6)
         #expect(model.unread == 4)
@@ -174,6 +174,20 @@ import Testing
         await harness.model.didWake()
         #expect(harness.engine.requests("digest.send").count == 1)
         #expect(harness.platform.posted.last?.title == "Team Fortress 2")
+    }
+
+    @Test func privacyIsReadAtLaunchAndAProxyThatFailsIsExplained() async {
+        let harness = Harness()
+        await harness.model.launch()
+        #expect(harness.model.privacy?.proxy == nil)
+        harness.engine.script("privacy.set", "privacy.set/unreachable", "privacy.set/tor")
+        let problem = await harness.model.setPrivacy(proxy: "socks5://127.0.0.1:9050")
+        #expect(problem?.contains("cannot reach the proxy") == true)
+        #expect(harness.model.privacy?.proxy == nil)
+        #expect(harness.model.appProblems.isEmpty)
+        #expect(await harness.model.setPrivacy(proxy: "socks5://127.0.0.1:9050") == nil)
+        #expect(harness.model.privacy?.proxy == "socks5://127.0.0.1:9050")
+        #expect(harness.engine.requests("privacy.set").last?["proxy"] as? String == "socks5://127.0.0.1:9050")
     }
 
     @Test func selfWatchOffer() async {

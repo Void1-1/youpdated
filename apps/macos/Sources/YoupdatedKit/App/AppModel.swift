@@ -26,6 +26,7 @@ public final class AppModel {
     public private(set) var hello: HelloReply?
     public private(set) var status: StatusReply?
     public private(set) var settings: Settings = .defaults
+    public private(set) var privacy: Privacy?
     public internal(set) var unread = 0
     public private(set) var isChecking = false
     public private(set) var progress: ProgressEvent?
@@ -219,6 +220,7 @@ public final class AppModel {
             report(error, doing: String(localized: "Couldn't read Settings."))
         }
         offersSelfWatch = self.status?.selfWatch == .absent && !settings.selfWatchDeclined
+        await loadPrivacy()
         noteCLIRuns()
         if let reply = try? await engine.problems() {
             problems = reply.problems
@@ -446,6 +448,30 @@ public final class AppModel {
         guard engine != nil, status?.locked != true else { return }
         await refreshStatus()
         await sources.reload()
+        await loadPrivacy()
+    }
+
+    /// The engine reads and writes the config's privacy options
+    public var canEditPrivacy: Bool { hello?.ops.contains("privacy.set") == true }
+
+    public func loadPrivacy() async {
+        guard let engine, canEditPrivacy, !needsPassphrase, status?.locked != true else { return }
+        do {
+            privacy = try await engine.privacy()
+        } catch {
+            privacy = nil
+        }
+    }
+
+    /// Changes the config
+    public func setPrivacy(proxy: String?? = nil, fastMode: Bool? = nil) async -> String? {
+        guard let engine else { return String(localized: "Youpdated's engine isn't running.") }
+        do {
+            privacy = try await engine.setPrivacy(proxy: proxy, fastMode: fastMode)
+            return nil
+        } catch {
+            return SourcesModel.message(for: error)
+        }
     }
 
     public enum NotificationAction: String, Sendable {

@@ -469,6 +469,169 @@ def write_config(path: Path, text: str, passphrase: str | None = None) -> None:
     except OSError as exc:
         raise ConfigError(f"cannot write {target}: {exc}") from exc
 
+# privacy options
+
+# what the apps Settings can change
+PRIVACY_EDITABLE = ("proxy", "fast_mode")
+
+
+def set_privacy(text: str, changes: dict[str, Any]) -> str:
+    """``text`` with privacy options set, or commented out where ``None``"""
+    unknown = set(changes) - set(PRIVACY_EDITABLE)
+    if unknown:
+        raise ValueError(f"not editable here: {', '.join(sorted(unknown))}")
+    body = text.replace("\r\n", "\n")
+    by_hand = "Set it under `settings: privacy:` by hand: " + ", ".join(
+        f"{name}: {_privacy_value(value)}" if value is not None else f"remove {name}"
+        for name, value in changes.items()
+    )
+    with _explained(by_hand):
+        try:
+            data = yaml.safe_load(body)
+        except yaml.YAMLError as exc:
+            raise _Unsupported("it doesn't parse") from exc
+        for name, value in changes.items():
+            body = _set_privacy_option(body, name, value)
+        _verify_privacy(body, data, changes)
+    return _line_ends(body, text)
+
+
+def _privacy_value(value: Any) -> str:
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    return yaml_scalar(str(value))
+
+
+def _privacy_node(root: yaml.MappingNode) -> tuple[yaml.Node, yaml.Node] | None:
+    """`privacy:`'s key and value, at the top level or under `settings:`"""
+    found = _pair(root, "privacy")
+    if found is not None:
+        return found
+    settings = _pair(root, "settings")
+    if settings is None or not isinstance(settings[1], yaml.MappingNode) or settings[1].flow_style:
+        return None
+    return _pair(settings[1], "privacy")
+
+
+def _set_privacy_option(body: str, name: str, value: Any) -> str:
+    lines = body.split("\n")
+    root = yaml.compose(body, Loader=yaml.SafeLoader)
+    if root is None:  # empty or only comments
+        if value is None:
+            return body
+        while lines and not lines[-1].strip():
+            lines.pop()
+        head = lines + [""] if lines else []
+        new = ["settings:", " " * _STEP + "privacy:", " " * 2 * _STEP + f"{name}: {_privacy_value(value)}"]
+        return "\n".join(head + new + [""])
+    if not isinstance(root, yaml.MappingNode) or root.flow_style:
+        raise _Unsupported("its top level is not a mapping")
+
+    found = _privacy_node(root)
+    if found is None:
+        return body if value is None else _add_privacy(lines, root, name, value)
+    key, node = found
+    if _is_empty(node):
+        _clear(lines, key, node)
+        col, last = key.start_mark.column + _STEP, key.start_mark.line
+    elif isinstance(node, yaml.MappingNode) and not node.flow_style:
+        col, last = node.start_mark.column, _last_line(node, lines)
+        live = _pair(node, name)
+        if live is not None:
+            return _edit_live(lines, live, name, value)
+    else:
+        raise _Unsupported("`privacy` is not written as an indented block")
+
+    if value is None:
+        return "\n".join(lines)
+    line = " " * col + f"{name}: {_privacy_value(value)}"
+    # a `# name: ...` line
+    end = last
+    while end + 1 < len(lines) and _is_comment(lines[end + 1], key.start_mark.column + 1, None):
+        end += 1
+    pattern = re.compile(rf"^ {{{col}}}#\s?{re.escape(name)}:[^#]*?(\s+#.*)?$")
+    for row in range(key.start_mark.line + 1, end + 1):
+        match = pattern.match(lines[row])
+        if match:
+            lines[row] = line + (match.group(1) or "")
+            return "\n".join(lines)
+    return _insert_after(lines, last, [line])
+
+
+def _edit_live(lines: list[str], live: tuple[yaml.Node, yaml.Node], name: str, value: Any) -> str:
+    key, node = live
+    row = key.start_mark.line
+    if not (isinstance(node, yaml.ScalarNode) and node.start_mark.line == node.end_mark.line == row):
+        raise _Unsupported(f"`{name}` is not a value on its own line")
+    line = lines[row]
+    if value is None:
+        col = key.start_mark.column
+        lines[row] = line[:col] + "# " + line[col:]
+    else:
+        lines[row] = line[: node.start_mark.column] + _privacy_value(value) + line[node.end_mark.column :]
+    return "\n".join(lines)
+
+
+def _add_privacy(lines: list[str], root: yaml.MappingNode, name: str, value: Any) -> str:
+    """a new `privacy:` under `settings:`, which is added if missing"""
+    col = root.start_mark.column
+    found = _pair(root, "settings")
+    if found is None:
+        # above the first section
+        first = root.value[0][0].start_mark.line
+        while first > 0 and _is_comment(lines[first - 1], col, col):
+            first -= 1
+        block = [
+            " " * col + "settings:",
+            " " * (col + _STEP) + "privacy:",
+            " " * (col + 2 * _STEP) + f"{name}: {_privacy_value(value)}",
+            "",
+        ]
+        return "\n".join(lines[:first] + block + lines[first:])
+    key, settings = found
+    if _is_empty(settings):
+        _clear(lines, key, settings)
+        inner = key.start_mark.column + _STEP
+    elif isinstance(settings, yaml.MappingNode) and not settings.flow_style:
+        inner = settings.start_mark.column
+    else:
+        raise _Unsupported("`settings` is not written as an indented block")
+    block = [" " * inner + "privacy:", " " * (inner + _STEP) + f"{name}: {_privacy_value(value)}"]
+    return _insert_after(lines, key.start_mark.line, block)
+
+
+def _verify_privacy(edited: str, before: Any, changes: dict[str, Any]) -> None:
+    """only the changed privacy options differ"""
+    try:
+        after = yaml.safe_load(edited)
+    except yaml.YAMLError:
+        after = None
+    if not isinstance(after, dict) and not (after is None and not changes):
+        raise _Unsupported("the edited file would not read back as expected")
+
+    def split(data: Any) -> tuple[dict[Any, Any], Any]:
+        """(privacy options, everything else), empty sections as missing"""
+        rest = copy.deepcopy(data) if isinstance(data, dict) else {}
+        privacy = rest.pop("privacy", None)
+        settings = rest.get("settings")
+        if isinstance(settings, dict):
+            if privacy is None:
+                privacy = settings.pop("privacy", None)
+            if not settings:
+                rest.pop("settings")
+        elif "settings" in rest and settings is None:
+            rest.pop("settings")
+        return dict(privacy or {}), _empty_as_none(rest)
+
+    privacy, rest = split(before)
+    for name, value in changes.items():
+        if value is None:
+            privacy.pop(name, None)
+        else:
+            privacy[name] = value
+    if split(after) != (privacy, rest):
+        raise _Unsupported("the edited file would not read back as expected")
+
 # reading
 
 def _parse(text: str, source: str) -> _Parsed:

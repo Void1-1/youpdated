@@ -82,6 +82,52 @@ public class AppViewModelTests
     }
 
     [Fact]
+    public async Task PrivacyIsReadAtStartAndAProxyThatFailsIsExplained()
+    {
+        var engine = new FakeEngine();
+        await using var test = new TestApp(engine);
+        await test.StartAsync();
+        var settings = test.App.Settings;
+        Assert.True(settings.CanEditPrivacy);
+        Assert.Equal(ProxyChoice.None, settings.ProxyChoice);
+        Assert.Equal("0.5-3 s", settings.GapText);
+        var problems = test.App.Problems.Problems.Count;
+
+        engine.Next("privacy.set", "unreachable");
+        await settings.ChooseProxyAsync(ProxyChoice.Tor);
+        Assert.Contains("cannot reach the proxy", settings.PrivacyError);
+        Assert.Equal(ProxyChoice.None, settings.ProxyChoice);
+        Assert.Equal(problems, test.App.Problems.Problems.Count);
+
+        engine.Next("privacy.set", "tor");
+        await settings.ChooseProxyAsync(ProxyChoice.Tor);
+        Assert.Null(settings.PrivacyError);
+        Assert.Equal(ProxyChoice.Tor, settings.ProxyChoice);
+        Assert.Equal("socks5://127.0.0.1:9050", engine.RequestsFor("privacy.set").Last()["proxy"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public async Task ACustomProxyThatFailsKeepsWhatWasTyped()
+    {
+        var engine = new FakeEngine();
+        await using var test = new TestApp(engine);
+        await test.StartAsync();
+        var settings = test.App.Settings;
+
+        await settings.ChooseProxyAsync(ProxyChoice.Custom);
+        Assert.Empty(engine.RequestsFor("privacy.set"));
+        Assert.False(settings.CanUseAddress);
+        settings.ProxyAddress = " socks5://10.0.0.2:1080 ";
+        engine.Next("privacy.set", "unreachable");
+        await settings.UseProxyAddressAsync();
+
+        Assert.Equal("socks5://10.0.0.2:1080", engine.RequestsFor("privacy.set").Single()["proxy"]!.GetValue<string>());
+        Assert.Equal(ProxyChoice.Custom, settings.ProxyChoice);
+        Assert.Equal(" socks5://10.0.0.2:1080 ", settings.ProxyAddress);
+        Assert.NotNull(settings.PrivacyError);
+    }
+
+    [Fact]
     public async Task ALockedSetupAsksForThePassphrase()
     {
         var engine = new FakeEngine().Next("status", "locked");

@@ -18,6 +18,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import IO, Any, Callable, Iterator
 
+import yaml
+
 from . import __version__, crypto, icons, notify
 from .config import (
     DEFAULT_EXPIRY,
@@ -29,9 +31,17 @@ from .config import (
     default_state_path,
     find_config,
     load_config,
+    parse_config,
     read_config_text,
 )
-from .edit import add_to_config, claims, remove_from_config, requested_urls, write_config
+from .edit import (
+    add_to_config,
+    claims,
+    remove_from_config,
+    requested_urls,
+    set_privacy,
+    write_config,
+)
 from .http import Client, ProxyUnavailable, probe_proxy
 from .importers import READERS, Found, read_file
 from .models import RunError, Target, Update
@@ -58,6 +68,8 @@ OPS = (
     "import.apply",
     "settings.get",
     "settings.set",
+    "privacy.get",
+    "privacy.set",
     "priority.set",
     "problems.list",
     "icon.get",
@@ -71,6 +83,8 @@ _OPEN_OPS = frozenset({"hello", "status", "unlock", "shutdown"})
 
 # app retries later
 LOCK_TIMEOUT = 5.0
+# longest wait for a proxy that `privacy.set` will save
+PROXY_PROBE = 5.0
 # how long a new check waits for the last one to finish fetchin an icon
 ICON_WAIT = 30.0
 
@@ -157,6 +171,9 @@ class _Params:
 
     def __init__(self, raw: dict[str, Any]):
         self._raw = dict(raw)
+
+    def __contains__(self, name: str) -> bool:
+        return name in self._raw
 
     def get(self, name: str, kind: str, default: Any = None, *, required: bool = False) -> Any:
         if name not in self._raw:
@@ -1102,6 +1119,38 @@ class Engine:
                 state.clear_icons()
             return {"settings": self._settings(state)}
 
+    def op_privacy_get(self, p: _Params) -> dict[str, Any]:
+        p.done()
+        return {"privacy": _privacy(self._config().privacy)}
+
+    def op_privacy_set(self, p: _Params) -> dict[str, Any]:
+        changes: dict[str, Any] = {}
+        if "proxy" in p:
+            proxy = p.get("proxy", "str?")
+            if proxy is not None:
+                proxy = proxy.strip()
+                if "://" not in proxy:
+                    raise _bad("`proxy` must be a URL like socks5://127.0.0.1:9050")
+            changes["proxy"] = proxy or None
+        if "fast_mode" in p:
+            # off is the default
+            changes["fast_mode"] = p.get("fast_mode", "bool") or None
+        p.done()
+        if not changes:
+            raise _bad("give `proxy`, `fast_mode`, or both")
+        path, text = self._config_text()
+        current = self._config().privacy
+        if changes.get("proxy"):
+            try:
+                probe_proxy(changes["proxy"], timeout=min(current.timeout, PROXY_PROBE))
+            except ProxyUnavailable as exc:
+                raise ApiError("proxy_unreachable", str(exc)) from exc
+        edited = set_privacy(text, changes)
+        config = parse_config(yaml.safe_load(edited), path, allow_empty=True)
+        if edited != text:
+            self._write_config(path, edited)
+        return {"privacy": _privacy(config.privacy)}
+
     def op_priority_set(self, p: _Params) -> dict[str, Any]:
         source = p.get("source", "str", required=True)
         key = p.get("key", "str", required=True)
@@ -1252,6 +1301,17 @@ class Engine:
     def op_shutdown(self, p: _Params) -> dict[str, Any]:
         p.done()
         return {}
+
+
+def _privacy(privacy: PrivacyConfig) -> dict[str, Any]:
+    return {
+        "proxy": privacy.proxy,
+        "fast_mode": privacy.fast_mode,
+        "user_agent": privacy.user_agent,
+        "jitter": list(privacy.jitter),
+        "concurrency": privacy.concurrency,
+        "timeout": privacy.timeout,
+    }
 
 
 def _ids(updates: list[Update]) -> list[str]:

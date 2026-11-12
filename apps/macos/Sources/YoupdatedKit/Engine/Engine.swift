@@ -115,6 +115,19 @@ public struct Engine: Sendable {
         return reply.settings
     }
 
+    /// Only when `hello.ops` has `privacy.get`
+    public func privacy() async throws -> Privacy {
+        let reply: PrivacyReply = try await client.call("privacy.get")
+        return reply.privacy
+    }
+
+    /// `proxy: .some(nil)` stops using one. A new proxy that can't be reached is `proxyUnreachable`
+    public func setPrivacy(proxy: String?? = nil, fastMode: Bool? = nil) async throws -> Privacy {
+        let reply: PrivacyReply = try await client.call(
+            "privacy.set", Params.SetPrivacy(proxy: proxy, fastMode: fastMode))
+        return reply.privacy
+    }
+
     public func setPriority(_ priority: Priority, source: String, key: String) async throws -> Priority {
         let reply: PriorityReply = try await client.call(
             "priority.set", Params.SetPriority(source: source, key: key, priority: priority))
@@ -203,6 +216,18 @@ enum Params {
         }
     }
     struct SetSettings: Encodable, Sendable { let settings: SettingsPatch }
+    struct SetPrivacy: Encodable, Sendable {
+        let proxy: String??
+        let fastMode: Bool?
+
+        enum CodingKeys: String, CodingKey { case proxy, fastMode }
+
+        func encode(to encoder: Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            if let proxy { try container.encode(proxy, forKey: .proxy) }
+            try container.encodeIfPresent(fastMode, forKey: .fastMode)
+        }
+    }
     struct SetPriority: Encodable, Sendable {
         let source: String
         let key: String

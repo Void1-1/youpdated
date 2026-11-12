@@ -17,6 +17,7 @@ from youpdated.edit import (
     guess_source,
     move_to_settings,
     remove_from_config,
+    set_privacy,
     yaml_scalar,
 )
 from youpdated.models import Update
@@ -700,3 +701,96 @@ def test_moving_keeps_windows_line_ends():
 )
 def test_settings_are_left_alone_when_they_cannot_move_safely(text):
     assert move_to_settings(text) == (text, [])
+
+
+# privacy options, from the app Settings
+
+TOR = "socks5://127.0.0.1:9050"
+
+
+def privacy_of(text: str) -> dict:
+    return vars(parse_config(yaml.safe_load(text), allow_empty=True).privacy)
+
+
+def test_set_privacy_uncomments_the_example_configs_options():
+    text = set_privacy(EXAMPLE_CONFIG, {"proxy": TOR, "fast_mode": True})
+    assert f"    proxy: {TOR}\n" in text and "    fast_mode: true\n" in text
+    assert "# proxy:" not in text and "# fast_mode:" not in text
+    assert privacy_of(text)["proxy"] == TOR and privacy_of(text)["fast_mode"] is True
+    # every comment survives
+    comments = [line for line in EXAMPLE_CONFIG.splitlines() if line.strip().startswith("#")]
+    assert len([line for line in text.splitlines() if line.strip().startswith("#")]) == len(comments) - 2
+
+
+def test_set_privacy_off_comments_out_and_round_trips():
+    on = set_privacy(EXAMPLE_CONFIG, {"proxy": TOR, "fast_mode": True})
+    off = set_privacy(on, {"proxy": None, "fast_mode": None})
+    assert f"    # proxy: {TOR}\n" in off and "    # fast_mode: true\n" in off
+    assert privacy_of(off)["proxy"] is None and privacy_of(off)["fast_mode"] is False
+    # turning it back on uses the commented line and doesnt add another
+    again = set_privacy(off, {"proxy": "socks5://10.0.0.2:9150"})
+    assert again.count("proxy:") == 1 and "proxy: socks5://10.0.0.2:9150" in again
+
+
+def test_set_privacy_changes_a_value_in_place_keeping_its_comment():
+    text = "settings:\n  privacy:\n    proxy: socks5://a:1  # mine\n    jitter: [0, 1]\nsources:\n  git: [a/b]\n"
+    assert set_privacy(text, {"proxy": TOR}) == text.replace("socks5://a:1", TOR)
+
+
+def test_set_privacy_edits_a_top_level_privacy_where_it_is():
+    """not moved, so an older CLI reading the same config keeps its proxy"""
+    text = "privacy:\n  jitter: [0, 1]\nsources:\n  git: [a/b]\n"
+    edited = set_privacy(text, {"proxy": TOR})
+    assert edited == f"privacy:\n  jitter: [0, 1]\n  proxy: {TOR}\nsources:\n  git: [a/b]\n"
+
+
+@pytest.mark.parametrize(
+    "text, expected",
+    [
+        (
+            "# header\n\n# about sources\nsources:\n  git: [a/b]\n",
+            f"# header\n\nsettings:\n  privacy:\n    proxy: {TOR}\n\n# about sources\nsources:\n  git: [a/b]\n",
+        ),
+        ("settings:\nsources: {}\n", f"settings:\n  privacy:\n    proxy: {TOR}\nsources: {{}}\n"),
+        (
+            "settings:\n  expiry: 1y\nsources: {}\n",
+            f"settings:\n  privacy:\n    proxy: {TOR}\n  expiry: 1y\nsources: {{}}\n",
+        ),
+        ("settings:\n  privacy:\nsources: {}\n", f"settings:\n  privacy:\n    proxy: {TOR}\nsources: {{}}\n"),
+        ("", f"settings:\n  privacy:\n    proxy: {TOR}\n"),
+    ],
+    ids=["no settings", "empty settings", "other settings", "empty privacy", "empty file"],
+)
+def test_set_privacy_adds_what_is_missing(text, expected):
+    assert set_privacy(text, {"proxy": TOR}) == expected
+
+
+def test_set_privacy_turning_off_what_is_not_set_changes_nothing():
+    text = "sources:\n  git: [a/b]\n"
+    assert set_privacy(text, {"proxy": None, "fast_mode": None}) == text
+
+
+def test_set_privacy_keeps_crlf_line_ends():
+    text = "settings:\r\n  privacy:\r\n    jitter: [0, 1]\r\nsources: {}\r\n"
+    assert set_privacy(text, {"fast_mode": True}) == (
+        "settings:\r\n  privacy:\r\n    jitter: [0, 1]\r\n    fast_mode: true\r\nsources: {}\r\n"
+    )
+
+
+def test_set_privacy_quotes_a_proxy_that_needs_it():
+    text = set_privacy("sources: {}\n", {"proxy": "http://user:p#ss@host:8080"})
+    assert privacy_of(text)["proxy"] == "http://user:p#ss@host:8080"
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "settings: {privacy: {jitter: [0, 1]}}\nsources: {}\n",
+        "privacy: {jitter: [0, 1]}\nsources: {}\n",
+        "settings:\n  privacy:\n    proxy: >-\n      socks5://a:1\nsources: {}\n",
+    ],
+    ids=["flow settings", "flow privacy", "folded value"],
+)
+def test_set_privacy_refuses_what_it_cannot_edit_safely(text):
+    with pytest.raises(ConfigError, match="by hand: proxy: socks5"):
+        set_privacy(text, {"proxy": TOR})
