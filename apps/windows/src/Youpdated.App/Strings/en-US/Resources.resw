@@ -713,6 +713,9 @@
   <data name="UserAgentRotate" xml:space="preserve">
     <value>A new browser each check</value>
   </data>
+  <data name="UserAgentYoupdated" xml:space="preserve">
+    <value>Youpdated identifies itself</value>
+  </data>
   <data name="SettingsGap.Header" xml:space="preserve">
     <value>Gap between requests to a site</value>
   </data>

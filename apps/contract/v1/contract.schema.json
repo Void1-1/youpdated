@@ -615,7 +615,7 @@
       "properties": {
         "proxy": { "type": ["string", "null"], "description": "Every request goes through it, or null for none" },
         "fast_mode": { "type": "boolean" },
-        "user_agent": { "type": "string", "description": "`rotate`, or a fixed user agent" },
+        "user_agent": { "type": "string", "description": "`rotate`, `youpdated`, or a fixed user agent" },
         "jitter": {
           "description": "Random gap between requests to one site, [min, max] seconds",
           "type": "array",

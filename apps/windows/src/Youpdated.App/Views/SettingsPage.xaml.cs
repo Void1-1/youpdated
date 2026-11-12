@@ -29,7 +29,12 @@ public sealed partial class SettingsPage : Page
     public static string UpdateStatus(bool watching) =>
         Text.Get(watching ? "SettingsUpdatesWatching" : "SettingsUpdatesOff");
 
-    public static string UserAgent(string? fixedAgent) => fixedAgent ?? Text.Get("UserAgentRotate");
+    public static string UserAgent(string? fixedAgent) => fixedAgent switch
+    {
+        null => Text.Get("UserAgentRotate"),
+        "youpdated" => Text.Get("UserAgentYoupdated"),
+        _ => fixedAgent,
+    };
 
     protected override void OnNavigatedTo(NavigationEventArgs e)
     {

@@ -281,10 +281,18 @@ struct PrivacySettings: View {
         }
     }
 
+    /// `rotate` and `youpdated` are keywords
+    static func userAgent(_ value: String) -> String {
+        switch value {
+        case "rotate": String(localized: "A new browser each check")
+        case "youpdated": String(localized: "Youpdated identifies itself")
+        default: value
+        }
+    }
+
     private func configSection(_ privacy: Privacy) -> some View {
         Section {
-            LabeledContent(String(localized: "User agent"),
-                           value: privacy.userAgent == "rotate" ? String(localized: "A new browser each check") : privacy.userAgent)
+            LabeledContent(String(localized: "User agent"), value: Self.userAgent(privacy.userAgent))
             LabeledContent(String(localized: "Gap between requests to a site"), value: Self.seconds(privacy.jitter))
             LabeledContent(String(localized: "Requests at once"), value: privacy.concurrency.formatted())
             LabeledContent(String(localized: "Timeout"), value: Self.seconds([privacy.timeout]))

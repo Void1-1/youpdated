@@ -352,7 +352,7 @@ public struct SettingsReply: Codable, Sendable {
 public struct Privacy: Codable, Sendable, Hashable {
     public var proxy: String?
     public var fastMode: Bool
-    /// "rotate", or a fixed user agent
+    /// "rotate", "youpdated", or a fixed user agent
     public var userAgent: String
     /// [min, max] seconds between requests to a site
     public var jitter: [Double]
