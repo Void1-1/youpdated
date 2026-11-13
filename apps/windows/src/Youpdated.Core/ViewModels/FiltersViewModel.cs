@@ -122,7 +122,7 @@ public sealed partial class FiltersViewModel(EngineClient engine, Target target)
         var generation = ++_generation;
         try
         {
-            var reply = await engine.FiltersPreviewAsync(target.AsKey(), Match, SkipPrereleases, Minimum, refresh);
+            var reply = await engine.FiltersPreviewAsync(target.AsKey(), Match, SkipPrereleases, Bump, Minimum, refresh);
             if (generation != _generation)
             {
                 return;

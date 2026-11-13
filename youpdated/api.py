@@ -334,6 +334,11 @@ def _pattern_label(glob: str) -> str:
     return glob.removesuffix("*") + "…"
 
 
+def _check_bump(bump: str) -> None:
+    if bump not in (ANY_BUMP, *BUMPS):
+        raise _bad(f"bump must be: {', '.join((ANY_BUMP, *BUMPS))}")
+
+
 class Engine:
     """The app's working files, passphrase after unlock, running check"""
 
@@ -1231,8 +1236,7 @@ class Engine:
         bump = p.get("bump", "str", required=True)
         lowest = (p.get("min", "str?") or "").strip()
         p.done()
-        if bump not in (ANY_BUMP, *BUMPS):
-            raise _bad(f"bump must be: {', '.join((ANY_BUMP, *BUMPS))}")
+        _check_bump(bump)
         filters = self._filters(name, key)
         if filters.locked is not None:
             raise _bad(filters.locked)
@@ -1290,10 +1294,12 @@ class Engine:
         name, key = self._watched(p)
         match = p.get("match", "strings", [])
         skip = p.get("skip_prereleases", "bool", False)
+        bump = p.get("bump", "str", ANY_BUMP)
         lowest = (p.get("min", "str?") or "").strip()
         refresh = p.get("refresh", "bool", False)
         p.done()
-        raw: dict[str, Any] = {}
+        _check_bump(bump)
+        raw: dict[str, Any] = {"bump": bump}
         if globs := [glob.strip() for glob in match if glob.strip()]:
             raw["match"] = globs
         if lowest:
@@ -1303,16 +1309,20 @@ class Engine:
         except ConfigError as exc:
             raise _bad(str(exc)) from exc
         listed, error = self._listed_versions(name, key, refresh)
-        versions = []
-        for update in listed:
-            prerelease = "prerelease" in update.tags
-            versions.append({
+        fits = [
+            update
+            for update in listed
+            if not (skip and "prerelease" in update.tags) and rules.matches(update.version)
+        ]
+        kept = {id(update) for update in rules.admit(fits)}
+        versions = [
+            {
                 "version": update.version,
-                "prerelease": prerelease,
-                "kept": not (skip and prerelease)
-                and rules.matches(update.version)
-                and bool(rules.admit([update])),
-            })
+                "prerelease": "prerelease" in update.tags,
+                "kept": id(update) in kept,
+            }
+            for update in listed
+        ]
         return {
             "versions": versions,
             "kept": sum(v["kept"] for v in versions),

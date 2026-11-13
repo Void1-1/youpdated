@@ -153,6 +153,7 @@ internal static class FiltersDialog
             if (bump.SelectedItem is ComboBoxItem { Tag: Bump value } && value != filters.Bump)
             {
                 filters.Bump = value;
+                _ = filters.PreviewAsync();
             }
         };
         min.TextChanged += (_, _) =>

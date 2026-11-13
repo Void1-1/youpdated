@@ -254,8 +254,8 @@ public sealed class EngineClient(IEngineChannel channel)
 
     /// <summary>What these rules would keep; <paramref name="refresh"/> has the engine re-ask</summary>
     public Task<FiltersPreview> FiltersPreviewAsync(
-        TargetKey target, IReadOnlyList<string>? match = null, bool skipPrereleases = false, string? min = null,
-        bool refresh = false, CancellationToken cancellationToken = default)
+        TargetKey target, IReadOnlyList<string>? match = null, bool skipPrereleases = false, Bump bump = Bump.Any,
+        string? min = null, bool refresh = false, CancellationToken cancellationToken = default)
     {
         var parameters = new JsonObject { ["source"] = target.Source, ["key"] = target.Key };
         if (match is { Count: > 0 })
@@ -265,6 +265,10 @@ public sealed class EngineClient(IEngineChannel channel)
         if (skipPrereleases)
         {
             parameters["skip_prereleases"] = true;
+        }
+        if (bump != Bump.Any)
+        {
+            parameters["bump"] = JsonSerializer.SerializeToNode(bump, ContractJson.Default.Bump);
         }
         if (min is not null)
         {

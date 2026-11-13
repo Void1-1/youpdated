@@ -142,12 +142,13 @@ public struct Engine: Sendable {
 
     public func previewFilters(
         source: String, key: String, match: [String]? = nil, skipPrereleases: Bool? = nil,
-        min: String? = nil, refresh: Bool? = nil
+        bump: Bump? = nil, min: String? = nil, refresh: Bool? = nil
     ) async throws -> FiltersPreview {
         try await client.call(
             "filters.preview",
             Params.PreviewFilters(
-                source: source, key: key, match: match, skipPrereleases: skipPrereleases, min: min, refresh: refresh))
+                source: source, key: key, match: match, skipPrereleases: skipPrereleases, bump: bump,
+                min: min, refresh: refresh))
     }
 
     public func problems() async throws -> ProblemsReply {
@@ -251,6 +252,7 @@ enum Params {
         let key: String
         let match: [String]?
         let skipPrereleases: Bool?
+        let bump: Bump?
         let min: String?
         let refresh: Bool?
     }

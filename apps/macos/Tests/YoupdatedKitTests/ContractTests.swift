@@ -122,9 +122,9 @@ import Testing
             source: "pypi", key: "django", match: [], skipPrereleases: true, bump: .minor, min: "5.0")),
         ("filters.preview/ok", Params.PreviewFilters(
             source: "git", key: "github.com/Void1-1/youpdated", match: ["app-macos-v*"],
-            skipPrereleases: true, min: nil, refresh: nil)),
+            skipPrereleases: true, bump: nil, min: nil, refresh: nil)),
         ("filters.preview/fetch_failed", Params.PreviewFilters(
-            source: "pypi", key: "django", match: nil, skipPrereleases: nil, min: nil, refresh: nil)),
+            source: "pypi", key: "django", match: nil, skipPrereleases: nil, bump: nil, min: nil, refresh: nil)),
     ])
     func requestsMatchFixtures(_ name: String, _ params: any Encodable & Sendable) throws {
         let fixture = Fixtures.named(name)

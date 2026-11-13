@@ -318,6 +318,34 @@ def test_preview_says_what_the_rules_would_keep(engine, fake):
     assert some["kept"] == 1 and some["patterns"] == everything["patterns"]
 
 
+def _kept(engine, **rules):
+    reply = engine("filters.preview", source="fake", key="alpha", **rules)
+    return [v["version"] for v in reply["versions"] if v["kept"]]
+
+
+def test_preview_compares_bumps_among_the_listed_versions(engine, fake):
+    listed = ("v2.0.0", "v1.1.1", "v1.1.0", "v1.0.1", "v1.0.0")
+    write_items(fake, {"alpha": _versions(*listed)})
+
+    assert _kept(engine, bump="any") == list(listed)
+    assert _kept(engine, bump="major") == ["v2.0.0"]
+    assert _kept(engine, bump="minor") == ["v2.0.0", "v1.1.0"]
+    # the oldest has nothing before it
+    assert _kept(engine, bump="patch") == ["v2.0.0", "v1.1.1", "v1.1.0", "v1.0.1"]
+    assert _kept(engine, bump="patch", min="1.1") == ["v2.0.0", "v1.1.1", "v1.1.0"]
+
+    reply = engine("filters.preview", source="fake", key="alpha", bump="huge")
+    assert reply["error"]["code"] == "bad_request"
+    assert "bump must be: any, major, minor, patch" in reply["error"]["message"]
+
+
+def test_preview_bumps_count_only_versions_the_patterns_fit(engine, fake):
+    write_items(fake, {"alpha": _versions("v2.0.0", "app-v1.1.0", "v1.5.0", "app-v1.0.0")})
+
+    assert _kept(engine, bump="minor") == ["v2.0.0", "v1.5.0"]
+    assert _kept(engine, bump="minor", match=["app-v*"]) == ["app-v1.1.0"]
+
+
 def test_preview_ignores_the_entrys_own_rules(engine, fake, tmp_path):
     """A set pattern doesn't hide versions another would take"""
     engine.config_override = make_config(

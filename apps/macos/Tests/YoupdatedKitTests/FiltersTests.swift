@@ -77,7 +77,7 @@ import Testing
         let asked = try #require(harness.engine.requests("filters.preview").last)
         #expect(asked["match"] as? [String] == ["app-macos-v*"])
         #expect(asked["skip_prereleases"] as? Bool == true)
-        #expect(asked["refresh"] == nil && asked["min"] == nil)
+        #expect(asked["refresh"] == nil && asked["min"] == nil && asked["bump"] == nil)
     }
 
     @Test func aChangedDraftIsPreviewedAndCanBeSaved() async throws {
@@ -86,19 +86,20 @@ import Testing
 
         filters.draft.ticked.insert("v*")
         filters.draft.min = "1.0"
+        filters.draft.bump = .minor
         filters.draftChanged()
         for _ in 0..<50 where harness.engine.requests("filters.preview").count < 2 { await Task.yield() }
         try await Task.sleep(for: .milliseconds(20))
         let asked = try #require(harness.engine.requests("filters.preview").last)
         #expect(asked["match"] as? [String] == ["v*", "app-macos-v*"])
-        #expect(asked["min"] as? String == "1.0")
+        #expect(asked["min"] as? String == "1.0" && asked["bump"] as? String == "minor")
         #expect(filters.canSave)
 
         #expect(await filters.save())
         let sent = try #require(harness.engine.requests("filters.set").last)
         #expect(sent["source"] as? String == "git" && sent["key"] as? String == "github.com/Void1-1/youpdated")
         #expect(sent["match"] as? [String] == ["v*", "app-macos-v*"])
-        #expect(sent["bump"] as? String == "any" && sent["min"] as? String == "1.0")
+        #expect(sent["bump"] as? String == "minor" && sent["min"] as? String == "1.0")
     }
 
     @Test func patternsSavedInAnotherOrderAreNotAChange() async throws {

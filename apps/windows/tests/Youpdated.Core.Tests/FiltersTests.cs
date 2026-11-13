@@ -46,6 +46,7 @@ public class FiltersTests
         Assert.True(asked["skip_prereleases"]!.GetValue<bool>());
         Assert.Null(asked["refresh"]);
         Assert.Null(asked["min"]);
+        Assert.Null(asked["bump"]);
     }
 
     [Fact]
@@ -81,6 +82,7 @@ public class FiltersTests
         var asked = engine.RequestsFor("filters.preview").Last();
         Assert.Equal(2, asked["match"]!.AsArray().Count);
         Assert.Equal("1.0", asked["min"]!.GetValue<string>());
+        Assert.Equal("minor", asked["bump"]!.GetValue<string>());
         Assert.True(asked["refresh"]!.GetValue<bool>());
         Assert.True(filters.CanSave);
 

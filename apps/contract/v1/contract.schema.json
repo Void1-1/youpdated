@@ -705,6 +705,11 @@
         "key": { "type": "string" },
         "match": { "type": "array", "items": { "type": "string" }, "default": [] },
         "skip_prereleases": { "type": "boolean", "default": false },
+        "bump": {
+          "$ref": "#/$defs/Bump",
+          "default": "any",
+          "description": "Compared with listed versions only"
+        },
         "min": { "type": ["string", "null"], "default": null },
         "refresh": { "type": "boolean", "default": false, "description": "Fetch again" }
       }

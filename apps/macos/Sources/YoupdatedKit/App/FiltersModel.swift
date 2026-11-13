@@ -131,7 +131,7 @@ public final class FiltersModel {
         do {
             let reply = try await engine.previewFilters(
                 source: target.source, key: target.key, match: match, skipPrereleases: draft.skipPrereleases,
-                min: draft.minimum, refresh: refresh ? true : nil)
+                bump: draft.bump == .any ? nil : draft.bump, min: draft.minimum, refresh: refresh ? true : nil)
             let first = preview == nil
             preview = reply
             if first, draft == asked { draft.sort(offered: reply.patterns.map(\.pattern)) }
