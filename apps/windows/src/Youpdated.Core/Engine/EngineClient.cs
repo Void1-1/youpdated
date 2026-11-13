@@ -237,6 +237,59 @@ public sealed class EngineClient(IEngineChannel channel)
             ["priority"] = JsonSerializer.SerializeToNode(priority, ContractJson.Default.Priority),
         }, ContractJson.Default.PriorityReply, cancellationToken);
 
+    /// <summary>Only when <c>hello.ops</c> has <c>filters.get</c></summary>
+    public Task<Filters> FiltersGetAsync(TargetKey target, CancellationToken cancellationToken = default) =>
+        channel.SendAsync("filters.get", new JsonObject { ["source"] = target.Source, ["key"] = target.Key },
+            ContractJson.Default.Filters, cancellationToken);
+
+    public Task<Filters> FiltersSetAsync(
+        TargetKey target, IReadOnlyList<string> match, bool skipPrereleases, Bump bump, string? min,
+        CancellationToken cancellationToken = default)
+    {
+        var parameters = new JsonObject
+        {
+            ["source"] = target.Source,
+            ["key"] = target.Key,
+            ["match"] = new JsonArray([.. match.Select(glob => (JsonNode?)glob)]),
+            ["skip_prereleases"] = skipPrereleases,
+            ["bump"] = JsonSerializer.SerializeToNode(bump, ContractJson.Default.Bump),
+        };
+        if (min is not null)
+        {
+            parameters["min"] = min;
+        }
+        return channel.SendAsync("filters.set", parameters, ContractJson.Default.Filters, cancellationToken);
+    }
+
+    /// <summary>What these rules would keep; <paramref name="refresh"/> has the engine re-ask</summary>
+    public Task<FiltersPreview> FiltersPreviewAsync(
+        TargetKey target, IReadOnlyList<string>? match = null, bool skipPrereleases = false, Bump bump = Bump.Any,
+        string? min = null, bool refresh = false, CancellationToken cancellationToken = default)
+    {
+        var parameters = new JsonObject { ["source"] = target.Source, ["key"] = target.Key };
+        if (match is { Count: > 0 })
+        {
+            parameters["match"] = new JsonArray([.. match.Select(glob => (JsonNode?)glob)]);
+        }
+        if (skipPrereleases)
+        {
+            parameters["skip_prereleases"] = true;
+        }
+        if (bump != Bump.Any)
+        {
+            parameters["bump"] = JsonSerializer.SerializeToNode(bump, ContractJson.Default.Bump);
+        }
+        if (min is not null)
+        {
+            parameters["min"] = min;
+        }
+        if (refresh)
+        {
+            parameters["refresh"] = true;
+        }
+        return channel.SendAsync("filters.preview", parameters, ContractJson.Default.FiltersPreview, cancellationToken);
+    }
+
     public Task<ProblemsListReply> ProblemsListAsync(CancellationToken cancellationToken = default) =>
         channel.SendAsync("problems.list", null, ContractJson.Default.ProblemsListReply, cancellationToken);
 

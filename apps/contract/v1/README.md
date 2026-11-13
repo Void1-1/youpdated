@@ -56,6 +56,7 @@ Used for the desktop apps and `youpdated api serve` to communicate. [contract.sc
 - **Timestamps:** UTC and whole seconds (`2026-10-29T08:00:06Z`)
 - **Item ids** are opaque and stable for as long as the item is in the inbox.
 - **Baselines.** A target's first check records what exists without notification (as normal in cli). Its newest item goes into the inbox with `read: true` and `baseline: true`. After `targets.add`, the app checks the new `targets` with `check {"targets": [...]}`.
+- **Filters** are an entry's `ignore: [prerelease]` and `versions:` rules. `filters.get` and `filters.set` give the rules the entry runs under. `filters.set` takes every rule and writes the entry only what differs. After, the app checks the target. `filters.preview` fetches what the source lists currently, so the app doesn't have to match patterns itself, and keeps it for ten minutes.
 - **Alerts** are OS notifications the engine wants posted
   - High priority: one alert per target.
   - Normal: one combined alert per check. While a digest time is set there's none, and the items are `held` until `digest.send`. Turning the digest off sends what it held with the next check, in its `items` and `alerts`.

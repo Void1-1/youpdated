@@ -165,6 +165,15 @@ func run() async throws {
         AppWindowView().environment(followingModel).environment(followingWindow).environment(downloader)
     }
 
+    // the Filters sheet
+    let (filtersModel, _) = await makeModel()
+    if let own = filtersModel.sources.selfTarget {
+        try await render("filters-sheet", size: CGSize(width: 440, height: 520), toolbar: false) {
+            FiltersSheet(target: own).environment(filtersModel).environment(downloader)
+                .background(Color(nsColor: .windowBackgroundColor))
+        }
+    }
+
     // the Add popover's contents, with a preview
     let (addModel, _) = await makeModel()
     addModel.add.fill("https://github.com/python/cpython")

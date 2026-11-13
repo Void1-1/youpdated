@@ -16,6 +16,8 @@ public final class WindowState {
     /// Set by cmd+F; the filter field takes focus and clears it
     public var focusesFilter = false
     public var removing: Target?
+    /// The item with an open Filters sheet
+    public var filtering: Target?
     /// Following scrolls to and highlights this row
     public var highlighted: TargetKey?
 

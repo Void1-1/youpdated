@@ -29,6 +29,8 @@ namespace Youpdated.Core.Contract;
 [JsonSerializable(typeof(SettingsReply))]
 [JsonSerializable(typeof(PrivacyReply))]
 [JsonSerializable(typeof(PriorityReply))]
+[JsonSerializable(typeof(Filters))]
+[JsonSerializable(typeof(FiltersPreview))]
 [JsonSerializable(typeof(ProblemsListReply))]
 [JsonSerializable(typeof(DigestReply))]
 [JsonSerializable(typeof(SnapshotReply))]
@@ -41,6 +43,7 @@ namespace Youpdated.Core.Contract;
 [JsonSerializable(typeof(TargetKey))]
 [JsonSerializable(typeof(List<TargetKey>))]
 [JsonSerializable(typeof(Priority))]
+[JsonSerializable(typeof(Bump))]
 public sealed partial class ContractJson : JsonSerializerContext;
 
 /// <summary>Contract timestamps: UTC, whole seconds, <c>2026-10-29T08:00:06Z</c></summary>

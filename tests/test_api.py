@@ -21,6 +21,8 @@ from referencing import Registry, Resource
 from youpdated import api, crypto
 from youpdated.config import NAMED_UA_CONFIRMED
 from youpdated.cli import main
+from youpdated.config import load_config
+from youpdated.runner import build_targets
 from youpdated.state import State, inbox_id
 
 from .fake_source import ITEMS_ENV, write_items
@@ -32,6 +34,8 @@ REGISTRY = Registry().with_resources(
     (schema["$id"], Resource.from_contents(schema)) for schema in SCHEMAS.values()
 )
 BASE = SCHEMAS["contract.schema.json"]["$id"]
+# Release tags of the app for this platform
+APP_TAGS = {"darwin": "app-macos-v*", "win32": "app-windows-v*"}.get(sys.platform, "app-*")
 encryption = pytest.mark.skipif(not crypto.available(), reason="cryptography is not installed")
 
 
@@ -553,6 +557,8 @@ def test_config_init_writes_only_the_self_watch(tmp_path):
 
     (target,) = engine("targets.list")["targets"]
     assert target["starred"] and target["key"] == "github.com/Void1-1/youpdated"
+    (built,), _ = build_targets(load_config(tmp_path / "new" / "config.yaml"))
+    assert built.versions.match == (APP_TAGS,) and built.ignore == {"prerelease"}
     assert engine("status")["self_watch"] == "watching"
     assert engine("config.init")["self_watch_added"] is False
 
@@ -564,7 +570,11 @@ def test_config_init_adds_the_self_watch_to_a_cli_config(engine, tmp_path):
 
     after = engine.config_override.read_text()
     assert after.startswith(before.rstrip("\n"))
-    assert "- {repo: Void1-1/youpdated, ignore: [prerelease]}" in after
+    # only this app's releases
+    assert (
+        f"- {{repo: Void1-1/youpdated, ignore: [prerelease], versions: {{match: {APP_TAGS}}}}}"
+        in after
+    )
     (git,) = [t for t in engine("targets.list")["targets"] if t["source"] == "git"]
     assert git["starred"]
 
@@ -1163,6 +1173,7 @@ def test_nothing_is_sent_as_youpdated_until_confirmed(tmp_path, fake, listening)
     for op, params in (
         ("check", {}),
         ("targets.preview", {"value": "alpha", "source": "fake"}),
+        ("filters.preview", {"source": "fake", "key": "alpha"}),
         ("digest.send", {}),
     ):
         reply = engine(op, **params)

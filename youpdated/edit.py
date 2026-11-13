@@ -20,7 +20,7 @@ from .config import SETTINGS_KEYS, ConfigError, PrivacyConfig
 from .http import Client
 from .models import Target
 from .registry import all_aliases, all_sources, canonical_name
-from .sources.base import Source
+from .sources.base import Source, scalar_key
 from .state import State
 
 _NULL_TAG = "tag:yaml.org,2002:null"
@@ -30,6 +30,8 @@ _STEP = 2
 _CONTEXTS = ("- {}", "[{}]", "{}: x")
 # a value removed by key, which equals no config entry
 _NO_ENTRY = object()
+# An entry's keys the source never sees, see runner._split_entry_rules
+RULE_KEYS = ("ignore", "versions")
 
 
 class _Unsupported(Exception):
@@ -432,6 +434,69 @@ def remove_from_config(
                 raise _Unsupported("an entry could not be taken out")
             edited = shorter
         _verify(edited, expected)
+    change.text = _line_ends(edited, text)
+    return change
+
+
+@dataclass
+class Watching:
+    """A config entry that watches a target"""
+
+    # `sources:` key it is listed under
+    section: str
+    index: int
+    entry: Any
+    # every target the entry watches
+    keys: set[str]
+
+
+def watching(text: str, source: str, key: str) -> list[Watching]:
+    """``source``'s entries in ``text`` that watch ``key``"""
+    return _watching(_parse(text, source), key)
+
+
+def _watching(parsed: _Parsed, key: str) -> list[Watching]:
+    return [
+        Watching(name, index, entry, keys)
+        for name in parsed.sections()
+        for index, entry in enumerate(parsed.listed[name])
+        if key in (keys := _keys(parsed.handler, entry))
+    ]
+
+
+def set_entry_rules(text: str, source: str, key: str, rules: dict[str, Any]) -> Change:
+    """``text`` with the entry watching ``key`` given ``rules``"""
+    parsed = _parse(text, source)
+    change = Change(text=text, section=parsed.source)
+    found = _watching(parsed, key)
+    if not found:
+        change.skipped.append(key)
+        return change
+    if len(found) > 1:
+        raise ConfigError(
+            f"{key} is listed {len(found)} times under `sources: {parsed.source}:`. "
+            "Edit its rules manually."
+        )
+    hit = found[0]
+    change.section = hit.section
+    by_hand = f"Edit the rules of {key} under `sources: {hit.section}:` manually."
+    with _explained(by_hand):
+        if isinstance(hit.entry, dict):
+            fields = dict(hit.entry)
+        else:
+            name = scalar_key(parsed.handler, hit.entry)
+            if name is None or _keys(parsed.handler, {name: hit.entry}) != hit.keys:
+                raise _Unsupported("its entry can't be written as a mapping")
+            fields = {name: hit.entry}
+        new = {k: v for k, v in fields.items() if k not in RULE_KEYS}
+        new.update({k: rules[k] for k in RULE_KEYS if rules.get(k)})
+        if new == fields or (not isinstance(hit.entry, dict) and len(new) == 1):
+            return change
+        expected = copy.deepcopy(parsed.data)
+        expected["sources"][hit.section][hit.index] = new
+        edited = _rewrite(parsed.body, hit, new)
+        _verify(edited, expected)
+    change.applied.append(key)
     change.text = _line_ends(edited, text)
     return change
 
@@ -859,6 +924,59 @@ def _items(items: list[str], col: int) -> list[str]:
 
 def _insert_after(lines: list[str], row: int, new: list[str]) -> str:
     return "\n".join(lines[: row + 1] + new + lines[row + 1 :])
+
+# rules
+
+def _flow(value: Any) -> str:
+    return yaml.safe_dump(value, default_flow_style=True, sort_keys=False, width=1 << 16).strip()
+
+
+def _rewrite(body: str, hit: Watching, new: dict[str, Any]) -> str:
+    """``body`` with the entry at ``hit`` reading as ``new``"""
+    sources = _sources_node(yaml.compose(body))
+    if sources is None:
+        raise _Unsupported("`sources` is not written as an indented block")
+    found = _pair(sources, hit.section)
+    if found is None or not isinstance(found[1], yaml.SequenceNode):
+        raise _Unsupported(f"`sources.{hit.section}` is not a list")
+    listing = found[1]
+    item = listing.value[hit.index]
+    start, end = item.start_mark, item.end_mark
+    lines = body.split("\n")
+    rules = [f"{name}: {_flow(new[name])}" for name in RULE_KEYS if name in new]
+
+    if isinstance(item, yaml.ScalarNode):
+        if listing.flow_style or start.line != end.line:
+            return body[: start.index] + _flow(new) + body[end.index :]
+        # `- a/b  # note` becomes `- repo: a/b  # note`, with its rules under it
+        name = next(k for k in new if k not in RULE_KEYS)
+        row = lines[start.line]
+        lines[start.line] = f"{row[: start.column]}{yaml_scalar(name)}: {row[start.column :]}"
+        return _insert_after(lines, start.line, [" " * start.column + rule for rule in rules])
+
+    if not isinstance(item, yaml.MappingNode):
+        raise _Unsupported("an entry is neither a value nor a mapping")
+    if item.flow_style:
+        return body[: start.index] + _flow(new) + body[end.index :]
+
+    written: list[tuple[int, int, int, str]] = []
+    for key, value in item.value:
+        if isinstance(key, yaml.ScalarNode) and key.value in RULE_KEYS:
+            first = key.start_mark.line
+            written.append((first, max(first, _last_line(value, lines)), key.start_mark.column, key.value))
+    have = {name for _, _, _, name in written}
+    added = [" " * start.column + rule for rule in rules if rule.split(":")[0] not in have]
+    lines = _insert_after(lines, _last_line(item, lines), added).split("\n")
+    for first, last, column, name in sorted(written, reverse=True):
+        lead = lines[first][:column]
+        if name in new:
+            lines[first : last + 1] = [f"{lead}{name}: {_flow(new[name])}"]
+            continue
+        del lines[first : last + 1]
+        if lead.strip():
+            # it was on the entry's `- `: the next key moves up to it
+            lines[first] = lead + lines[first].lstrip()
+    return "\n".join(lines)
 
 # removing
 

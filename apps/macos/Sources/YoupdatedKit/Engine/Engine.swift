@@ -143,6 +143,31 @@ public struct Engine: Sendable {
         return reply.priority
     }
 
+    /// Only when `hello.ops` has `filters.get`
+    public func filters(source: String, key: String) async throws -> Filters {
+        try await client.call("filters.get", Params.Icon(source: source, key: key))
+    }
+
+    public func setFilters(
+        source: String, key: String, match: [String], skipPrereleases: Bool, bump: Bump, min: String?
+    ) async throws -> Filters {
+        try await client.call(
+            "filters.set",
+            Params.SetFilters(
+                source: source, key: key, match: match, skipPrereleases: skipPrereleases, bump: bump, min: min))
+    }
+
+    public func previewFilters(
+        source: String, key: String, match: [String]? = nil, skipPrereleases: Bool? = nil,
+        bump: Bump? = nil, min: String? = nil, refresh: Bool? = nil
+    ) async throws -> FiltersPreview {
+        try await client.call(
+            "filters.preview",
+            Params.PreviewFilters(
+                source: source, key: key, match: match, skipPrereleases: skipPrereleases, bump: bump,
+                min: min, refresh: refresh))
+    }
+
     public func problems() async throws -> ProblemsReply {
         try await client.call("problems.list")
     }
@@ -244,6 +269,23 @@ enum Params {
         let source: String
         let key: String
         let priority: Priority
+    }
+    struct SetFilters: Encodable, Sendable {
+        let source: String
+        let key: String
+        let match: [String]
+        let skipPrereleases: Bool
+        let bump: Bump
+        let min: String?
+    }
+    struct PreviewFilters: Encodable, Sendable {
+        let source: String
+        let key: String
+        let match: [String]?
+        let skipPrereleases: Bool?
+        let bump: Bump?
+        let min: String?
+        let refresh: Bool?
     }
     struct Snapshot: Encodable, Sendable { let path: String }
     struct Icon: Encodable, Sendable {

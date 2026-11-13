@@ -23,6 +23,7 @@ Closing the window keeps Youpdated running. Look for the bell in the notificatio
 - Follow something: paste a link or a name into +, or paste with a link copied.
 - Get a notification, and try its buttons.
 - Give targets different priorities, and set a daily digest in Settings.
+- Right-click something you follow and choose **Filters...** to see only some of its versions.
 - Turn on **Start Youpdated when you sign in**, then sign out and back in.
 - Right-click Youpdated on the taskbar for **Check now** and **Add**.
 - Open a `youpdated://add?url=<link>` link from your browser.
@@ -34,7 +35,7 @@ Closing the window keeps Youpdated running. Look for the bell in the notificatio
 - **No notifications while running as administrator.** Windows might not show notifications from an app running as administrator, which is every app if User Account Control is turned off.
 - **No installer.** The app is a folder you keep and run from.
 
-Releases of the command-line tool will also show up in your feed, unless filtered out.
+Youpdated's own entry follows only the Windows app's releases. To see the command-line tool also, tick `v…` in its **Filters...**. If you followed Youpdated with 0.9.0, the entry has no filter yet, and every release shows up.
 
 ## If you also use the command line
 

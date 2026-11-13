@@ -388,6 +388,48 @@ public struct PriorityReply: Codable, Sendable {
     public var priority: Priority
 }
 
+/// `versions: {bump:}`: `any` reports every version
+public enum Bump: String, Codable, Sendable, CaseIterable {
+    case any, patch, minor, major
+}
+
+/// The rules for a followed item: `filters.get` and `filters.set`
+public struct Filters: Codable, Sendable, Hashable {
+    /// Globs; empty keeps every version
+    public var match: [String]
+    public var skipPrereleases: Bool
+    /// The config skips them for the whole source
+    public var skipPrereleasesInherited: Bool
+    public var bump: Bump
+    public var min: String?
+    public var editable: Bool
+    /// Why it isn't editable
+    public var reason: String?
+}
+
+/// What rules would keep of the versions a source lists now: `filters.preview`
+public struct FiltersPreview: Codable, Sendable, Hashable {
+    public struct Version: Codable, Sendable, Hashable {
+        public var version: String
+        public var prerelease: Bool
+        public var kept: Bool
+    }
+
+    public struct Pattern: Codable, Sendable, Hashable, Identifiable {
+        public var pattern: String
+        public var label: String
+        public var count: Int
+
+        public var id: String { pattern }
+    }
+
+    /// Newest first
+    public var versions: [Version]
+    public var kept: Int
+    public var patterns: [Pattern]
+    public var fetchError: String?
+}
+
 public struct ProblemsReply: Codable, Sendable {
     public var problems: [Problem]
     public var checkedAt: Date?

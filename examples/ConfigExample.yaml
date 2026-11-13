@@ -50,6 +50,8 @@ sources:
       versions: {bump: minor}        # replaces the rules above one rule at a time
     - https://gitlab.com/gitlab-org/cli
     - codeberg.org/forgejo/forgejo   # host/owner/repo
+    - repo: llvm/llvm-project
+      versions: {match: "llvmorg-*"} # only versions the pattern fits
     - repo: https://gitlab.gnome.org/GNOME/gtk
       watch: [releases, tags]
     - repo: tools/deploy             # a self-hosted instance

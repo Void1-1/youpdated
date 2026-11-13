@@ -52,6 +52,15 @@ class Target:
             return False
         return any(tag.strip().lower() in self.ignore for tag in tags)
 
+    def keeps(self, update: Update) -> bool:
+        """If ``update`` is recorded: no ignored tag, and a version `match:` takes"""
+        return not self.ignores(update.tags) and self.versions.matches(update.version)
+
+    @property
+    def drop_rules(self) -> frozenset[str]:
+        """The rules for :meth:`keeps`. When changed the target is fetched in full"""
+        return self.ignore | {f"match:{glob}" for glob in self.versions.match}
+
 
 @dataclass(frozen=True)
 class Update:

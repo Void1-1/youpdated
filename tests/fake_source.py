@@ -14,7 +14,7 @@ from typing import Any, ClassVar, Iterable
 from youpdated import registry
 from youpdated.http import Client
 from youpdated.models import Target, Update
-from youpdated.sources.base import parse_iso
+from youpdated.sources.base import entry_fields, parse_iso
 
 ITEMS_ENV = "YOUPDATED_FAKE_ITEMS"
 
@@ -27,7 +27,10 @@ class FakeSource:
         return value.removeprefix("fake:") if value.startswith("fake:") else None
 
     def targets(self, entries: list[Any]) -> list[Target]:
-        return [Target(source=self.name, key=str(entry)) for entry in entries]
+        return [
+            Target(source=self.name, key=str(entry_fields(entry, "name", self.name)["name"]))
+            for entry in entries
+        ]
 
     def icon(self, target: Target, client: Client) -> str | list[str] | None:
         return _read().get("_icon", {}).get(target.key)

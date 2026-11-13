@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import re
+from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime
+from fnmatch import fnmatchcase
 from typing import TYPE_CHECKING, Any, Iterable
 
 if TYPE_CHECKING:
@@ -47,6 +49,40 @@ def release(version: str | None) -> Release | None:
 
 def format_release(numbers: Release) -> str:
     return ".".join(map(str, numbers))
+
+
+def _prefix(version: str) -> str | None:
+    found = _DOTTED_RE.search(version) or _LEADING_RE.match(version)
+    if found is None or release(version) is None:
+        return None
+    return version[: found.start(found.lastindex or 0)]
+
+
+_GLOB_RE = re.compile(r"([*?\[])")
+# most patterns offered
+MAX_PATTERNS = 6
+
+
+def suggest_patterns(versions: Iterable[str]) -> list[tuple[str, int]]:
+    """`match:` globs that each take some of ``versions`` for an app to offer"""
+    listed = list(dict.fromkeys(versions))
+    prefixes = [prefix for version in listed if (prefix := _prefix(version)) is not None]
+    candidates: list[str] = []
+    if len(set(prefixes)) > 1:
+        for prefix in dict.fromkeys(prefixes):
+            candidates.append(_GLOB_RE.sub(r"[\1]", prefix) + ("*" if prefix else "[0-9]*"))
+    elif prefixes:
+        numbered = [numbers for version in listed if (numbers := release(version)) is not None]
+        for size in (1, 2):
+            heads = list(dict.fromkeys(_head(numbers, size) for numbers in numbered))
+            if len(heads) > 1:
+                start = _GLOB_RE.sub(r"[\1]", prefixes[0])
+                candidates = [f"{start}{format_release(head)}.*" for head in heads]
+                break
+    counted = [
+        (glob, sum(fnmatchcase(version, glob) for version in listed)) for glob in candidates
+    ]
+    return [(glob, count) for glob, count in counted if count][:MAX_PATTERNS]
 
 
 def _prerelease(update: Update) -> bool:
@@ -109,12 +145,24 @@ class VersionRules:
     # `major`, `minor`, `patch`: only versions that raise that number
     bump: str | None = None
     min: Release | None = None
+    # Globs: only versions one of them matches
+    match: tuple[str, ...] = ()
 
     @classmethod
     def from_parts(cls, parts: dict[str, Any]) -> VersionRules:
         """Rules from parsed config, see :func:`youpdated.config.parse_version_rules`"""
         bump = parts.get("bump")
-        return cls(bump=None if bump == ANY_BUMP else bump, min=parts.get("min"))
+        return cls(
+            bump=None if bump == ANY_BUMP else bump,
+            min=parts.get("min"),
+            match=tuple(parts.get("match") or ()),
+        )
+
+    def matches(self, version: str | None) -> bool:
+        """If ``version`` is a `match:`"""
+        if not self.match or version is None:
+            return True
+        return any(fnmatchcase(version, glob) for glob in self.match)
 
     def admit(self, updates: list[Update], previous: Highest | None = None) -> list[Update]:
         """The ``updates`` reported by rules"""

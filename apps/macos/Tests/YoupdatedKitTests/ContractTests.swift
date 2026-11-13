@@ -16,6 +16,7 @@ import Testing
         "snapshot.write": SnapshotReply.self, "config.init": ConfigInitReply.self,
         "shutdown": EmptyReply.self, "icon.get": IconReply.self,
         "privacy.get": PrivacyReply.self, "privacy.set": PrivacyReply.self,
+        "filters.get": Filters.self, "filters.set": Filters.self, "filters.preview": FiltersPreview.self,
     ]
 
     @Test func everyOpHasAReplyType() throws {
@@ -120,6 +121,14 @@ import Testing
         ("priority.set/ok", Params.SetPriority(source: "steam", key: "440", priority: .high)),
         ("config.init/existing", Params.ConfigInit(selfWatch: true)),
         ("icon.get/found", Params.Icon(source: "steam", key: "440")),
+        ("filters.get/ok", Params.Icon(source: "git", key: "github.com/Void1-1/youpdated")),
+        ("filters.set/ok", Params.SetFilters(
+            source: "pypi", key: "django", match: [], skipPrereleases: true, bump: .minor, min: "5.0")),
+        ("filters.preview/ok", Params.PreviewFilters(
+            source: "git", key: "github.com/Void1-1/youpdated", match: ["app-macos-v*"],
+            skipPrereleases: true, bump: nil, min: nil, refresh: nil)),
+        ("filters.preview/fetch_failed", Params.PreviewFilters(
+            source: "pypi", key: "django", match: nil, skipPrereleases: nil, bump: nil, min: nil, refresh: nil)),
     ])
     func requestsMatchFixtures(_ name: String, _ params: any Encodable & Sendable) throws {
         let fixture = Fixtures.named(name)

@@ -1,0 +1,25 @@
+{
+  "description": "Saving the sheet",
+  "request": {
+    "id": 42,
+    "op": "filters.set",
+    "source": "pypi",
+    "key": "django",
+    "match": [],
+    "skip_prereleases": true,
+    "bump": "minor",
+    "min": "5.0"
+  },
+  "events": [],
+  "reply": {
+    "id": 42,
+    "ok": true,
+    "match": [],
+    "skip_prereleases": true,
+    "skip_prereleases_inherited": false,
+    "bump": "minor",
+    "min": "5",
+    "editable": true,
+    "reason": null
+  }
+}
