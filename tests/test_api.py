@@ -1173,6 +1173,7 @@ def test_nothing_is_sent_as_youpdated_until_confirmed(tmp_path, fake, listening)
     for op, params in (
         ("check", {}),
         ("targets.preview", {"value": "alpha", "source": "fake"}),
+        ("filters.preview", {"source": "fake", "key": "alpha"}),
         ("digest.send", {}),
     ):
         reply = engine(op, **params)

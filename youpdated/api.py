@@ -1362,6 +1362,7 @@ class Engine:
         if target is None:
             raise ApiError("not_found", f"not watching {key} under {name}")
         plain = replace(target, ignore=frozenset(), versions=VersionRules(), track_latest=False)
+        self._require_named_ua_confirmed(config)
         try:
             with Client(config.privacy) as client:
                 items = list(all_sources()[name].fetch(plain, client))
