@@ -4,6 +4,7 @@ import json
 import os
 import signal
 import sys
+from datetime import timedelta
 from pathlib import Path
 
 import pytest
@@ -67,6 +68,10 @@ def use_editor(tmp_path, monkeypatch, *runs: str, real: Path | None = None) -> P
     monkeypatch.delenv("VISUAL", raising=False)
     monkeypatch.setenv("EDITOR", f'"{sys.executable}" "{script}"')
     return log
+
+
+def with_editor(value: str) -> str:
+    return EXAMPLE_CONFIG.replace("settings:\n", f"settings:\n  editor: {value}\n", 1)
 
 
 def runs(log: Path) -> list[dict]:
@@ -359,7 +364,7 @@ def test_the_config_editor_comes_first(config, tmp_path, monkeypatch):
     log = use_editor(tmp_path, monkeypatch, ADD_LEFT_PAD)
     configured = os.environ["EDITOR"]
     monkeypatch.setenv("VISUAL", "no-such-editor")
-    config.write_text(f"editor: {json.dumps(configured)}\n" + EXAMPLE_CONFIG, encoding="utf-8")
+    config.write_text(with_editor(json.dumps(configured)), encoding="utf-8")
 
     assert main(["edit", "-c", str(config)]) == 0
     assert len(runs(log)) == 1
@@ -368,10 +373,10 @@ def test_the_config_editor_comes_first(config, tmp_path, monkeypatch):
 
 def test_a_missing_config_editor_is_named(config, monkeypatch, capsys):
     monkeypatch.setattr(cli.sys, "platform", "linux")
-    config.write_text("editor: no-such-editor\n" + EXAMPLE_CONFIG, encoding="utf-8")
+    config.write_text(with_editor("no-such-editor"), encoding="utf-8")
 
     assert main(["edit", "-c", str(config)]) == 1
-    assert "Editor not found: no-such-editor. Set `editor:`" in capsys.readouterr().out
+    assert "Editor not found: no-such-editor. Set `settings.editor`" in capsys.readouterr().out
 
 
 def test_a_config_editor_can_be_a_path_with_spaces(tmp_path, monkeypatch):
@@ -398,8 +403,8 @@ def test_a_config_editor_can_be_a_mac_app(monkeypatch, value, expected):
 
 @pytest.mark.parametrize("value", [5, "", ["vim"]])
 def test_the_config_editor_must_be_a_string(value):
-    with pytest.raises(ConfigError, match="`editor` must be"):
-        parse_config_text(f"editor: {json.dumps(value)}\nsources: {{npm: [x]}}\n")
+    with pytest.raises(ConfigError, match="`settings.editor` must be"):
+        parse_config_text(f"settings:\n  editor: {json.dumps(value)}\nsources: {{npm: [x]}}\n")
 
 
 def test_smart_quotes_and_a_bare_at_are_fixed_on_save(config, tmp_path, monkeypatch, capsys):
@@ -477,6 +482,24 @@ def test_tidy_fixes_slips(text, fixed):
 )
 def test_tidy_leaves_alone(text):
     assert tidy_config(text) == (text, [])
+
+
+def test_edit_moves_top_level_settings_and_saves_the_move(config, tmp_path, monkeypatch, capsys):
+    config.write_text("expiry: 30d\n" + EXAMPLE_CONFIG, encoding="utf-8")
+    log = use_editor(tmp_path, monkeypatch, "pass")
+
+    assert main(["edit", "-c", str(config)]) == 0
+    out = capsys.readouterr().out
+    assert "Moved `expiry` under `settings:`" in out
+    assert "    timeout: 20\n  expiry: 30d\n" in runs(log)[0]["text"]
+    loaded = load_config(config)
+    assert (loaded.expiry, loaded.warnings) == (timedelta(days=30), [])
+
+
+def test_tidy_moves_a_setting_typed_at_the_top_level():
+    text, fixes = tidy_config("sources:\n  npm: [x]\neditor: vim\n")
+    assert text == "sources:\n  npm: [x]\nsettings:\n  editor: vim\n"
+    assert fixes == ["top-level `editor` --> under `settings:`"]
 
 
 # `user_agent: youpdated` on an encrypted + proxied setup

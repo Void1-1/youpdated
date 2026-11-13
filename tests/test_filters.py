@@ -230,10 +230,13 @@ def test_clearing_the_rules_clears_the_entry(engine):
 
 
 def test_the_sources_rules_show_and_only_differences_are_written(engine, tmp_path):
-    engine.config_override = make_config(
-        tmp_path,
-        "ignore: {fake: [prerelease]}\nversions: {fake: {bump: major, min: 2, match: 'v*'}}\n",
+    # at the top level, not under `settings:`
+    config = make_config(tmp_path)
+    config.write_text(
+        "ignore: {fake: [prerelease]}\nversions: {fake: {bump: major, min: 2, match: 'v*'}}\n"
+        + config.read_text()
     )
+    engine.config_override = config
     inherited = {
         **PLAIN, "match": ["v*"], "skip_prereleases": True, "skip_prereleases_inherited": True,
         "bump": "major", "min": "2",

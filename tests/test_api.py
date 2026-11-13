@@ -19,6 +19,7 @@ from jsonschema import Draft202012Validator
 from referencing import Registry, Resource
 
 from youpdated import api, crypto
+from youpdated.config import NAMED_UA_CONFIRMED
 from youpdated.cli import main
 from youpdated.config import load_config
 from youpdated.runner import build_targets
@@ -98,10 +99,13 @@ def test_the_fixtures_cover_every_op():
 
 
 def make_config(tmp_path: Path, body: str = "", entries: tuple[str, ...] = ("alpha",)) -> Path:
+    """``body`` goes under `settings:`, beside `privacy:`"""
     config = tmp_path / "config.yaml"
     listed = "".join(f"    - {e}\n" for e in entries)
+    nested = "".join(f"  {line}" if line.strip() else line for line in body.splitlines(True))
     config.write_text(
-        f"privacy:\n  jitter: [0, 0]\n{body}sources:\n  fake:\n{listed}", encoding="utf-8"
+        f"settings:\n  privacy:\n    jitter: [0, 0]\n{nested}sources:\n  fake:\n{listed}",
+        encoding="utf-8",
     )
     return config
 
@@ -521,7 +525,7 @@ def test_preview_reports_a_failed_fetch(engine, fake):
 
 def test_import_preview_and_apply(engine, tmp_path):
     engine.config_override.write_text(
-        "privacy:\n  jitter: [0, 0]\nsources:\n  pypi:\n    - httpx\n", encoding="utf-8"
+        "settings:\n  privacy:\n    jitter: [0, 0]\nsources:\n  pypi:\n    - httpx\n", encoding="utf-8"
     )
     content = "httpx>=0.27\nrich\n-e ./local\n"
 
@@ -1050,3 +1054,185 @@ def test_one_op_from_the_command_line(tmp_path, fake, capsys):
 
     assert main(["api", "inbox.list", *files, "--params", '{"limit": 0}']) == 1
     assert json.loads(capsys.readouterr().out)["error"]["code"] == "bad_request"
+
+
+# privacy
+
+
+@pytest.fixture
+def listening():
+    """A proxy URL something accepts connections at"""
+    import socket
+
+    with socket.socket() as server:
+        server.bind(("127.0.0.1", 0))
+        server.listen(4)
+        yield f"socks5://127.0.0.1:{server.getsockname()[1]}"
+
+
+@pytest.fixture
+def unreachable():
+    import socket
+
+    with socket.socket() as sock:
+        sock.bind(("127.0.0.1", 0))
+        port = sock.getsockname()[1]
+    return f"socks5://127.0.0.1:{port}"
+
+
+def test_privacy_get_fills_in_defaults(engine):
+    privacy = engine("privacy.get")["privacy"]
+    assert privacy == {
+        "proxy": None, "fast_mode": False, "user_agent": "rotate",
+        "jitter": [0.0, 0.0], "concurrency": 4, "timeout": 20.0,
+    }
+
+
+def test_privacy_set_saves_a_reachable_proxy_and_keeps_the_rest(engine, tmp_path, listening):
+    config = tmp_path / "config.yaml"
+    before = config.read_text(encoding="utf-8")
+    reply = engine("privacy.set", proxy=listening, fast_mode=True)
+    assert reply["privacy"]["proxy"] == listening and reply["privacy"]["fast_mode"] is True
+    assert engine("privacy.get")["privacy"] == reply["privacy"]
+    after = config.read_text(encoding="utf-8")
+    assert after == before.replace(
+        "    jitter: [0, 0]\n", f"    jitter: [0, 0]\n    proxy: {listening}\n    fast_mode: true\n"
+    )
+
+
+def test_privacy_set_refuses_a_proxy_nothing_answers_at(engine, tmp_path, unreachable):
+    config = tmp_path / "config.yaml"
+    before = config.read_text(encoding="utf-8")
+    reply = engine("privacy.set", proxy=unreachable)
+    assert not reply["ok"] and reply["error"]["code"] == "proxy_unreachable"
+    assert config.read_text(encoding="utf-8") == before
+
+
+def test_privacy_set_off_comments_out(engine, tmp_path, listening):
+    engine("privacy.set", proxy=listening, fast_mode=True)
+    reply = engine("privacy.set", proxy=None, fast_mode=False)
+    assert reply["privacy"]["proxy"] is None and reply["privacy"]["fast_mode"] is False
+    text = (tmp_path / "config.yaml").read_text(encoding="utf-8")
+    assert f"# proxy: {listening}" in text and "# fast_mode: true" in text
+
+
+@pytest.mark.parametrize(
+    "params, message",
+    [
+        ({}, "give `proxy`, `fast_mode`, or `confirm_user_agent`"),
+        ({"proxy": "127.0.0.1:9050"}, "must be a URL"),
+        ({"fast_mode": "yes"}, "`fast_mode` must be true or false"),
+        ({"jitter": [0, 1]}, "unknown param(s): jitter"),
+    ],
+)
+def test_privacy_set_rejects_bad_params(engine, params, message):
+    reply = engine("privacy.set", **params)
+    assert reply["error"]["code"] == "bad_request" and message in reply["error"]["message"]
+
+
+@encryption
+def test_privacy_set_keeps_an_encrypted_config_encrypted(tmp_path, fake, listening):
+    config = make_config(tmp_path)
+    crypto.write_private(config, crypto.encrypt(config.read_bytes(), "pass"))
+    engine = Engine(config, tmp_path / "state.db")
+    engine("unlock", passphrase="pass")
+    engine("privacy.set", proxy=listening)
+    assert crypto.is_encrypted_file(config)
+    assert listening in crypto.decrypt(config.read_bytes(), "pass").decode("utf-8")
+
+
+# `user_agent: youpdated` on an encrypted, proxied setup
+
+
+def locked_config(tmp_path: Path, body: str) -> Path:
+    config = make_config(tmp_path, body)
+    crypto.write_private(config, crypto.encrypt(config.read_bytes(), "pass"))
+    return config
+
+
+def unlocked(config: Path, tmp_path: Path) -> Engine:
+    engine = Engine(config, tmp_path / "state.db")
+    engine("unlock", passphrase="pass")
+    return engine
+
+
+def confirmed_in(history: Path) -> bool:
+    with State(history, passphrase="pass") as state:
+        return state.cache_get(*NAMED_UA_CONFIRMED) is not None
+
+
+@encryption
+def test_nothing_is_sent_as_youpdated_until_confirmed(tmp_path, fake, listening):
+    history = tmp_path / "state.db"
+    engine = unlocked(
+        locked_config(tmp_path, f"  user_agent: youpdated\n  proxy: {listening}\n"), tmp_path
+    )
+    write_items(fake, {"alpha": [item("1.1")]})
+
+    assert engine("status")["named_user_agent"] == "unconfirmed"
+    for op, params in (
+        ("check", {}),
+        ("targets.preview", {"value": "alpha", "source": "fake"}),
+        ("digest.send", {}),
+    ):
+        reply = engine(op, **params)
+        assert reply["error"]["code"] == "user_agent_unconfirmed", op
+        assert "Nothing was sent" in reply["error"]["message"]
+    # refusing doesn't make a history
+    assert not history.exists()
+
+    assert engine("privacy.set", confirm_user_agent=True)["ok"]
+    assert engine("status")["named_user_agent"] == "confirmed"
+    assert crypto.is_encrypted_file(history) and confirmed_in(history)
+    assert engine("check")["ok"]
+
+
+@encryption
+def test_a_confirmation_from_the_cli_counts(tmp_path, fake, listening):
+    history = tmp_path / "state.db"
+    with State(history, passphrase="pass") as state:
+        state.cache_set(*NAMED_UA_CONFIRMED, "2026-11-12T00:00:00+00:00")
+    engine = unlocked(
+        locked_config(tmp_path, f"  user_agent: youpdated\n  proxy: {listening}\n"), tmp_path
+    )
+    write_items(fake, {"alpha": [item("1.1")]})
+    assert engine("status")["named_user_agent"] == "confirmed"
+    assert engine("check")["ok"]
+
+
+@encryption
+def test_adding_a_proxy_to_a_named_setup_asks_first(tmp_path, fake, listening):
+    config = locked_config(tmp_path, "  user_agent: youpdated\n")
+    history = tmp_path / "state.db"
+    engine = unlocked(config, tmp_path)
+    before = config.read_bytes()
+    assert engine("status")["named_user_agent"] is None
+
+    reply = engine("privacy.set", proxy=listening)
+    assert reply["error"]["code"] == "user_agent_unconfirmed"
+    assert "Nothing was saved" in reply["error"]["message"]
+    assert config.read_bytes() == before
+
+    assert engine("privacy.set", proxy=listening, confirm_user_agent=True)["privacy"]["proxy"] == listening
+    assert confirmed_in(history)
+    # confirmed once
+    assert engine("privacy.set", proxy=None)["ok"]
+    assert engine("privacy.set", proxy=listening)["ok"]
+
+
+@encryption
+def test_an_unreachable_proxy_records_no_confirmation(tmp_path, fake, unreachable):
+    engine = unlocked(locked_config(tmp_path, "  user_agent: youpdated\n"), tmp_path)
+    reply = engine("privacy.set", proxy=unreachable, confirm_user_agent=True)
+    assert reply["error"]["code"] == "proxy_unreachable"
+    assert not (tmp_path / "state.db").exists()
+
+
+def test_the_named_agent_without_encryption_needs_no_confirmation(tmp_path, fake, listening):
+    engine = Engine(
+        make_config(tmp_path, f"  user_agent: youpdated\n  proxy: {listening}\n"),
+        tmp_path / "state.db",
+    )
+    write_items(fake, {"alpha": [item("1.1")]})
+    assert engine("status")["named_user_agent"] is None
+    assert engine("check")["ok"]

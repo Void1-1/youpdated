@@ -27,6 +27,7 @@ namespace Youpdated.Core.Contract;
 [JsonSerializable(typeof(ImportPreviewReply))]
 [JsonSerializable(typeof(ImportApplyReply))]
 [JsonSerializable(typeof(SettingsReply))]
+[JsonSerializable(typeof(PrivacyReply))]
 [JsonSerializable(typeof(PriorityReply))]
 [JsonSerializable(typeof(Filters))]
 [JsonSerializable(typeof(FiltersPreview))]
@@ -115,6 +116,35 @@ public sealed class SettingsPatch
     public SettingsPatch ShowIcons(bool on)
     {
         _fields["show_icons"] = on;
+        return this;
+    }
+
+    public JsonObject ToJson() => (JsonObject)_fields.DeepClone();
+}
+
+/// <summary>Fields <c>privacy.set</c> changes</summary>
+public sealed class PrivacyPatch
+{
+    private readonly JsonObject _fields = new();
+
+    public bool IsEmpty => _fields.Count == 0;
+
+    public PrivacyPatch Proxy(string? url)
+    {
+        _fields["proxy"] = url;
+        return this;
+    }
+
+    public PrivacyPatch FastMode(bool on)
+    {
+        _fields["fast_mode"] = on;
+        return this;
+    }
+
+    /// <summary>The user agreed to send <c>user_agent: youpdated</c> on an encrypted, proxied setup</summary>
+    public PrivacyPatch ConfirmUserAgent()
+    {
+        _fields["confirm_user_agent"] = true;
         return this;
     }
 

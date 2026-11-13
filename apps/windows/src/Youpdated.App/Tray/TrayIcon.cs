@@ -78,6 +78,7 @@ internal sealed class TrayIcon : IDisposable
             TrayState.Checking => Text.Get("TrayChecking"),
             TrayState.Locked => Text.Get("TrayLocked"),
             TrayState.Paused => Text.Get("TrayPaused"),
+            TrayState.Problems when _app.NeedsUserAgentConfirmation => Text.Get("TrayUserAgent"),
             TrayState.Problems => Text.Get("TrayProblems"),
             _ when _app.Unread > 0 => Text.NewUpdates(_app.Unread),
             _ => "Youpdated",

@@ -92,6 +92,69 @@
                     </controls:SettingsCard.ActionIcon>
                 </controls:SettingsCard>
 
+                <!-- The config's settings.privacy -->
+                <StackPanel Visibility="{x:Bind Settings.CanEditPrivacy, Mode=OneWay}" Spacing="4">
+                    <TextBlock x:Uid="SettingsGroupPrivacy" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="1,24,0,4" />
+                    <controls:SettingsExpander x:Uid="SettingsProxy"
+                                               IsEnabled="{x:Bind Settings.HasPrivacy, Mode=OneWay}"
+                                               IsExpanded="{x:Bind Settings.ProxyIsCustom, Mode=OneWay}">
+                        <controls:SettingsExpander.HeaderIcon>
+                            <FontIcon Glyph="&#xE774;" />
+                        </controls:SettingsExpander.HeaderIcon>
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <ProgressRing Width="20" Height="20" IsActive="{x:Bind Settings.PrivacySaving, Mode=OneWay}" />
+                            <ComboBox x:Name="ProxyBox" MinWidth="180" SelectionChanged="OnProxyChoice"
+                                      IsEnabled="{x:Bind local:Bind.Not(Settings.PrivacySaving), Mode=OneWay}" />
+                        </StackPanel>
+                        <controls:SettingsExpander.Items>
+                            <controls:SettingsCard x:Uid="SettingsProxyAddress" IsEnabled="{x:Bind Settings.ProxyIsCustom, Mode=OneWay}">
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <TextBox x:Name="ProxyAddressBox" MinWidth="260" PlaceholderText="socks5://127.0.0.1:1080"
+                                             IsSpellCheckEnabled="False"
+                                             Text="{x:Bind Settings.ProxyAddress, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                             KeyDown="OnProxyAddressKey" />
+                                    <Button x:Uid="SettingsProxyUse" Click="OnUseProxy"
+                                            IsEnabled="{x:Bind Settings.CanUseAddress, Mode=OneWay}" />
+                                </StackPanel>
+                            </controls:SettingsCard>
+                        </controls:SettingsExpander.Items>
+                    </controls:SettingsExpander>
+                    <InfoBar Severity="Error" IsClosable="False"
+                             Message="{x:Bind Settings.PrivacyError, Mode=OneWay}"
+                             IsOpen="{x:Bind local:Bind.NotNull(Settings.PrivacyError), Mode=OneWay}" />
+                    <controls:SettingsCard x:Uid="SettingsFastMode" IsEnabled="{x:Bind Settings.HasPrivacy, Mode=OneWay}">
+                        <controls:SettingsCard.HeaderIcon>
+                            <FontIcon Glyph="&#xEC4A;" />
+                        </controls:SettingsCard.HeaderIcon>
+                        <ToggleSwitch x:Name="FastModeSwitch" Toggled="OnFastModeToggled" />
+                    </controls:SettingsCard>
+                    <controls:SettingsExpander x:Uid="SettingsPrivacyConfig" IsEnabled="{x:Bind Settings.HasPrivacy, Mode=OneWay}">
+                        <controls:SettingsExpander.HeaderIcon>
+                            <FontIcon Glyph="&#xE8A5;" />
+                        </controls:SettingsExpander.HeaderIcon>
+                        <controls:SettingsExpander.Items>
+                            <controls:SettingsCard x:Uid="SettingsUserAgent">
+                                <TextBlock Text="{x:Bind local:SettingsPage.UserAgent(Settings.UserAgentText), Mode=OneWay}"
+                                           TextTrimming="CharacterEllipsis" MaxWidth="320" IsTextSelectionEnabled="True" />
+                            </controls:SettingsCard>
+                            <controls:SettingsCard x:Uid="SettingsGap">
+                                <TextBlock Text="{x:Bind Settings.GapText, Mode=OneWay}" />
+                            </controls:SettingsCard>
+                            <controls:SettingsCard x:Uid="SettingsConcurrency">
+                                <TextBlock Text="{x:Bind Settings.ConcurrencyText, Mode=OneWay}" />
+                            </controls:SettingsCard>
+                            <controls:SettingsCard x:Uid="SettingsTimeout">
+                                <TextBlock Text="{x:Bind Settings.TimeoutText, Mode=OneWay}" />
+                            </controls:SettingsCard>
+                            <controls:SettingsCard x:Uid="SettingsShowConfig" IsClickEnabled="True" Click="OnShowConfig">
+                                <controls:SettingsCard.ActionIcon>
+                                    <FontIcon Glyph="&#xE8A7;" />
+                                </controls:SettingsCard.ActionIcon>
+                            </controls:SettingsCard>
+                        </controls:SettingsExpander.Items>
+                    </controls:SettingsExpander>
+                </StackPanel>
+
                 <TextBlock x:Uid="SettingsGroupStartup" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="1,24,0,4" />
                 <controls:SettingsCard x:Uid="SettingsStartAtLogin">
                     <controls:SettingsCard.HeaderIcon>

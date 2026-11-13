@@ -56,13 +56,13 @@ def test_expiry_defaults_to_a_year():
      ("never", None), (False, None)],
 )
 def test_expiry_parses(raw, expected):
-    assert parse_config({"sources": {"npm": ["e"]}, "expiry": raw}).expiry == expected
+    assert parse_config({"sources": {"npm": ["e"]}, "settings": {"expiry": raw}}).expiry == expected
 
 
 @pytest.mark.parametrize("raw", ["soon", 365, "12h", None, ""])
 def test_bad_expiry_is_rejected(raw):
     with pytest.raises(ConfigError, match="expiry"):
-        parse_config({"sources": {"npm": ["e"]}, "expiry": raw})
+        parse_config({"sources": {"npm": ["e"]}, "settings": {"expiry": raw}})
 
 
 def test_since_accepts_years_too():

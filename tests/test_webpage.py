@@ -29,7 +29,7 @@ def _serve(markup: str | bytes, content_type: str = "text/html; charset=utf-8") 
     )
 
 
-def _fetch(client, entry=URL):
+def _fetch(client, entry: str | dict[str, str] = URL):
     source = get_source("webpage")
     (target,) = source.targets([entry])
     return target, list(source.fetch(target, client))

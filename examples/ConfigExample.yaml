@@ -5,12 +5,32 @@
 # Every source entry is either a bare value or a mapping with more options. Leave out
 # anything you don't need: only `sources:` is required.
 
-privacy:                             # see docs/privacy.md
-  # proxy: socks5://127.0.0.1:9050   # every request through it, Tor's default SOCKS port here
-  user_agent: rotate                 # 'rotate', or a fixed UA string
-  jitter: [0.5, 3.0]                 # random gap in seconds between hits on one host
-  concurrency: 4                     # requests at once
-  timeout: 20                        # seconds per request
+settings:                            # run-wide options
+  privacy:                           # see docs/privacy.md
+    # proxy: socks5://127.0.0.1:9050 # every request through it, Tor's default SOCKS port here
+    user_agent: rotate               # 'rotate', or a fixed UA string
+    jitter: [0.5, 3.0]               # random gap in seconds between hits on one host
+    concurrency: 4                   # requests at once
+    timeout: 20                      # seconds per request
+
+  expiry: 1y                         # forget items missing from every fetch this long: 30d, 52w, 2y, never
+  track_latest: true                 # also ask forges and Steam for the latest release, one request each
+  editor: code                       # what `youpdated edit` opens: a command, a path, or (macOS) an app's name
+
+  notify:                            # optional: push new updates somewhere, see docs/notifications.md
+    webhooks:
+      - https://ntfy.sh/my-private-topic # format guessed from the URL
+      - https://discord.com/api/webhooks/123/abc
+      - url: https://example.com/youpdated
+        format: json                 # json | discord | slack | ntfy
+        headers:
+          Authorization: Bearer abc123
+        priority: high               # high | normal | low: this priority and above (normal is the default)
+        digest: false                # send as found, even while the desktop app holds a digest
+    command:                         # or just: notify-send "{label}" "{title}"
+      run: [notify-send, "{label}", "{title}"] # never run through a shell; once per update
+      priority: normal
+    timeout: 30                      # seconds per command
 
 ignore:                              # update types never reported; `ignore: [prerelease]` for every source
   '*': [prerelease]                  # '*' is every source
@@ -19,10 +39,6 @@ ignore:                              # update types never reported; `ignore: [pr
 versions:                            # which versions are reported; `versions: {bump: major}` for every source
   '*': {bump: any}                   # any | patch | minor | major (any is the default)
   npm: {bump: major}                 # only new major versions, like 19.0.0
-
-expiry: 1y                           # forget items missing from every fetch this long: 30d, 52w, 2y, never
-track_latest: true                   # also ask forges and Steam for the latest release, one request each
-editor: code                         # what `youpdated edit` opens: a command, a path, or (macOS) an app's name
 
 sources:
   git:                               # GitHub, GitLab, Codeberg, Forgejo/Gitea
@@ -98,18 +114,3 @@ sources:
     - url: https://www.7-zip.org/
       name: 7-Zip
       regex: 'Download 7-Zip ([\d.]+)' # pin where the version is, matched against the page's HTML
-
-notify:                              # optional: push new updates somewhere, see docs/notifications.md
-  webhooks:
-    - https://ntfy.sh/my-private-topic # format guessed from the URL
-    - https://discord.com/api/webhooks/123/abc
-    - url: https://example.com/youpdated
-      format: json                   # json | discord | slack | ntfy
-      headers:
-        Authorization: Bearer abc123
-      priority: high                 # high | normal | low: this priority and above (normal is the default)
-      digest: false                  # send as found, even while the desktop app holds a digest
-  command:                           # or just: notify-send "{label}" "{title}"
-    run: [notify-send, "{label}", "{title}"] # never run through a shell; once per update
-    priority: normal
-  timeout: 30                        # seconds per command

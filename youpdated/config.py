@@ -121,6 +121,8 @@ class Config:
     # editor `youpdated edit` opens
     editor: str | None = None
     path: Path | None = None
+    # Shown on check and edit, but not errors
+    warnings: list[str] = field(default_factory=list)
 
     def ignored_tags(self, source: str) -> frozenset[str]:
         """The tags ignored for every target of ``source``, before entry rules"""
@@ -237,7 +239,8 @@ def parse_config(raw: Any, path: Path | None = None, *, allow_empty: bool = Fals
     if not isinstance(raw, dict):
         raise ConfigError(f"{where}top level must be a mapping")
 
-    privacy = _parse_privacy(raw.get("privacy") or {}, where)
+    settings, legacy = _settings(raw, where)
+    privacy = _parse_privacy(settings.get("privacy") or {}, where)
 
     sources_raw = raw.get("sources")
     if sources_raw is None and allow_empty:
@@ -264,19 +267,64 @@ def parse_config(raw: Any, path: Path | None = None, *, allow_empty: bool = Fals
         sources=sources,
         ignore=_parse_ignore(raw.get("ignore"), where),
         versions=_parse_versions(raw.get("versions"), where),
-        expiry=_parse_expiry(raw.get("expiry", DEFAULT_EXPIRY), where),
-        track_latest=_parse_track_latest(raw.get("track_latest", False), where),
-        notify=_parse_notify(raw.get("notify"), where),
-        editor=_parse_editor(raw.get("editor"), where),
+        expiry=_parse_expiry(settings.get("expiry", DEFAULT_EXPIRY), where),
+        track_latest=_parse_track_latest(settings.get("track_latest", False), where),
+        notify=_parse_notify(settings.get("notify"), where),
+        editor=_parse_editor(settings.get("editor"), where),
         path=path,
+        warnings=[legacy_settings_warning(legacy)] if legacy else [],
     )
+
+
+# Run-wide options, under `settings:`. `ignore:`, `versions:`, `sources:` are top level
+SETTINGS_KEYS = ("privacy", "notify", "expiry", "track_latest", "editor")
+_TOP_LEVEL_KEYS = ("ignore", "versions", "sources")
+
+
+def legacy_settings_warning(keys: list[str]) -> str:
+    """Settings still at the top level, accepted until v1.0.0"""
+    named = ", ".join(f"`{key}`" for key in keys)
+    return (
+        f"{named} {'belongs' if len(keys) == 1 else 'belong'} under `settings:`, and will stop working as is in v1.0.0. Run `youpdated edit` to fix"
+    )
+
+
+def _settings(raw: dict[Any, Any], where: str) -> tuple[dict[str, Any], list[str]]:
+    """The `settings:` mapping, with any still at the top level"""
+    section = raw.get("settings")
+    if section is None:
+        section = {}
+    if not isinstance(section, dict):
+        raise ConfigError(
+            f"{where}`settings` must be a mapping of {', '.join(SETTINGS_KEYS)}"
+        )
+    misplaced = [str(key) for key in section if key in _TOP_LEVEL_KEYS]
+    if misplaced:
+        raise ConfigError(
+            f"{where}{', '.join(f'`{key}`' for key in misplaced)} go at the top level, "
+            "not under `settings:`"
+        )
+    unknown = set(section) - set(SETTINGS_KEYS)
+    if unknown:
+        raise ConfigError(
+            f"{where}unknown `settings` option(s): {', '.join(sorted(map(str, unknown)))}; "
+            f"expected {', '.join(SETTINGS_KEYS)}"
+        )
+    legacy = [key for key in SETTINGS_KEYS if key in raw]
+    both = [key for key in legacy if key in section]
+    if both:
+        raise ConfigError(
+            f"{where}{', '.join(f'`{key}`' for key in both)} set both at the top level and "
+            "under `settings:`; keep only the one under `settings:`"
+        )
+    return {**section, **{key: raw[key] for key in legacy}}, legacy
 
 
 def _parse_editor(raw: Any, where: str) -> str | None:
     if raw is None:
         return None
     if not isinstance(raw, str) or not raw.strip():
-        raise ConfigError(f"{where}`editor` must be a command, a program's path, or an app's name")
+        raise ConfigError(f"{where}`settings.editor` must be a command, a program's path, or an app's name")
     return raw.strip()
 
 
@@ -287,7 +335,7 @@ def _parse_expiry(raw: Any, where: str) -> timedelta | None:
     # YAML reads `off`/`no` as False
     if raw is False or (isinstance(raw, str) and raw.strip().lower() == "never"):
         return None
-    message = f"{where}`expiry` must be a duration like 180d, 52w, 1y (100y max), or `never`"
+    message = f"{where}`settings.expiry` must be a duration like 180d, 52w, 1y (100y max), or `never`"
     if not isinstance(raw, str):
         raise ConfigError(message)
     try:
@@ -295,13 +343,13 @@ def _parse_expiry(raw: Any, where: str) -> timedelta | None:
     except ValueError as exc:
         raise ConfigError(message) from exc
     if expiry < MIN_EXPIRY:
-        raise ConfigError(f"{where}`expiry` must be at least 1d")
+        raise ConfigError(f"{where}`settings.expiry` must be at least 1d")
     return expiry
 
 
 def _parse_track_latest(raw: Any, where: str) -> bool:
     if not isinstance(raw, bool):
-        raise ConfigError(f"{where}`track_latest` must be true or false")
+        raise ConfigError(f"{where}`settings.track_latest` must be true or false")
     return raw
 
 
@@ -424,7 +472,7 @@ def _parse_versions(raw: Any, where: str) -> dict[str, dict[str, Any]]:
     return by_source
 
 
-def split_command(command: Any, where: str = "", name: str = "`notify.command`") -> list[str]:
+def split_command(command: Any, where: str = "", name: str = "`settings.notify.command`") -> list[str]:
     """notify command as argv. A string is split like a shell would"""
     if isinstance(command, list):
         # YAML reads a `yes` or `off` as boolean, which would run as "True"/"False"
@@ -486,45 +534,45 @@ def _parse_command(raw: Any, where: str) -> Command:
     unknown = set(raw) - _COMMAND_KEYS
     if unknown:
         raise ConfigError(
-            f"{where}unknown `notify.command` option(s): "
+            f"{where}unknown `settings.notify.command` option(s): "
             f"{', '.join(sorted(map(str, unknown)))}; expected {sorted(_COMMAND_KEYS)}"
         )
     if "run" not in raw:
-        raise ConfigError(f"{where}`notify.command` mapping needs `run:`, the command")
-    priority, digest = _parse_endpoint_rules(raw, where, "`notify.command`")
-    return Command(split_command(raw["run"], where, "`notify.command.run`"), priority, digest)
+        raise ConfigError(f"{where}`settings.notify.command` mapping needs `run:`, the command")
+    priority, digest = _parse_endpoint_rules(raw, where, "`settings.notify.command`")
+    return Command(split_command(raw["run"], where, "`settings.notify.command.run`"), priority, digest)
 
 
 def _parse_webhook(raw: Any, where: str) -> Webhook:
     fields = {"url": raw} if isinstance(raw, str) else raw
     if not isinstance(fields, dict):
-        raise ConfigError(f"{where}`notify.webhooks` entries must be a URL or a mapping")
+        raise ConfigError(f"{where}`settings.notify.webhooks` entries must be a URL or a mapping")
     unknown = set(fields) - _WEBHOOK_KEYS
     if unknown:
         raise ConfigError(
-            f"{where}unknown `notify.webhooks` option(s): "
+            f"{where}unknown `settings.notify.webhooks` option(s): "
             f"{', '.join(sorted(map(str, unknown)))}; expected {sorted(_WEBHOOK_KEYS)}"
         )
     url = fields.get("url")
     url = url.strip() if isinstance(url, str) else ""
     try:
         parts = urlsplit(url)
-    except ValueError:  # e.g. an unclosed IPv6 bracket
+    except ValueError:  # like an unclosed IPv6 bracket
         parts = None
     if parts is None or parts.scheme not in ("http", "https") or not parts.hostname:
-        raise ConfigError(f"{where}`notify.webhooks` entry needs an http(s) `url`")
+        raise ConfigError(f"{where}`settings.notify.webhooks` entry needs an http(s) `url`")
 
     fmt = fields.get("format")
     if fmt is None:
         fmt = guess_webhook_format(url)
     elif not isinstance(fmt, str) or fmt.strip().lower() not in WEBHOOK_FORMATS:
         raise ConfigError(
-            f"{where}`notify.webhooks` format must be one of {list(WEBHOOK_FORMATS)}"
+            f"{where}`settings.notify.webhooks` format must be one of {list(WEBHOOK_FORMATS)}"
         )
     fmt = fmt.strip().lower()
     if fmt == "ntfy" and not parts.path.strip("/"):
         raise ConfigError(
-            f"{where}`notify.webhooks` ntfy URL needs a topic: https://ntfy.sh/my-topic"
+            f"{where}`settings.notify.webhooks` ntfy URL needs a topic: https://ntfy.sh/my-topic"
         )
 
     headers = fields.get("headers") or {}
@@ -532,13 +580,13 @@ def _parse_webhook(raw: Any, where: str) -> Webhook:
         isinstance(k, str) and isinstance(v, (str, int)) and not isinstance(v, bool)
         for k, v in headers.items()
     ):
-        raise ConfigError(f"{where}`notify.webhooks` headers must map names to values")
+        raise ConfigError(f"{where}`settings.notify.webhooks` headers must map names to values")
     for name, value in headers.items():
         if not _HEADER_NAME_RE.fullmatch(name):
-            raise ConfigError(f"{where}`notify.webhooks` header name is not valid: {name!r}")
+            raise ConfigError(f"{where}`settings.notify.webhooks` header name is not valid: {name!r}")
         if any(c in str(value) for c in "\r\n\0"):
             raise ConfigError(
-                f"{where}`notify.webhooks` header {name} has a line break in its value"
+                f"{where}`settings.notify.webhooks` header {name} has a line break in its value"
             )
     priority, digest = _parse_endpoint_rules(fields, where, "`notify.webhooks`")
     return Webhook(
@@ -555,7 +603,7 @@ def _parse_notify(raw: Any, where: str) -> NotifyConfig:
     if raw is None:
         return NotifyConfig()
     if not isinstance(raw, dict):
-        raise ConfigError(f"{where}`notify` must be a mapping with `webhooks` and/or `command`")
+        raise ConfigError(f"{where}`settings.notify` must be a mapping with `webhooks` and/or `command`")
 
     notify = NotifyConfig()
     hooks = raw.get("webhooks")
@@ -570,20 +618,20 @@ def _parse_notify(raw: Any, where: str) -> NotifyConfig:
     timeout = raw.get("timeout")
     if timeout is not None:
         if not isinstance(timeout, (int, float)) or isinstance(timeout, bool) or timeout <= 0:
-            raise ConfigError(f"{where}`notify.timeout` must be a positive number of seconds")
+            raise ConfigError(f"{where}`settings.notify.timeout` must be a positive number of seconds")
         notify.timeout = float(timeout)
 
     unknown = set(raw) - {"webhooks", "command", "timeout"}
     if unknown:
         raise ConfigError(
-            f"{where}unknown `notify` option(s): {', '.join(sorted(map(str, unknown)))}"
+            f"{where}unknown `settings.notify` option(s): {', '.join(sorted(map(str, unknown)))}"
         )
     return notify
 
 
 def _parse_privacy(raw: Any, where: str) -> PrivacyConfig:
     if not isinstance(raw, dict):
-        raise ConfigError(f"{where}`privacy` must be a mapping")
+        raise ConfigError(f"{where}`settings.privacy` must be a mapping")
 
     privacy = PrivacyConfig()
 
@@ -591,8 +639,7 @@ def _parse_privacy(raw: Any, where: str) -> PrivacyConfig:
     if proxy is not None:
         if not isinstance(proxy, str) or "://" not in proxy:
             raise ConfigError(
-                f"{where}`privacy.proxy` must be a URL like socks5://127.0.0.1:9050"
-                # tor as example across project btw
+                f"{where}`settings.privacy.proxy` must be a URL like socks5://127.0.0.1:9050"
             )
         privacy.proxy = proxy
 
@@ -600,7 +647,7 @@ def _parse_privacy(raw: Any, where: str) -> PrivacyConfig:
     if ua is not None:
         if not isinstance(ua, str) or not ua.strip():
             raise ConfigError(
-                f"{where}`privacy.user_agent` must be 'rotate', 'youpdated', or a UA string"
+                f"{where}`settings.privacy.user_agent` must be 'rotate', 'youpdated', or a UA string"
             )
         keyword = ua.strip().lower()
         privacy.user_agent = keyword if keyword in ("rotate", "youpdated") else ua
@@ -612,16 +659,16 @@ def _parse_privacy(raw: Any, where: str) -> PrivacyConfig:
             or len(jitter) != 2
             or not all(isinstance(v, (int, float)) and v >= 0 for v in jitter)
         ):
-            raise ConfigError(f"{where}`privacy.jitter` must be [min, max] non-negative seconds")
+            raise ConfigError(f"{where}`settings.privacy.jitter` must be [min, max] non-negative seconds")
         low, high = float(jitter[0]), float(jitter[1])
         if low > high:
-            raise ConfigError(f"{where}`privacy.jitter` min must not exceed max")
+            raise ConfigError(f"{where}`settings.privacy.jitter` min must not exceed max")
         privacy.jitter = (low, high)
 
     fast_mode = raw.get("fast_mode")
     if fast_mode is not None:
         if not isinstance(fast_mode, bool):
-            raise ConfigError(f"{where}`privacy.fast_mode` must be true or false")
+            raise ConfigError(f"{where}`settings.privacy.fast_mode` must be true or false")
         privacy.fast_mode = fast_mode
 
     for name, cast, check in (
@@ -632,7 +679,7 @@ def _parse_privacy(raw: Any, where: str) -> PrivacyConfig:
         if value is None:
             continue
         if not isinstance(value, (int, float)) or isinstance(value, bool) or not check(cast(value)):
-            raise ConfigError(f"{where}`privacy.{name}` must be a positive number")
+            raise ConfigError(f"{where}`settings.privacy.{name}` must be a positive number")
         setattr(privacy, name, cast(value))
 
     return privacy
@@ -640,8 +687,8 @@ def _parse_privacy(raw: Any, where: str) -> PrivacyConfig:
 
 # Shown on every check in fast mode
 FAST_MODE_WARNING = (
-    "fast mode: requests to one host are 0.1-0.5s apart instead of `privacy.jitter`, and "
-    "hosts of one site are paced apart. Traffic will look automated, so sites may rate limit or block it," 
+    "fast mode: requests to one host are 0.1-0.5s apart instead of `settings.privacy.jitter`, and "
+    "hosts of one site are paced apart. Traffic will look automated, so sites may rate limit or block it, "
     "and it's easier to single out and link to you, even through a proxy. See docs/privacy.md."
 )
 
@@ -657,28 +704,46 @@ NAMED_UA_UNCONFIRMED = (
     "anything is sent: run `youpdated check` in a terminal, or set `user_agent: rotate`. "
     "Nothing was sent."
 )
+# kv row in the history: `user_agent: youpdated` was confirmed
+NAMED_UA_CONFIRMED = ("meta", "named_user_agent_confirmed")
+
+
+def names_itself_privately(config: Config, encrypted: bool) -> bool:
+    """`user_agent: youpdated` on an encrypted, proxied setup, see :data:`NAMED_UA_WARNING`"""
+    return encrypted and bool(config.privacy.proxy) and config.privacy.user_agent == "youpdated"
 
 
 EXAMPLE_CONFIG = """\
 # youpdated config: every source entry is a bare value or a mapping.
 
-privacy:
-  # Route every request through a proxy. Works with Tor's default SOCKS port.
-  # proxy: socks5://127.0.0.1:9050
-  user_agent: rotate       # 'rotate', 'youpdated', or a fixed UA string
-  jitter: [0.5, 3.0]       # random delay, in seconds, between hits on one site
-  concurrency: 4           # requests in flight at once
-  timeout: 20
-  # Faster checks: much shorter gaps, but traffic can look automated and it is easier
-  # to single out and link to you. Read docs/privacy.md before enabling.
-  # fast_mode: true
+settings:
+  privacy:
+    # Route every request through a proxy. Works with Tor's default SOCKS port.
+    # proxy: socks5://127.0.0.1:9050
+    user_agent: rotate     # 'rotate', 'youpdated', or a fixed UA string
+    jitter: [0.5, 3.0]     # random delay, in seconds, between hits on one site
+    concurrency: 4         # requests in flight at once
+    timeout: 20
+    # Faster checks: much shorter gaps, but traffic can look automated and it is easier
+    # to single out and link to you. Read docs/privacy.md before enabling.
+    # fast_mode: true
 
-# Forget items that haven't appeared in any fetch for this long. Default 1y
-# expiry: 1y
+  # Forget items that haven't appeared in any fetch for this long. Default 1y
+  # expiry: 1y
 
-# Also ask git forges and Steam for the latest release (or update post) of each
-# entry, in case busier ones pushed it out of the list. One more request per entry.
-# track_latest: true
+  # Also ask git forges and Steam for the latest release (or update post) of each
+  # entry, in case busier ones pushed it out of the list. One more request per entry.
+  # track_latest: true
+
+  # The editor `youpdated edit` opens: a command, a program's path, or app's name on
+  # macOS. Default: $VISUAL, $EDITOR, or the system's text editor.
+  # editor: code
+
+  # Push each run's new updates to a webhook and/or a command run once per update.
+  # notify:
+  #   webhooks:
+  #     - https://ntfy.sh/my-private-topic
+  #   command: notify-send "{label}" "{title}"
 
 # Drop update types you don't want. A bare list applies
 # everywhere; a mapping narrows it to one source ('*' means all).
@@ -692,16 +757,6 @@ privacy:
 # can have its own.
 # versions:
 #   npm: {bump: major}
-
-# The editor `youpdated edit` opens: a command, a program's path, or app's name on
-# macOS. Default: $VISUAL, $EDITOR, or the system's text editor.
-# editor: code
-
-# Push each run's new updates to a webhook and/or a command run once per update.
-# notify:
-#   webhooks:
-#     - https://ntfy.sh/my-private-topic
-#   command: notify-send "{label}" "{title}"
 
 sources:
   # GitHub, GitLab, Codeberg, or any Forgejo/Gitea instance

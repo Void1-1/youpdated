@@ -219,6 +219,15 @@ public sealed class EngineClient(IEngineChannel channel)
         channel.SendAsync("settings.set", new JsonObject { ["settings"] = patch.ToJson() },
             ContractJson.Default.SettingsReply, cancellationToken);
 
+    /// <summary>Only when <c>hello.ops</c> has <c>privacy.get</c></summary>
+    public Task<PrivacyReply> PrivacyGetAsync(CancellationToken cancellationToken = default) =>
+        channel.SendAsync("privacy.get", null, ContractJson.Default.PrivacyReply, cancellationToken);
+
+    /// <summary>An unreachable proxy is <c>proxy_unreachable</c>, and not saved. A change that leaves
+    /// <c>user_agent: youpdated</c> unconfirmed is <c>user_agent_unconfirmed</c> without <see cref="PrivacyPatch.ConfirmUserAgent"/></summary>
+    public Task<PrivacyReply> PrivacySetAsync(PrivacyPatch patch, CancellationToken cancellationToken = default) =>
+        channel.SendAsync("privacy.set", patch.ToJson(), ContractJson.Default.PrivacyReply, cancellationToken);
+
     public Task<PriorityReply> PrioritySetAsync(
         TargetKey target, Priority priority, CancellationToken cancellationToken = default) =>
         channel.SendAsync("priority.set", new JsonObject

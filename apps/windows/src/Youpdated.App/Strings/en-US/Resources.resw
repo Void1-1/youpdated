@@ -665,6 +665,78 @@
   <data name="TimesAbsolute" xml:space="preserve">
     <value>Absolute</value>
   </data>
+  <data name="SettingsGroupPrivacy.Text" xml:space="preserve">
+    <value>Privacy</value>
+  </data>
+  <data name="SettingsProxy.Header" xml:space="preserve">
+    <value>Proxy</value>
+  </data>
+  <data name="SettingsProxy.Description" xml:space="preserve">
+    <value>Every request goes through this proxy. If it stops answering, checks stop.</value>
+  </data>
+  <data name="SettingsProxyAddress.Header" xml:space="preserve">
+    <value>Proxy address</value>
+  </data>
+  <data name="SettingsProxyAddress.Description" xml:space="preserve">
+    <value>SOCKS5 or HTTP, with its port.</value>
+  </data>
+  <data name="SettingsProxyUse.Content" xml:space="preserve">
+    <value>Use</value>
+  </data>
+  <data name="ProxyNone" xml:space="preserve">
+    <value>None</value>
+  </data>
+  <data name="ProxyTor" xml:space="preserve">
+    <value>Tor</value>
+  </data>
+  <data name="ProxyTorBrowser" xml:space="preserve">
+    <value>Tor Browser</value>
+  </data>
+  <data name="ProxyCustom" xml:space="preserve">
+    <value>Custom</value>
+  </data>
+  <data name="SettingsFastMode.Header" xml:space="preserve">
+    <value>Fast mode</value>
+  </data>
+  <data name="SettingsFastMode.Description" xml:space="preserve">
+    <value>Shorter gaps between requests. Faster checks, but it is easier to identify traffic.</value>
+  </data>
+  <data name="SettingsPrivacyConfig.Header" xml:space="preserve">
+    <value>More privacy options</value>
+  </data>
+  <data name="SettingsPrivacyConfig.Description" xml:space="preserve">
+    <value>Change these manually under settings: privacy:</value>
+  </data>
+  <data name="SettingsUserAgent.Header" xml:space="preserve">
+    <value>User agent</value>
+  </data>
+  <data name="UserAgentRotate" xml:space="preserve">
+    <value>A new browser each check</value>
+  </data>
+  <data name="UserAgentYoupdated" xml:space="preserve">
+    <value>Youpdated identifies itself</value>
+  </data>
+  <data name="SettingsGap.Header" xml:space="preserve">
+    <value>Gap between requests to a site</value>
+  </data>
+  <data name="SettingsConcurrency.Header" xml:space="preserve">
+    <value>Requests at once</value>
+  </data>
+  <data name="SettingsTimeout.Header" xml:space="preserve">
+    <value>Timeout</value>
+  </data>
+  <data name="SettingsShowConfig.Header" xml:space="preserve">
+    <value>Show the config file</value>
+  </data>
+  <data name="FastModeTitle" xml:space="preserve">
+    <value>Turn on fast mode?</value>
+  </data>
+  <data name="FastModeBody" xml:space="preserve">
+    <value>Requests may look automated. Sites are more likely to rate limit or block them, and they're easier to link to you, even through a proxy.</value>
+  </data>
+  <data name="FastModeButton" xml:space="preserve">
+    <value>Turn on</value>
+  </data>
   <data name="SettingsHideSelfWatch.Header" xml:space="preserve">
     <value>Hide suggestions to watch Youpdated</value>
   </data>
@@ -757,5 +829,26 @@
   </data>
   <data name="FiltersFitSome" xml:space="preserve">
     <value>{0} of the last {1} versions fit: {2}</value>
+  </data>
+  <data name="UserAgentBar.Title" xml:space="preserve">
+    <value>Checks paused</value>
+  </data>
+  <data name="UserAgentBar.Message" xml:space="preserve">
+    <value>Confirm Youpdated may name itself in requests.</value>
+  </data>
+  <data name="UserAgentConfirm.Content" xml:space="preserve">
+    <value>Confirm…</value>
+  </data>
+  <data name="TrayUserAgent" xml:space="preserve">
+    <value>Checks paused for a confirmation</value>
+  </data>
+  <data name="UserAgentConfirmTitle" xml:space="preserve">
+    <value>Send requests as Youpdated?</value>
+  </data>
+  <data name="UserAgentConfirmBody" xml:space="preserve">
+    <value>The config's user agent setting is "youpdated" which names Youpdated and its version. This setup is encrypted and uses a proxy, but that setting identifies its traffic. "rotate" blends in more.</value>
+  </data>
+  <data name="UserAgentConfirmButton" xml:space="preserve">
+    <value>Send as Youpdated</value>
   </data>
 </root>
