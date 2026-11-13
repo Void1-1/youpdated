@@ -12,6 +12,16 @@ public enum Priority
     [JsonStringEnumMemberName("low")] Low,
 }
 
+/// <summary><c>versions: {bump:}</c>: <c>any</c> reports every version, else the related number</summary>
+[JsonConverter(typeof(JsonStringEnumConverter<Bump>))]
+public enum Bump
+{
+    [JsonStringEnumMemberName("any")] Any,
+    [JsonStringEnumMemberName("patch")] Patch,
+    [JsonStringEnumMemberName("minor")] Minor,
+    [JsonStringEnumMemberName("major")] Major,
+}
+
 public sealed record TargetKey(string Source, string Key);
 
 public sealed record TargetRef(string Source, string Key, string Display)

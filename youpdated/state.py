@@ -608,7 +608,7 @@ class State:
             self._conn.commit()
             self._dirty = True
 
-    # per target ignore rules
+    # per target ignore and `match:` rules, see Target.drop_rules
 
     def ignore_rules_changed(
         self, source: str, target: str, rules: Iterable[frozenset[str]]

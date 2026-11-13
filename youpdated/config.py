@@ -340,16 +340,18 @@ def _parse_ignore(raw: Any, where: str) -> dict[str, frozenset[str]]:
     return parsed
 
 
-VERSION_RULES = ("bump", "min")
+VERSION_RULES = ("bump", "min", "match")
 _MIN_RE = re.compile(r"^v?\d+(?:\.\d+)*$", re.IGNORECASE)
 
 
 def parse_version_rules(value: Any, where: str, what: str) -> dict[str, Any]:
-    """Normalize a ``versions:`` mapping: ``bump`` a BUMPS name or ``any``, ``min`` a release"""
+    """Normalize a ``versions:`` mapping: ``bump`` a BUMPS name or ``any``, ``min`` a release, ``match`` a tuple of globs"""
     if value is None:
         return {}
     if not isinstance(value, dict):
-        raise ConfigError(f"{where}`{what}` must be a mapping with `bump` and/or `min`")
+        raise ConfigError(
+            f"{where}`{what}` must be a mapping with `bump`, `min`, and/or `match`"
+        )
     unknown = set(value) - set(VERSION_RULES)
     if unknown:
         raise ConfigError(
@@ -366,7 +368,17 @@ def parse_version_rules(value: Any, where: str, what: str) -> dict[str, Any]:
     lowest = value.get("min")
     if lowest is not None:
         rules["min"] = _parse_min(lowest, where, f"{what}.min")
+    globs = value.get("match")
+    if globs is not None:
+        rules["match"] = _parse_match(globs, where, f"{what}.match")
     return rules
+
+
+def _parse_match(value: Any, where: str, what: str) -> tuple[str, ...]:
+    globs = value if isinstance(value, list) else [value]
+    if not globs or not all(isinstance(glob, str) and glob.strip() for glob in globs):
+        raise ConfigError(f"{where}`{what}` must be a pattern in quotes, or a list of them")
+    return tuple(glob.strip() for glob in globs)
 
 
 def _parse_min(value: Any, where: str, what: str) -> tuple[int, ...]:
@@ -675,8 +687,9 @@ privacy:
 #   git: [commit]
 
 # Report only some versions: `bump: major` keeps 4.0.0 and drops 3.9.1 (or
-# `minor`, `patch`), and `min` drops versions below it. Takes the same forms as
-# ignore:, and an entry can have its own.
+# `minor`, `patch`), `min` drops versions below it, and `match: "v3.12.*"` keeps
+# only versions the pattern fits. Takes the same forms as ignore:, and an entry
+# can have its own.
 # versions:
 #   npm: {bump: major}
 

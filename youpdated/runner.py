@@ -30,7 +30,7 @@ class _Pending:
     validators: list[Validator]
     links: list[tuple[str, str, str]]
     succeeded: dict[Key, Target]
-    # Ignore rules of each entry fetched cleanly, by key
+    # Ignore and `match:` rules of each entry fetched cleanly, by key
     rules: dict[Key, list[frozenset[str]]]
     # Highest releases of each target with a `bump:` rule
     highest: list[tuple[str, str, str]]
@@ -52,9 +52,9 @@ class RunResult:
     # The newest item of each of those
     baseline_items: list[Update] = field(default_factory=list)
     total_fetched: int = 0
-    # Items dropped by an `ignore:` rule, before any new/seen comparison
+    # Items dropped by an `ignore:` rule or `versions: {match:}`, before any new/seen comparison
     ignored: int = 0
-    # New items a `versions:` rule removed; unlike ignore, theyre recorded as seen
+    # New items `bump:` or `min:` removed; unlike ignore, theyre recorded as seen
     filtered: int = 0
     # Seen items forgotten this run for passing the `expiry:`
     pruned: int = 0
@@ -187,7 +187,7 @@ def run(
     # Every entry's rules count for its key: a repo can be listed twice with different ones
     rules: dict[Key, list[frozenset[str]]] = {}
     for target in targets:
-        rules.setdefault((target.source, target.key), []).append(target.ignore)
+        rules.setdefault((target.source, target.key), []).append(target.drop_rules)
     succeeded_rules: dict[Key, list[frozenset[str]]] = {}
     # Stored only for targets whose items are recorded, see Client.deferred_validators
     validators: list[Validator] = []
@@ -214,7 +214,7 @@ def run(
         # bound up front so a failure entering the scopes below is still collected
         pending: list[Validator] = []
         urls: list[str] = []
-        # A first fetch must see the whole document, same with one thats ignore rules changed
+        # A first fetch must see the whole document, same with one thats ignore or `match:` rules changed
         full = (
             not state.is_baselined(target.source, target.key)
             or state.ignore_rules_changed(
@@ -229,8 +229,8 @@ def run(
                 client.first_request(announce),
             ):
                 items = list(sources[target.source].fetch(target, client))
-            kept = [u for u in items if not target.ignores(u.tags)]
-            # Ignored items are not recorded as seen
+            kept = [u for u in items if target.keeps(u)]
+            # Ignored items, and versions `match:` doesn't take, are not recorded as seen
             dropped = len(items) - len(kept)
             previous = None
             if target.versions.bump and not show_all:
@@ -282,7 +282,7 @@ def run(
                 validators.extend(pending)
                 links.extend((target.source, target.key, url) for url in urls)
                 succeeded.setdefault((target.source, target.key), target)
-                succeeded_rules.setdefault((target.source, target.key), []).append(target.ignore)
+                succeeded_rules.setdefault((target.source, target.key), []).append(target.drop_rules)
 
     # One repo can be listed twice, e.g. under both `github:` and `git:` while moving over
     fetched = list({u.dedupe_key: u for u in reversed(fetched)}.values())[::-1]

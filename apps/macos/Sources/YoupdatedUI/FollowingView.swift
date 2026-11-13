@@ -66,6 +66,9 @@ struct FollowingView: View {
                         Task { await model.inbox.setPriority(new, for: row.id) }
                     }
                 }
+                if model.sources.canFilter {
+                    Button(String(localized: "Filters…")) { window.filtering = row.target }
+                }
                 Divider()
                 Button(String(localized: "Stop Following…"), role: .destructive) { window.removing = row.target }
             }

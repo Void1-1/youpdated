@@ -10,7 +10,7 @@ import os
 import re
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
-from typing import Any, ClassVar, Iterable
+from typing import Any, Callable, ClassVar, Iterable
 from urllib.parse import quote, unquote, urljoin, urlsplit
 
 import httpx
@@ -282,18 +282,39 @@ def _github(source: str, target: Target, client: Client, token: str | None) -> l
     for kind in params.get("watch") or ["releases"]:
         if kind == "releases" and token:
             url = f"{api}/repos/{repo}/releases?per_page={PER_PAGE}"
-            fetched = client.get(url, conditional=True, headers=_github_api_headers(token))
+            headers = _github_api_headers(token)
+            fetched = client.get(url, conditional=True, headers=headers)
+
+            def api_page(number: int, _: list[Update]) -> tuple[list[Update], bool]:
+                later = client.get(f"{url}&page={number}", headers=headers)
+                return _github_releases_via_api(source, target, later), _api_complete(later)
+
+            complete = _api_complete(fetched)
             releases = _github_releases_via_api(source, target, fetched)
-            if _wants_latest(client, target, fetched, _api_complete(fetched)):
+            releases = _with_match(target, releases, fetched, complete, api_page)
+            if _wants_latest(client, target, fetched, complete):
                 latest = f"{api}/repos/{repo}/releases/latest"
                 releases = _with_latest(
                     releases, _github_latest_via_api(source, target, client, latest, token)
                 )
             updates.extend(releases)
         elif kind == "releases":
-            fetched = client.get(f"{base}/{repo}/releases.atom", conditional=True)
+            feed = f"{base}/{repo}/releases.atom"
+            fetched = client.get(feed, conditional=True)
+
+            def atom_page(_: int, previous: list[Update]) -> tuple[list[Update], bool]:
+                # The feed has no page numbers: it goes on from a tag
+                if not previous:
+                    return [], True
+                after = quote(previous[-1].uid.removeprefix("release:"), safe="")
+                later = client.get(f"{feed}?after={after}")
+                page = _github_atom_updates(source, target, later, "release")
+                return page, _atom_complete(later)
+
+            complete = _atom_complete(fetched)
             releases = _github_atom_updates(source, target, fetched, "release")
-            if _wants_latest(client, target, fetched, _atom_complete(fetched)):
+            releases = _with_match(target, releases, fetched, complete, atom_page)
+            if _wants_latest(client, target, fetched, complete):
                 latest = f"{base}/{repo}/releases/latest"
                 releases = _with_latest(releases, _github_latest(source, target, client, latest))
             updates.extend(releases)
@@ -358,6 +379,33 @@ def _wants_latest(
             pass
     state.cache_set(LATEST_ASKED, target.key, now.isoformat())
     return True
+
+
+# `versions: {match:}` reads more pages for a release up to this
+MATCH_PAGES = 5
+
+
+def _with_match(
+    target: Target,
+    releases: list[Update],
+    fetched: Fetched | None,
+    complete: bool,
+    later: Callable[[int, list[Update]], tuple[list[Update], bool]],
+) -> list[Update]:
+    """``releases`` and the newest one `versions: {match:}` fits"""
+    if not target.versions.match or fetched is None or complete:
+        return releases
+    if any(target.keeps(update) for update in releases):
+        return releases
+    page = releases
+    for number in range(2, MATCH_PAGES + 2):
+        page, last = later(number, page)
+        found = next((update for update in page if target.keeps(update)), None)
+        if found is not None:
+            return [*releases, found]
+        if last or not page:
+            break
+    return releases
 
 
 def _github_atom(source: str, target: Target, client: Client, url: str, tag: str) -> list[Update]:
@@ -494,14 +542,23 @@ def _gitlab(source: str, target: Target, client: Client, token: str | None) -> l
 
     for kind in params.get("watch") or ["releases"]:
         if kind == "releases":
-            fetched = client.get(f"{api}/releases?per_page={PER_PAGE}", conditional=True,
-                                 headers=headers)
-            releases = [
-                update
-                for release in (fetched.json() if fetched else [])
-                if (update := _gitlab_release(source, target, web, release)) is not None
-            ]
-            if _wants_latest(client, target, fetched, _api_complete(fetched)):
+            url = f"{api}/releases?per_page={PER_PAGE}"
+
+            def listed(fetched: Fetched | None) -> list[Update]:
+                return [
+                    update
+                    for release in (fetched.json() if fetched else [])
+                    if (update := _gitlab_release(source, target, web, release)) is not None
+                ]
+
+            def page(number: int, _: list[Update]) -> tuple[list[Update], bool]:
+                later = client.get(f"{url}&page={number}", headers=headers)
+                return listed(later), _api_complete(later)
+
+            fetched = client.get(url, conditional=True, headers=headers)
+            complete = _api_complete(fetched)
+            releases = _with_match(target, listed(fetched), fetched, complete, page)
+            if _wants_latest(client, target, fetched, complete):
                 # Redirects to the release itself
                 latest = client.get(f"{api}/releases/permalink/latest", conditional=True,
                                     headers=headers, soft_statuses=(404,))
@@ -593,14 +650,23 @@ def _forgejo(source: str, target: Target, client: Client, token: str | None) -> 
 
     for kind in params.get("watch") or ["releases"]:
         if kind == "releases":
-            fetched = client.get(f"{api}/releases?limit={PER_PAGE}", conditional=True,
-                                 headers=headers)
-            releases = [
-                update
-                for release in (fetched.json() if fetched else [])
-                if (update := _forgejo_release(source, target, web, release)) is not None
-            ]
-            if _wants_latest(client, target, fetched, _api_complete(fetched)):
+            url = f"{api}/releases?limit={PER_PAGE}"
+
+            def listed(fetched: Fetched | None) -> list[Update]:
+                return [
+                    update
+                    for release in (fetched.json() if fetched else [])
+                    if (update := _forgejo_release(source, target, web, release)) is not None
+                ]
+
+            def page(number: int, _: list[Update]) -> tuple[list[Update], bool]:
+                later = client.get(f"{url}&page={number}", headers=headers)
+                return listed(later), _api_complete(later)
+
+            fetched = client.get(url, conditional=True, headers=headers)
+            complete = _api_complete(fetched)
+            releases = _with_match(target, listed(fetched), fetched, complete, page)
+            if _wants_latest(client, target, fetched, complete):
                 latest = client.get(f"{api}/releases/latest", conditional=True,
                                     headers=headers, soft_statuses=(404,))
                 if latest is not None and latest.status != 404:

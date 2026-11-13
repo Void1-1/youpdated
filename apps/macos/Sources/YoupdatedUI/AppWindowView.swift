@@ -30,6 +30,7 @@ public struct AppWindowView: View {
             }
             .sheet(isPresented: importing) { ImportSheet() }
             .sheet(item: $window.removing) { RemoveSheet(target: $0) }
+            .sheet(item: $window.filtering) { FiltersSheet(target: $0) }
             .fileImporter(isPresented: $window.choosesImport, allowedContentTypes: [.json, .plainText, .data]) { result in
                 if case .success(let url) = result { importFile(url) }
             }

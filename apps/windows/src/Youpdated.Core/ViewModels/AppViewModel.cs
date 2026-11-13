@@ -99,6 +99,7 @@ public sealed partial class AppViewModel : ObservableObject, IAsyncDisposable
         Inbox.ShowRequested += () => ShowRequested?.Invoke(AppPage.Updates);
         Inbox.ItemsChanged += _ => UpdateWindowState();
         Sources.Added += targets => _ = AddedAsync(targets);
+        Sources.FiltersSaved += target => _ = CheckAsync([target.AsKey()]);
         Sources.Removed += () => _ = Inbox.RefreshAsync();
         Following.PropertyChanged += (_, args) =>
         {
@@ -506,6 +507,7 @@ public sealed partial class AppViewModel : ObservableObject, IAsyncDisposable
     private async Task OnEngineStartedAsync(HelloReply hello)
     {
         Settings.SetEngine(hello);
+        Sources.SetEngine(hello);
         await SyncAsync();
     }
 

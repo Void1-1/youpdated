@@ -33,6 +33,9 @@ public class ContractTests
         ["config.init"] = ContractJson.Default.ConfigInitReply,
         ["shutdown"] = ContractJson.Default.EmptyReply,
         ["icon.get"] = ContractJson.Default.IconReply,
+        ["filters.get"] = ContractJson.Default.Filters,
+        ["filters.set"] = ContractJson.Default.Filters,
+        ["filters.preview"] = ContractJson.Default.FiltersPreview,
     };
 
     [Fact]

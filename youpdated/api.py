@@ -12,8 +12,10 @@ import re
 import sys
 import tempfile
 import threading
+import time
 import traceback
 from contextlib import contextmanager
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import IO, Any, Callable, Iterator
@@ -29,16 +31,27 @@ from .config import (
     default_state_path,
     find_config,
     load_config,
+    parse_version_rules,
     read_config_text,
 )
-from .edit import add_to_config, claims, remove_from_config, requested_urls, write_config
+from .edit import (
+    Watching,
+    add_to_config,
+    claims,
+    remove_from_config,
+    requested_urls,
+    set_entry_rules,
+    write_config,
+)
+from .edit import watching as entries_watching
 from .http import Client, ProxyUnavailable, probe_proxy
 from .importers import READERS, Found, read_file
 from .models import RunError, Target, Update
 from .registry import all_aliases, all_sources, canonical_name, get_source
-from .runner import RunResult, build_targets, record, run
+from .runner import RunResult, _split_entry_rules, build_targets, record, run
 from .sources.base import ConfigEntryError, Source, parse_iso
 from .state import State, StateBusy, StateError, inbox_id, stamp
+from .versions import ANY_BUMP, BUMPS, VersionRules, format_release, suggest_patterns
 
 CONTRACT = 1
 
@@ -60,6 +73,9 @@ OPS = (
     "settings.get",
     "settings.set",
     "priority.set",
+    "filters.get",
+    "filters.set",
+    "filters.preview",
     "problems.list",
     "icon.get",
     "digest.send",
@@ -72,15 +88,23 @@ _OPEN_OPS = frozenset({"hello", "status", "unlock", "shutdown"})
 
 # app retries later
 LOCK_TIMEOUT = 5.0
+# `filters.preview` asks a source for its versions again after this long
+LISTED_FOR = 600.0
+# max versions returned
+LISTED_MAX = 30
 # how long a new check waits for the last one to finish fetchin an icon
 ICON_WAIT = 30.0
 
-# Youpdated releases
-# TODO: set version filter to `app` only
-SELF_WATCH: dict[str, Any] = {"repo": "Void1-1/youpdated", "ignore": ["prerelease"]}
+# This app's releases
+_APP_TAGS = {"darwin": "app-macos-v*", "win32": "app-windows-v*"}.get(sys.platform, "app-*")
+SELF_WATCH: dict[str, Any] = {
+    "repo": "Void1-1/youpdated",
+    "ignore": ["prerelease"],
+    "versions": {"match": _APP_TAGS},
+}
 _SELF_TARGET = ("git", "github.com/void1-1/youpdated")
 
-STARTER_CONFIG = """\
+STARTER_CONFIG = f"""\
 # Written by the Youpdated app. Edit with the app or `youpdated add`;
 # options: https://github.com/Void1-1/youpdated/blob/main/docs/configuration.md
 
@@ -89,6 +113,7 @@ sources:
     # Youpdated, so the app can give update notifications
     - repo: Void1-1/youpdated
       ignore: [prerelease]
+      versions: {{match: "{_APP_TAGS}"}}
 """
 # `config.init` without self-watch
 _EMPTY_CONFIG = """\
@@ -275,6 +300,40 @@ def _update(row: dict[str, Any]) -> Update:
     )
 
 
+@dataclass
+class _Filters:
+    """A config entry's rules, and general ones"""
+
+    # Why the app can't edit
+    locked: str | None
+    own_ignore: list[str]
+    base_ignore: frozenset[str]
+    own: dict[str, Any]
+    base: dict[str, Any]
+
+    def reply(self) -> dict[str, Any]:
+        rules = VersionRules.from_parts({**self.base, **self.own})
+        ignored = self.base_ignore | {tag.strip().lower() for tag in self.own_ignore}
+        return {
+            "match": [] if rules.match == ("*",) else list(rules.match),
+            "skip_prereleases": "prerelease" in ignored,
+            "skip_prereleases_inherited": "prerelease" in self.base_ignore,
+            "bump": rules.bump or ANY_BUMP,
+            "min": format_release(rules.min) if rules.min and rules.min != (0,) else None,
+            "editable": self.locked is None,
+            "reason": self.locked,
+        }
+
+
+def _pattern_label(glob: str) -> str:
+    """`app-v*` as `app-v...`, and a line like `v3.12.*` as `v3.12.x`"""
+    if glob == "[0-9]*":
+        return "No prefix"
+    if glob.endswith(".*"):
+        return glob[:-1] + "x"
+    return glob.removesuffix("*") + "…"
+
+
 class Engine:
     """The app's working files, passphrase after unlock, running check"""
 
@@ -291,6 +350,8 @@ class Engine:
         self.emit = emit or (lambda event: None)
         self.lock_timeout = lock_timeout
         self._passphrase: str | None = None
+        # versions `filters.preview` had a source list, by target, with when
+        self._listed: dict[Key, tuple[float, list[Update]]] = {}
         # running check's history, other ops share until closed
         self._cond = threading.Condition()
         self._shared: State | None = None
@@ -1124,6 +1185,143 @@ class Engine:
         with self._history() as state:
             state.set_priority(canonical_name(source), key, priority)
         return {"priority": priority}
+
+    # filters: an entry's `ignore: [prerelease]` and `versions:`
+
+    def _watched(self, p: _Params) -> Key:
+        source = p.get("source", "str", required=True)
+        key = p.get("key", "str", required=True)
+        if get_source(source) is None:
+            raise _bad(f"unknown source `{source}`")
+        return canonical_name(source), key
+
+    def _filters(self, name: str, key: str) -> _Filters:
+        config = self._config()
+        _, text = self._config_text()
+        found = entries_watching(text, name, key)
+        if not found:
+            raise ApiError("not_found", f"not watching {key} under {name}")
+        hit: Watching = found[0]
+        locked = None
+        if len(found) > 1:
+            locked = "It's listed multiple times in the config, so its filters are edited there."
+        elif len(hit.keys) > 1:
+            locked = "Its config entry follows other items too, so its filters are edited there."
+        _, own, _ = _split_entry_rules(hit.entry, hit.section)
+        listed = hit.entry.get("ignore") if isinstance(hit.entry, dict) else None
+        # as build_targets gives them to the entry
+        names = tuple(dict.fromkeys((name, hit.section)))
+        return _Filters(
+            locked=locked,
+            own_ignore=[listed] if isinstance(listed, str) else [str(tag) for tag in listed or []],
+            base_ignore=frozenset().union(*(config.ignored_tags(n) for n in names)),
+            own=own,
+            base=config.version_rules(*names),
+        )
+
+    def op_filters_get(self, p: _Params) -> dict[str, Any]:
+        name, key = self._watched(p)
+        p.done()
+        return self._filters(name, key).reply()
+
+    def op_filters_set(self, p: _Params) -> dict[str, Any]:
+        name, key = self._watched(p)
+        match = p.get("match", "strings", required=True)
+        skip = p.get("skip_prereleases", "bool", required=True)
+        bump = p.get("bump", "str", required=True)
+        lowest = (p.get("min", "str?") or "").strip()
+        p.done()
+        if bump not in (ANY_BUMP, *BUMPS):
+            raise _bad(f"bump must be: {', '.join((ANY_BUMP, *BUMPS))}")
+        filters = self._filters(name, key)
+        if filters.locked is not None:
+            raise _bad(filters.locked)
+        base = filters.base
+        # Only what's different from the source rules
+        own: dict[str, Any] = {}
+        globs = [glob.strip() for glob in match if glob.strip()]
+        if globs and tuple(globs) != base.get("match"):
+            own["match"] = globs[0] if len(globs) == 1 else globs
+        elif not globs and base.get("match", ("*",)) != ("*",):
+            own["match"] = "*"
+        if bump != base.get("bump", ANY_BUMP):
+            own["bump"] = bump
+        if lowest:
+            own["min"] = lowest
+        elif base.get("min", (0,)) != (0,):
+            own["min"] = 0
+        try:
+            parsed = parse_version_rules(own, "", "filters")
+        except ConfigError as exc:
+            raise _bad(str(exc)) from exc
+        if lowest and parsed["min"] == base.get("min"):
+            del own["min"]
+        ignore = [tag for tag in filters.own_ignore if tag.strip().lower() != "prerelease"]
+        if skip and "prerelease" not in filters.base_ignore:
+            ignore.append("prerelease")
+        path, text = self._config_text()
+        change = set_entry_rules(text, name, key, {"ignore": ignore, "versions": own})
+        if change.applied:
+            self._write_config(path, change.text)
+        return self._filters(name, key).reply()
+
+    def _listed_versions(self, name: str, key: str, refresh: bool) -> tuple[list[Update], str | None]:
+        """The versions a target's source lists now, newest first, whatever its rules drop"""
+        held = self._listed.get((name, key))
+        if held is not None and not refresh and time.monotonic() - held[0] < LISTED_FOR:
+            return held[1], None
+        config = self._config()
+        configured, _ = build_targets(config)
+        target = next((t for t in configured if (t.source, t.key) == (name, key)), None)
+        if target is None:
+            raise ApiError("not_found", f"not watching {key} under {name}")
+        plain = replace(target, ignore=frozenset(), versions=VersionRules(), track_latest=False)
+        try:
+            with Client(config.privacy) as client:
+                items = list(all_sources()[name].fetch(plain, client))
+        except Exception as exc:
+            return [], f"{type(exc).__name__}: {exc}"
+        versions = list({u.version: u for u in reversed(items) if u.version}.values())[::-1]
+        versions.sort(key=lambda u: u.published or _EPOCH, reverse=True)
+        self._listed[(name, key)] = (time.monotonic(), versions[:LISTED_MAX])
+        return versions[:LISTED_MAX], None
+
+    def op_filters_preview(self, p: _Params) -> dict[str, Any]:
+        name, key = self._watched(p)
+        match = p.get("match", "strings", [])
+        skip = p.get("skip_prereleases", "bool", False)
+        lowest = (p.get("min", "str?") or "").strip()
+        refresh = p.get("refresh", "bool", False)
+        p.done()
+        raw: dict[str, Any] = {}
+        if globs := [glob.strip() for glob in match if glob.strip()]:
+            raw["match"] = globs
+        if lowest:
+            raw["min"] = lowest
+        try:
+            rules = VersionRules.from_parts(parse_version_rules(raw, "", "filters"))
+        except ConfigError as exc:
+            raise _bad(str(exc)) from exc
+        listed, error = self._listed_versions(name, key, refresh)
+        versions = []
+        for update in listed:
+            prerelease = "prerelease" in update.tags
+            versions.append({
+                "version": update.version,
+                "prerelease": prerelease,
+                "kept": not (skip and prerelease)
+                and rules.matches(update.version)
+                and bool(rules.admit([update])),
+            })
+        return {
+            "versions": versions,
+            "kept": sum(v["kept"] for v in versions),
+            "patterns": [
+                {"pattern": glob, "label": _pattern_label(glob), "count": count}
+                for glob, count in suggest_patterns(v["version"] for v in versions)
+            ],
+            "fetch_error": error,
+        }
 
     def op_icon_get(self, p: _Params) -> dict[str, Any]:
         source = p.get("source", "str", required=True)
