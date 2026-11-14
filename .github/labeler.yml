@@ -1,0 +1,11 @@
+# Labels pull requests by the files they change. Read by issue-triage.yml.
+
+app:
+  - changed-files:
+      - any-glob-to-any-file: ["apps/**"]
+
+# Only when docs are all a PR changes. Most code PRs also touch CHANGELOG.md
+# or a doc page, and labeling those would make the label meaningless.
+documentation:
+  - changed-files:
+      - any-glob-to-all-files: ["docs/**", "*.md", "examples/**"]

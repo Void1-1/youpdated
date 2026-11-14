@@ -1,5 +1,6 @@
 name: New source request
 description: Ask for support for a service Youpdated doesn't track yet
+type: Feature
 labels: ["source request"]
 body:
   - type: markdown
