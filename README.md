@@ -50,6 +50,7 @@
 | `youtube` | New videos on a channel or playlist |
 | `browser` | New Chrome, Brave, Firefox, and Edge releases |
 | `feed` | Anything else with an RSS or Atom feed |
+| `json` | A version in a JSON or YAML file |
 | `webpage` | The version a download page shows, for anything with no feed |
 
 ## Get started
@@ -91,9 +92,9 @@ youpdated add npm react
 youpdated add youtube @NASA
 ```
 
-A link or handle that can only work with one source doesn't need to be named: `youpdated add https://github.com/neovim/neovim`. Any other web address goes under `webpage`.
+A link or handle that can only work with one source doesn't need to be named: `youpdated add https://github.com/neovim/neovim`. An address ending `.json`, `.yml`, or `.yaml` goes under `json`, and any other web address under `webpage`.
 
-To watch all dependencies of a project, import its `package.json`, `requirements.txt`, or `Brewfile`: `youpdated import package.json`.
+To watch all dependencies of a project, import its `package.json`, `requirements.txt`, `pyproject.toml`, or `Brewfile`: `youpdated import package.json`.
 
 The starter config comes with examples; `youpdated rm` to remove any you don't want.
 
@@ -132,6 +133,7 @@ youpdated check
 | A YouTube playlist | `https://www.youtube.com/playlist?list=PLxxxx` | The playlist's URL, as it appears in the address bar. `playlist: PLxxxx`, with just the `list=` section, also works. |
 | A browser | `chrome`, `brave`, `firefox`, `edge` | Just the name. |
 | Anything else | `https://example.com/feed.xml` | Any RSS or Atom feed URL. Many sites publish one at `/feed.xml`, `/releases.atom`, or `/blog/rss`. |
+| A JSON or YAML file | `https://example.com/app/latest.json` | The URL of a file or API answer with the version. See [JSON documents](docs/configuration.md#json-documents). |
 | Anything without a feed | `https://www.videolan.org/vlc/` | The download page's URL. The version is read off the page. See [Web pages](docs/configuration.md#web-pages). |
 
 ## Basic commands
@@ -144,7 +146,7 @@ youpdated check -s steam     # only one source
 youpdated check --test -v    # check your config without fetching anything
 youpdated add npm react      # start watching something
 youpdated remove npm react   # stop watching it
-youpdated import Brewfile    # watch everything a package.json, requirements.txt, or Brewfile lists
+youpdated import Brewfile    # watch everything a dependency file lists
 youpdated edit               # open the config in your default editor
 youpdated uninstall          # remove Youpdated and its files
 ```

@@ -44,10 +44,11 @@ public sealed record Monogram(string Initials, int ColorIndex)
     public static string InitialsOf(string display)
     {
         var name = display.Trim();
-        var slash = name.LastIndexOf('/');
-        if (slash >= 0 && slash < name.Length - 1)
+        // The last segment that isn't empty, so "https://example.com/app/" is "app"
+        var segments = name.Split('/', StringSplitOptions.RemoveEmptyEntries);
+        if (segments.Length > 0)
         {
-            name = name[(slash + 1)..];
+            name = segments[^1];
         }
         name = name.TrimStart('@');
         var words = name.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);

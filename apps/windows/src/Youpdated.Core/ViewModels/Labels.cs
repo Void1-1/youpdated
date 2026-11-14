@@ -19,16 +19,18 @@ public static class SourceLabels
         ["homebrew"] = "Homebrew",
         ["youtube"] = "YouTube",
         ["feed"] = "Feed",
+        ["webpage"] = "Web page",
+        ["json"] = "JSON",
     };
 
-    /// <summary>The label for a target: forge or host for <c>git</c>, host for <c>feed</c>, else the source's</summary>
+    /// <summary>The label for a target: forge or host for <c>git</c>, host for <c>feed</c>, <c>webpage</c>, and <c>json</c>, else the source's</summary>
     public static string Label(string source, string? key, string browsers = "Browsers")
     {
         switch (source)
         {
             case "git" when Host(key) is { } host:
                 return Forges.GetValueOrDefault(host, host);
-            case "feed" when Host(key) is { } host:
+            case "feed" or "webpage" or "json" when Host(key) is { } host:
                 return host;
             case "browser":
                 return browsers;

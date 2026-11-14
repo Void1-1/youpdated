@@ -7,6 +7,7 @@ Everything Youpdated watches, and how, is in a YAML file. `youpdated init` write
 - [Full example](#full-example)
 - [Git forges](#git-forges)
 - [Web pages](#web-pages)
+- [JSON documents](#json-documents)
 - [Ignoring update types](#ignoring-update-types)
 - [Filtering by version](#filtering-by-version)
 - [Tracking the latest release](#tracking-the-latest-release)
@@ -44,6 +45,7 @@ More details and options beyond the [basics](../README.md#where-to-find-identifi
 - **steam:** the game's name is looked up for you; set `name:` to override it.
 - **youtube:** a `UC…` channel id or a full channel URL also works.
 - **browser:** narrow it with `platform:` and `channel:`, as in the [full example](#full-example).
+- **json:** a URL of a JSON or YAML document. Set `name:` to title it. Which version is read, and how to watch a list of them, is under [JSON documents](#json-documents).
 - **webpage:** a URL. Set `name:` if the page's title is long. How the version is found, and what to do when it isn't, is in [Web pages](#web-pages).
 
 ## Full example
@@ -139,6 +141,13 @@ sources:
       name: Obsidian
       limit: 5
 
+  json:                              # the version in a JSON or YAML document
+    - https://example.com/app/latest.yml
+    - url: https://nodejs.org/dist/index.json
+      name: Node.js
+      items: .                       # every entry of a list, here it's the whole document
+      published: date                # paths start at the entry
+
   webpage:                           # anything else: the version a page shows
     - https://www.videolan.org/vlc/
     - url: https://www.7-zip.org/
@@ -192,6 +201,64 @@ sources:
 
 Each check gives one update: the version, linking to the page. A version with a prerelease marker (`2.5.0-beta.1`, `3.13.0rc1`) is tagged `prerelease`. To see what a page reads as without waiting for it to change: `youpdated check --all -v -s webpage`, which also shows where each version was found.
 
+## JSON documents
+
+The `json` source watches a JSON or YAML document for a version: the file an app's own updater reads (`latest.json`, electron-builder's `latest.yml` and `latest-mac.yml`), or a public API's answer. Use it when nothing more specific fits: a GitHub repo, a package, or a feed has its own source, and those read more detailed information.
+
+**With only a URL**, the document is read for a key named `version`, `tag_name`, or `latest`, at any depth and in any case, that holds a version. There has to be only one, or several that agree. **A check will try to fail over reporting the wrong version**:
+
+- Several keys hold different versions. The error lists each one's path.
+- No key holds a version. A word (`latest: stable`), a flag (`latest: true`), or a commit hash doesn't count. The error lists the document's keys.
+
+**Where the version was found is remembered**, and later checks read it from there, so a version key added elsewhere changes nothing. If it's missing, the check fails. Set `version:`, or start over with `youpdated rm --wipe json URL` and re-`add`.
+
+**When it can't determine a version, use `version:`**, the path of the version in the document:
+
+```yaml
+sources:
+  json:
+    - url: https://launchermeta.mojang.com/mc/game/version_manifest.json
+      name: Minecraft
+      version: latest.release
+    - url: https://formulae.brew.sh/api/formula/wget.json
+      version: versions.stable
+      link: https://formulae.brew.sh/formula/wget   # what an update links to
+```
+
+A path is keys joined by dots, with `[0]` for a list's first entry and `[-1]` for its last: `releases[0].tag_name`. A key with a dot in it goes in brackets and quotes: `packages["com.example.app"].version`. A leading dot is allowed, and keeps YAML from reading a path that starts with a bracket as a list: `.[0].tag_name`. `.` on its own is the whole document.
+
+**To watch a list, use `items:`**, the path of the list. Each entry is an update, and the other paths start at the entry:
+
+```yaml
+sources:
+  json:
+    - url: https://example.com/api/releases
+      name: Example
+      items: releases                # or releases[*]
+      version: tag_name              # skipped, each entry's version, tag_name, or latest key
+      title: name
+      link: html_url                 # a relative address is joined to the document's
+      published: published_at
+      limit: 10                      # newest entries read per check, 20 default
+```
+
+- `[*]` reads every entry of a list on the way: `channels[*].builds`.
+- An entry that is a value instead of a mapping is the version itself: `[8, 11, 17, 21]`.
+- A mapping is read as version to details, as in `{"2.4.1": {...}, "2.4.0": {...}}`: each key is a version, unless its entry names one or `version:` is set.
+- An entry with no version is left out, and a version listed twice (once per platform) is one update.
+- The newest are the latest by `published:` when every entry has a date, and otherwise the highest version numbers, since a list can run either way.
+
+| Option | Function |
+| --- | --- |
+| `version` | Path of the version. |
+| `items` | Path of a list of versions. |
+| `title` | Path of the update's title. |
+| `link` | Path of the update's address, or an address for every update. |
+| `published` | Path of the date. |
+| `limit` | With `items:`, how many of the newest entries are read. |
+
+A version with a prerelease marker (`2.5.0-beta.1`, `3.13.0rc1`) is tagged `prerelease`. To see what a document reads as without waiting for it to change: `youpdated check --all -v -s json`.
+
 ## Ignoring update types
 
 Every update has one or more **tags** describing what it is. An `ignore:` rule drops updates carrying a tag you list.
@@ -229,6 +296,7 @@ These are the tags each default source sets:
 | `youtube` | `video` |
 | `steam` | `news` |
 | `feed` | `item` |
+| `json` | `release`, `prerelease` |
 | `webpage` | `release`, `prerelease` |
 
 An update is dropped if it carries **any** tag listed. A GitHub release candidate is tagged both `release` and `prerelease`, so ignoring `prerelease` drops it while ordinary releases stay.

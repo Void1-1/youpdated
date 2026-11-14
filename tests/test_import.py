@@ -1,4 +1,4 @@
-"""`import`: entries read from a package.json, requirements.txt, or Brewfile"""
+"""`import`: entries read from a package.json, requirements.txt, pyproject.toml, or Brewfile"""
 
 from __future__ import annotations
 
@@ -248,6 +248,153 @@ def test_a_skip_is_reported_once_however_many_files_list_it(tmp_path):
     read_file(tmp_path / "requirements/base.txt", found)
     assert found.skipped == [(".", "an editable install, not from PyPI")]
 
+# pyproject.toml
+
+def pyproject(tmp_path, text: str) -> Path:
+    path = tmp_path / "pyproject.toml"
+    path.write_text(text, encoding="utf-8")
+    return path
+
+
+def test_dependencies_extras_and_groups_are_read_once_without_the_project_itself(tmp_path):
+    path = pyproject(
+        tmp_path,
+        "[build-system]\n"
+        'requires = ["hatchling"]\n'
+        "[project]\n"
+        'name = "Demo_App"\n'
+        'dependencies = ["httpx[socks]>=0.27", "rich ; python_version >= \'3.11\'"]\n'
+        "[project.optional-dependencies]\n"
+        'test = ["pytest>=8", "HTTPX"]\n'
+        'all = ["demo-app[test]"]\n'
+        "[dependency-groups]\n"
+        'dev = ["ruff", {include-group = "lint"}]\n'
+        'lint = ["mypy"]\n',
+    )
+    found = read(path)
+    assert found.entries == {"pypi": ["httpx", "rich", "pytest", "ruff", "mypy"]}
+    assert found.skipped == []
+    assert found.warnings == []
+
+
+def test_a_pyproject_without_dependencies_finds_nothing(tmp_path):
+    found = read(pyproject(tmp_path, '[tool.ruff]\nline-length = 100\n'))
+    assert (found.entries, found.skipped, found.warnings) == ({}, [], [])
+
+
+def test_a_direct_reference_is_skipped(tmp_path):
+    path = pyproject(
+        tmp_path,
+        '[project]\ndependencies = ["thing @ git+https://github.com/owner/thing", "httpx"]\n',
+    )
+    found = read(path)
+    assert found.entries == {"pypi": ["httpx"]}
+    assert found.skipped == [("thing", "installed from git+https://github.com/owner/thing, not PyPI")]
+
+
+@pytest.mark.parametrize(
+    "source, why",
+    [
+        ('{ git = "https://github.com/owner/thing" }', "installed from https://github.com/owner/thing, not PyPI"),
+        ('{ path = "../thing", editable = true }', "installed from ../thing, not PyPI"),
+        ('{ url = "https://example.com/thing-1.0.tar.gz" }', "installed from https://example.com/thing-1.0.tar.gz, not PyPI"),
+        ("{ workspace = true }", "a workspace member, not from PyPI"),
+        ('{ index = "private" }', "installed from https://private.example/simple, not PyPI"),
+        ('{ index = "missing" }', "installed from uv index `missing`, not PyPI"),
+        ('[{ index = "pypi", marker = "sys_platform == \'darwin\'" }, { path = "../thing" }]',
+         "installed from ../thing, not PyPI"),
+    ],
+)
+def test_what_uv_gets_from_elsewhere_is_skipped(tmp_path, source, why):
+    path = pyproject(
+        tmp_path,
+        '[project]\ndependencies = ["Thing", "httpx"]\n'
+        f"[tool.uv.sources]\nthing = {source}\n"
+        '[[tool.uv.index]]\nname = "private"\nurl = "https://private.example/simple"\nexplicit = true\n'
+        '[[tool.uv.index]]\nname = "pypi"\nurl = "https://pypi.org/simple"\nexplicit = true\n',
+    )
+    found = read(path)
+    assert found.entries == {"pypi": ["httpx"]}
+    assert found.skipped == [("Thing", why)]
+    assert found.warnings == []
+
+
+@pytest.mark.parametrize(
+    "uv",
+    [
+        '[[tool.uv.index]]\nurl = "https://private.example/simple"\ndefault = true\n',
+        "[tool.uv]\nindex-url = \"https://private.example/simple\"\n",
+    ],
+    ids=["index", "index-url"],
+)
+def test_requirements_are_skipped_when_uv_default_index_is_not_pypi(tmp_path, uv):
+    path = pyproject(tmp_path, '[project]\ndependencies = ["internal-tool"]\n' + uv)
+    found = read(path)
+    assert found.entries == {}
+    assert found.skipped == [("internal-tool", "installed from https://private.example/simple, not PyPI")]
+
+
+def test_uv_told_not_to_use_an_index_skips_everything(tmp_path):
+    path = pyproject(tmp_path, '[project]\ndependencies = ["httpx"]\n[tool.uv]\nno-index = true\n')
+    assert read(path).skipped == [("httpx", "uv is told not to use an index")]
+
+
+def test_another_uv_index_is_a_warning_and_its_packages_are_still_added(tmp_path):
+    path = pyproject(
+        tmp_path,
+        '[project]\ndependencies = ["torch"]\n'
+        '[[tool.uv.index]]\nname = "pytorch"\nurl = "https://download.pytorch.org/whl/cu121"\n'
+        '[[tool.uv.index]]\nname = "pinned-only"\nurl = "https://private.example/simple"\nexplicit = true\n'
+        '[[tool.uv.index]]\nurl = "https://pypi.org/simple"\ndefault = true\n',
+    )
+    found = read(path)
+    assert found.entries == {"pypi": ["torch"]}
+    assert found.warnings == [
+        f"{path} also installs from https://download.pytorch.org/whl/cu121; a package from "
+        "there is watched on PyPI, which may not be the same package"
+    ]
+
+
+def test_dynamic_dependencies_and_poetry_tables_are_warned_about(tmp_path):
+    path = pyproject(
+        tmp_path,
+        '[project]\nname = "demo"\ndynamic = ["version", "dependencies", "optional-dependencies"]\n'
+        '[tool.poetry.dependencies]\npython = "^3.11"\nrequests = "^2"\n',
+    )
+    found = read(path)
+    assert found.entries == {}
+    assert found.warnings == [
+        f"{path} leaves its dependencies and optional-dependencies to the build backend "
+        "(`dynamic`), so they are not read",
+        f"{path} lists dependencies under [tool.poetry], which are not read",
+    ]
+
+
+def test_credentials_in_a_uv_url_are_never_shown(tmp_path):
+    path = pyproject(
+        tmp_path,
+        '[project]\ndependencies = ["thing", "other"]\n'
+        '[tool.uv.sources]\nthing = { git = "https://ghp_SECRET@github.com/owner/thing" }\n'
+        '[[tool.uv.index]]\nurl = "https://user:ghp_SECRET@private.example/simple"\n',
+    )
+    found = read(path)
+    assert "ghp_SECRET" not in repr((found.skipped, found.warnings))
+    assert found.skipped and found.warnings
+
+
+def test_a_pyproject_that_is_not_toml_is_an_error(tmp_path):
+    with pytest.raises(ConfigError, match="is not valid TOML"):
+        read(pyproject(tmp_path, "[project\n"))
+
+
+def test_entries_of_the_wrong_type_are_ignored(tmp_path):
+    path = pyproject(
+        tmp_path,
+        'project = "nope"\n[dependency-groups]\ndev = "ruff"\nlint = ["mypy", 3]\n'
+        "[tool.uv]\nsources = 1\nindex = [1, { url = 2 }]\n",
+    )
+    assert read(path).entries == {"pypi": ["mypy"]}
+
 # Brewfile
 
 def test_formulae_and_casks_are_read_as_brew_bundle_dump_writes_them(tmp_path):
@@ -311,6 +458,7 @@ def test_ruby_that_is_not_a_brewfile_entry_is_ignored(tmp_path):
         ("dev-requirements.txt", "requirements.txt"),
         ("requirements.in", "requirements.txt"),
         ("requirements/base.txt", "requirements.txt"),
+        ("pyproject.toml", "pyproject.toml"),
     ],
 )
 def test_a_file_is_known_by_its_name(tmp_path, name, kind):
@@ -319,7 +467,7 @@ def test_a_file_is_known_by_its_name(tmp_path, name, kind):
 
 @pytest.mark.parametrize("name", ["deps.json", "Brewfile.lock.json", "notes.txt", "constraints.txt"])
 def test_a_file_named_otherwise_needs_a_format(tmp_path, name):
-    with pytest.raises(ConfigError, match=r"name with --format \(package.json \| requirements.txt \| Brewfile\)"):
+    with pytest.raises(ConfigError, match=r"name with --format \(package.json \| requirements.txt \| pyproject.toml \| Brewfile\)"):
         file_kind(tmp_path / name)
 
 

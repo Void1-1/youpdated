@@ -35,6 +35,8 @@ public enum SourceStyle {
         case "youtube": "play.rectangle"
         case "feed": "dot.radiowaves.up.forward"
         case "browser": "globe"
+        case "webpage": "doc.text.magnifyingglass"
+        case "json": "curlybraces"
         default: "link"
         }
     }
@@ -65,6 +67,8 @@ public enum SourceLabel {
         case "youtube": return "YouTube"
         case "feed": return key.flatMap(host(of:)) ?? String(localized: "Feed")
         case "browser": return String(localized: "Browsers")
+        case "webpage": return key.flatMap(host(of:)) ?? String(localized: "Web page")
+        case "json": return key.flatMap(host(of:)) ?? "JSON"
         default: return source
         }
     }

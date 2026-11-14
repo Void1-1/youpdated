@@ -25,6 +25,7 @@ public enum ImportInput: Sendable, Hashable {
     public static func format(forFileName name: String) -> String? {
         let lower = name.lowercased()
         if lower == "package.json" { return "package.json" }
+        if lower == "pyproject.toml" { return "pyproject.toml" }
         if lower == "brewfile" || lower.hasSuffix(".brewfile") { return "Brewfile" }
         if lower.hasSuffix(".txt") || lower.hasSuffix(".in"), lower.contains("requirements") {
             return "requirements.txt"

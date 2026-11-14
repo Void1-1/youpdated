@@ -65,6 +65,7 @@ body:
         - youtube
         - browser
         - feed
+        - json
         - webpage
         - not source-specific / core
         - a third-party source plugin

@@ -27,6 +27,7 @@
 | `youtube` | the channel feed; while it's down, an Invidious instance (a third party, which sees the channels asked for), then the Data API with `YOUTUBE_API_KEY` |
 | `browser` | each vendor's public version history |
 | `feed` | the feed itself |
+| `json` | the document itself |
 | `webpage` | the page itself |
 
 **The desktop app's Show icons** (off by default) adds requests for a picture for each target: Steam's store details and header image, a git repo owner's avatar (from the forge's API outside GitHub), a YouTube channel's page and picture, an itch game's page and cover, or a feed's image or its site's icon. They go through the same client and `settings.privacy` options as everything else, a few per check, and about once a month per target afterwards. npm, PyPI, Homebrew, and browsers have no icons and get no extra requests. The icons are kept in the history, so they can be encrypted, and turning the setting off deletes them.

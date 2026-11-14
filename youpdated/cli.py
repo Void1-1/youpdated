@@ -145,11 +145,12 @@ def build_parser() -> argparse.ArgumentParser:
             edit.add_argument("--state", help="path to the state database")
 
     imports = sub.add_parser(
-        "import", help="watch dependencies from a package.json, requirements.txt, or Brewfile",
+        "import",
+        help="watch dependencies from a package.json, requirements.txt, pyproject.toml, or Brewfile",
     )
     imports.add_argument(
         "files", nargs="+", metavar="FILE",
-        help="package.json, requirements.txt, or Brewfile",
+        help="package.json, requirements.txt, pyproject.toml, or Brewfile",
     )
     imports.add_argument(
         "--format", choices=list(READERS),

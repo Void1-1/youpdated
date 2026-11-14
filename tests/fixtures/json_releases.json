@@ -1,0 +1,29 @@
+{
+  "product": "Lumen Notes",
+  "releases": [
+    {
+      "tag_name": "v2.3.0",
+      "name": "Lumen 2.3",
+      "html_url": "/releases/v2.3.0",
+      "published_at": "2026-08-14T09:30:00Z"
+    },
+    {
+      "tag_name": "v2.5.0-beta.1",
+      "name": "Lumen 2.5 beta",
+      "html_url": "/releases/v2.5.0-beta.1",
+      "published_at": "2026-11-02T16:45:00Z"
+    },
+    {
+      "tag_name": "v2.4.1",
+      "name": "Lumen 2.4.1",
+      "html_url": "https://downloads.lumen.example/2.4.1/",
+      "published_at": "2026-10-29T14:03:11Z"
+    },
+    {
+      "tag_name": "v2.4.0",
+      "name": "Lumen 2.4",
+      "html_url": "/releases/v2.4.0",
+      "published_at": "2026-10-01T11:00:00Z"
+    }
+  ]
+}

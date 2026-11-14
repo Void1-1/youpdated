@@ -48,5 +48,14 @@ sources:
     - url: https://www.7-zip.org/
       regex: 'Download 7-Zip ([\d.]+)'
 
+  json:
+    - https://formulae.brew.sh/api/cask/firefox.json   # a lone version key
+    - url: https://formulae.brew.sh/api/formula/wget.json
+      version: versions.stable
+    - url: https://nodejs.org/dist/index.json          # a list
+      items: .
+      published: date
+      limit: 5
+
   pypi:
     - youpdated

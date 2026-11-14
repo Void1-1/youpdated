@@ -139,8 +139,7 @@ public struct AppWindowView: View {
         }
     }
 
-    /// A link is added; a package.json, requirements.txt, or Brewfile is imported
-    // todo: pyproject.toml
+    /// A link is added; a package.json, requirements.txt, pyproject.toml, or Brewfile is imported
     private func dropped(_ urls: [URL]) -> Bool {
         guard let url = urls.first else { return false }
         if url.isFileURL {

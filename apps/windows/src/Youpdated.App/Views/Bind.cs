@@ -27,6 +27,8 @@ public static class Bind
         "youtube" => "\uE714", // Video
         "browser" => "\uE774", // Globe
         "feed" => "\uE8A1", // PreviewLink
+        "webpage" => "\uE7C3", // Page
+        "json" => "\uE8A5", // Document
         _ => "\uE789", // Updates
     };
 

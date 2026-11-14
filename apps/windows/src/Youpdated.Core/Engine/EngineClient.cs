@@ -26,7 +26,7 @@ public sealed record InboxQuery(
 
 public abstract record ImportSource
 {
-    public static IReadOnlyList<string> Formats { get; } = ["package.json", "requirements.txt", "Brewfile"];
+    public static IReadOnlyList<string> Formats { get; } = ["package.json", "requirements.txt", "pyproject.toml", "Brewfile"];
 
     public sealed record File(string Path) : ImportSource;
 
