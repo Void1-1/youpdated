@@ -4,6 +4,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-11-14
+
 ### Added
 
 - **`json` source** (#57). Watches a version in a JSON or YAML document: `youpdated add https://example.com/app/latest.yml`. With only a URL, a lone `version`, `tag_name`, or `latest` key is read, and a document with several versions is refused. `version:` gives the correct path (`latest.release`, `releases[0].tag_name`), and `items:` the path of a list to report each entry of, with `title:`, `link:`, `published:`, and `limit:`. An address ending `.json`, `.yml`, or `.yaml` is added under `json` automatically. See [JSON documents](docs/configuration.md#json-documents).
@@ -256,6 +258,7 @@ First release.
 - Firefox publishes current versions, so it reports one item per channel.
 - Edge exposes release notes only for the stable and beta channels. (But like, it's Edge, why do you want to know when it updates?)
 
+[0.6.0]: https://github.com/Void1-1/youpdated/releases/tag/v0.6.0
 [0.5.0]: https://github.com/Void1-1/youpdated/releases/tag/v0.5.0
 [0.4.0]: https://github.com/Void1-1/youpdated/releases/tag/v0.4.0
 [0.3.1]: https://github.com/Void1-1/youpdated/releases/tag/v0.3.1
