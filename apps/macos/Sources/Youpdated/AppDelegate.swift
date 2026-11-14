@@ -121,6 +121,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         withObservationTracking {
             _ = model.needsPassphrase
             _ = model.isFirstRun
+            _ = model.needsUserAgentConfirmation
             _ = model.status?.configPath
         } onChange: { [weak self] in
             Task { @MainActor in
@@ -132,8 +133,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func react() {
-        // locked: the window asks for the passphrase
-        if model.needsPassphrase || model.isFirstRun {
+        // locked: the window asks for the passphrase. Unconfirmed user agent: it asks about that
+        if model.needsPassphrase || model.isFirstRun || model.needsUserAgentConfirmation {
             router.show(.updates)
         }
         configWatcher.watch(model.status?.configPath)

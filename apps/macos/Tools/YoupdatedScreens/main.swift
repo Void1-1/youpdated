@@ -133,6 +133,13 @@ func run() async throws {
         SettingsPaneView(.view).environment(settingsModel).frame(width: 480).padding(20)
     }
 
+    // Settings → Privacy
+    let (privacyModel, _) = await makeModel()
+    await privacyModel.loadPrivacy()
+    try await render("settings-privacy", size: CGSize(width: 520, height: 640), title: "Privacy") {
+        SettingsPaneView(.privacy).environment(privacyModel).frame(width: 480).padding(20)
+    }
+
     // Settings → Advanced
     let (advancedModel, _) = await makeModel()
     try await render("settings-advanced", size: CGSize(width: 520, height: 420), title: "Advanced") {
@@ -156,6 +163,15 @@ func run() async throws {
     let (followingModel, _) = await makeModel()
     try await render("following", size: CGSize(width: 600, height: 640)) {
         AppWindowView().environment(followingModel).environment(followingWindow).environment(downloader)
+    }
+
+    // the Filters sheet
+    let (filtersModel, _) = await makeModel()
+    if let own = filtersModel.sources.selfTarget {
+        try await render("filters-sheet", size: CGSize(width: 440, height: 520), toolbar: false) {
+            FiltersSheet(target: own).environment(filtersModel).environment(downloader)
+                .background(Color(nsColor: .windowBackgroundColor))
+        }
     }
 
     // the Add popover's contents, with a preview

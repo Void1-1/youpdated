@@ -50,7 +50,7 @@ def make_update(n: int = 1, **overrides) -> Update:
 
 
 def parse_notify(raw):
-    return parse_config({"sources": {"npm": ["x"]}, "notify": raw}).notify
+    return parse_config({"sources": {"npm": ["x"]}, "settings": {"notify": raw}}).notify
 
 
 # config
@@ -337,9 +337,9 @@ def test_a_missing_command_is_reported():
 def _setup(tmp_path, notify_block: str) -> list[str]:
     config = tmp_path / "youpdated.yaml"
     config.write_text(
-        "privacy:\n  jitter: [0, 0]\n"
-        f"{notify_block}"
-        "sources:\n  github:\n    - python/cpython\n",
+        "settings:\n  privacy:\n    jitter: [0, 0]\n"
+        + "".join(f"  {line}" for line in notify_block.splitlines(True))
+        + "sources:\n  github:\n    - python/cpython\n",
         encoding="utf-8",
     )
     return ["check", "-c", str(config), "--state", str(tmp_path / "state.db"), "--json"]

@@ -1,0 +1,18 @@
+{
+  "description": "Offline: nothing to offer, the rules can still be edited",
+  "request": {
+    "id": 45,
+    "op": "filters.preview",
+    "source": "pypi",
+    "key": "django"
+  },
+  "events": [],
+  "reply": {
+    "id": 45,
+    "ok": true,
+    "versions": [],
+    "kept": 0,
+    "patterns": [],
+    "fetch_error": "FetchError: https://pypi.org/pypi/django/json: timed out"
+  }
+}

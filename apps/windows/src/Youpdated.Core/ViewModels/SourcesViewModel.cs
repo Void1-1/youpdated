@@ -25,6 +25,22 @@ public sealed partial class SourcesViewModel : ObservableObject
     /// <summary>Something was removed; the inbox may have lost items</summary>
     public event Action? Removed;
 
+    /// <summary>A target's filters were saved; the app checks it</summary>
+    public event Action<Target>? FiltersSaved;
+
+    /// <summary>The engine has <c>filters.*</c></summary>
+    public bool CanFilter { get; private set; }
+
+    public void SetEngine(HelloReply hello) => CanFilter = hello.Ops.Contains("filters.get");
+
+    /// <summary>The Filters dialog of <paramref name="target"/></summary>
+    public FiltersViewModel FiltersFor(Target target)
+    {
+        var filters = new FiltersViewModel(_engine, target);
+        filters.SavedRules += () => FiltersSaved?.Invoke(target);
+        return filters;
+    }
+
     public AddSourceViewModel Add { get; }
 
     public ImportViewModel Import { get; }

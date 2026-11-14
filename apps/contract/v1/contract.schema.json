@@ -54,6 +54,8 @@
             "bad_entry",
             "not_found",
             "io_error",
+            "proxy_unreachable",
+            "user_agent_unconfirmed",
             "internal"
           ]
         },
@@ -371,6 +373,10 @@
           "description": "If the config has Youpdated; null while locked or without config",
           "enum": ["watching", "declined", "absent", null]
         },
+        "named_user_agent": {
+          "description": "`user_agent: youpdated` on an encrypted, proxied setup. Missing from older engines",
+          "enum": ["unconfirmed", "confirmed", null]
+        },
         "counts": {
           "description": "null while locked or without config",
           "oneOf": [
@@ -625,6 +631,51 @@
     },
     "settings.set.reply": { "$ref": "#/$defs/settings.get.reply" },
 
+    "Privacy": {
+      "description": "The config's `settings.privacy`. The apps can only change `proxy` and `fast_mode`",
+      "type": "object",
+      "required": ["proxy", "fast_mode", "user_agent", "jitter", "concurrency", "timeout"],
+      "additionalProperties": false,
+      "properties": {
+        "proxy": { "type": ["string", "null"], "description": "Every request goes through it, or null for none" },
+        "fast_mode": { "type": "boolean" },
+        "user_agent": { "type": "string", "description": "`rotate`, `youpdated`, or a fixed user agent" },
+        "jitter": {
+          "description": "Random gap between requests to one site, [min, max] seconds",
+          "type": "array",
+          "items": { "type": "number", "minimum": 0 },
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "concurrency": { "type": "integer", "minimum": 1 },
+        "timeout": { "type": "number", "exclusiveMinimum": 0 }
+      }
+    },
+
+    "privacy.get.request": { "type": "object", "additionalProperties": false },
+    "privacy.get.reply": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["privacy"],
+      "properties": { "privacy": { "$ref": "#/$defs/Privacy" } }
+    },
+
+    "privacy.set.request": {
+      "description": "Writes the config, keeping comments. A new proxy is tested and isn't saved if `proxy_unreachable`. A change that leaves `user_agent: youpdated` on an encrypted, proxied setup fails with `user_agent_unconfirmed` unless `confirm_user_agent`",
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "proxy": { "type": ["string", "null"], "description": "URL (socks5://127.0.0.1:9050), or null" },
+        "fast_mode": { "type": "boolean" },
+        "confirm_user_agent": {
+          "type": "boolean",
+          "description": "The user agreed to send `user_agent: youpdated` on an encrypted, proxied setup."
+        }
+      }
+    },
+    "privacy.set.reply": { "$ref": "#/$defs/privacy.get.reply" },
+
     "priority.set.request": {
       "type": "object",
       "additionalProperties": false,
@@ -640,6 +691,116 @@
       "additionalProperties": false,
       "required": ["priority"],
       "properties": { "priority": { "$ref": "#/$defs/Priority" } }
+    },
+
+    "Bump": {
+      "description": "`any` reports every version; otherwise only the one that raises their number",
+      "enum": ["any", "patch", "minor", "major"]
+    },
+    "Filters": {
+      "description": "The rules a config entry runs under: its own, over its source",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["match", "skip_prereleases", "skip_prereleases_inherited", "bump", "min", "editable", "reason"],
+      "properties": {
+        "match": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Globs; only versions one of them fits are kept. Empty keeps all"
+        },
+        "skip_prereleases": { "type": "boolean" },
+        "skip_prereleases_inherited": {
+          "type": "boolean",
+          "description": "The config skips them for every entry of the source"
+        },
+        "bump": { "$ref": "#/$defs/Bump" },
+        "min": { "type": ["string", "null"], "description": "Nothing below this version" },
+        "editable": { "type": "boolean" },
+        "reason": { "type": ["string", "null"], "description": "Why `filters.set` would refuse" }
+      }
+    },
+    "filters.get.request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "key"],
+      "properties": {
+        "source": { "type": "string" },
+        "key": { "type": "string" }
+      }
+    },
+    "filters.get.reply": { "$ref": "#/$defs/Filters" },
+
+    "filters.set.request": {
+      "description": "Every rule. The engine writes the entry only what differs from its source's rules",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "key", "match", "skip_prereleases", "bump"],
+      "properties": {
+        "source": { "type": "string" },
+        "key": { "type": "string" },
+        "match": { "type": "array", "items": { "type": "string" } },
+        "skip_prereleases": { "type": "boolean" },
+        "bump": { "$ref": "#/$defs/Bump" },
+        "min": { "type": ["string", "null"], "default": null }
+      }
+    },
+    "filters.set.reply": { "$ref": "#/$defs/Filters" },
+
+    "filters.preview.request": {
+      "description": "What rules would keep of currently listed versions. Fetches, then answers from memory for ten minutes",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "key"],
+      "properties": {
+        "source": { "type": "string" },
+        "key": { "type": "string" },
+        "match": { "type": "array", "items": { "type": "string" }, "default": [] },
+        "skip_prereleases": { "type": "boolean", "default": false },
+        "bump": {
+          "$ref": "#/$defs/Bump",
+          "default": "any",
+          "description": "Compared with listed versions only"
+        },
+        "min": { "type": ["string", "null"], "default": null },
+        "refresh": { "type": "boolean", "default": false, "description": "Fetch again" }
+      }
+    },
+    "filters.preview.reply": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["versions", "kept", "patterns", "fetch_error"],
+      "properties": {
+        "versions": {
+          "description": "Newest first, at most 30",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["version", "prerelease", "kept"],
+            "properties": {
+              "version": { "type": "string" },
+              "prerelease": { "type": "boolean" },
+              "kept": { "type": "boolean" }
+            }
+          }
+        },
+        "kept": { "type": "integer", "minimum": 0, "description": "How many of `versions` are kept" },
+        "patterns": {
+          "description": "Globs to offer for `match`, each fitting some of `versions`",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["pattern", "label", "count"],
+            "properties": {
+              "pattern": { "type": "string" },
+              "label": { "type": "string", "description": "The pattern for the user" },
+              "count": { "type": "integer", "minimum": 1 }
+            }
+          }
+        },
+        "fetch_error": { "type": ["string", "null"], "description": "Why the fetch failed" }
+      }
     },
 
     "icon.get.request": {

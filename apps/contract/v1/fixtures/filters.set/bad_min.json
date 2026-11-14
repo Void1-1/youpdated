@@ -1,0 +1,22 @@
+{
+  "description": "A version the engine can't read",
+  "request": {
+    "id": 43,
+    "op": "filters.set",
+    "source": "pypi",
+    "key": "django",
+    "match": [],
+    "skip_prereleases": false,
+    "bump": "any",
+    "min": "latest"
+  },
+  "events": [],
+  "reply": {
+    "id": 43,
+    "ok": false,
+    "error": {
+      "code": "bad_request",
+      "message": "`filters.min` must be a version number like 2, \"3.13\", or \"1.4.2\""
+    }
+  }
+}

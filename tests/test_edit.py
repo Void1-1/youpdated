@@ -12,7 +12,14 @@ import yaml
 from youpdated import crypto
 from youpdated.cli import main
 from youpdated.config import EXAMPLE_CONFIG, ConfigError, load_config, parse_config
-from youpdated.edit import add_to_config, guess_source, remove_from_config, yaml_scalar
+from youpdated.edit import (
+    add_to_config,
+    guess_source,
+    move_to_settings,
+    remove_from_config,
+    set_privacy,
+    yaml_scalar,
+)
 from youpdated.models import Update
 from youpdated.registry import all_sources
 from youpdated.state import State
@@ -175,9 +182,9 @@ def test_a_flow_list_stays_a_flow_list():
 
 
 def test_a_file_without_sources_gets_them_at_the_end():
-    text = "privacy:\n  concurrency: 2\n"
+    text = "settings:\n  editor: vim\n"
     assert add(text, "npm", "express") == (
-        "privacy:\n  concurrency: 2\n\nsources:\n  npm:\n    - express\n"
+        "settings:\n  editor: vim\n\nsources:\n  npm:\n    - express\n"
     )
 
 
@@ -605,3 +612,190 @@ def test_remove_wipe_on_an_encrypted_state_keeps_it_encrypted(config, tmp_path, 
     assert crypto.is_encrypted_file(state)
     assert not crypto.is_encrypted_file(config), "a plain config stays plain"
     assert ("steam", "440") not in _rows(state, PASSPHRASE)[0]
+
+
+# moving settings under `settings:`
+
+
+OLD_LAYOUT = """\
+# header
+
+privacy:
+  # every request through Tor
+  proxy: socks5://127.0.0.1:9050
+  timeout: 20
+
+ignore:
+  '*': [prerelease]
+
+# forget sooner
+expiry: 30d
+track_latest: true   # one more request
+editor: code
+
+sources:
+  npm: [express]
+"""
+
+
+def test_settings_move_with_their_comments_and_spacing():
+    text, moved = move_to_settings(OLD_LAYOUT)
+    assert moved == ["privacy", "expiry", "track_latest", "editor"]
+    assert text == """\
+# header
+
+settings:
+  privacy:
+    # every request through Tor
+    proxy: socks5://127.0.0.1:9050
+    timeout: 20
+
+  # forget sooner
+  expiry: 30d
+  track_latest: true   # one more request
+  editor: code
+
+ignore:
+  '*': [prerelease]
+
+sources:
+  npm: [express]
+"""
+    config = parse_config(yaml.safe_load(text))
+    assert config.warnings == []
+    assert config.privacy.proxy == "socks5://127.0.0.1:9050"
+
+
+def test_settings_join_an_existing_section_at_its_indent():
+    text = "settings:\n    expiry: 30d\nnotify:\n  command: echo\nsources:\n  npm: [x]\n"
+    assert move_to_settings(text) == (
+        "settings:\n    expiry: 30d\n    notify:\n      command: echo\nsources:\n  npm: [x]\n",
+        ["notify"],
+    )
+
+
+@pytest.mark.parametrize("empty", ["settings:", "settings: {}", "settings: ~  # later"])
+def test_settings_fill_an_empty_section(empty):
+    text = f"editor: vim\nsources:\n  npm: [x]\n{empty}\n"
+    moved, _ = move_to_settings(text)
+    assert yaml.safe_load(moved) == {"settings": {"editor": "vim"}, "sources": {"npm": ["x"]}}
+
+
+def test_a_setting_at_the_end_leaves_no_trailing_gap():
+    text = "sources:\n  npm: [x]\n\neditor: vim\n"
+    assert move_to_settings(text)[0] == "sources:\n  npm: [x]\n\nsettings:\n  editor: vim\n"
+
+
+def test_moving_keeps_windows_line_ends():
+    assert move_to_settings("editor: vim\r\nsources: {npm: [x]}\r\n") == (
+        "settings:\r\n  editor: vim\r\nsources: {npm: [x]}\r\n",
+        ["editor"],
+    )
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "sources:\n  npm: [x]\n",                                      # nothing to move
+        "settings:\n  editor: a\neditor: b\nsources: {npm: [x]}\n",   # in both: the user picks
+        "settings: {expiry: 1y}\neditor: b\n",                        # not a block to add to
+        "editor: vim\nsources: [\n",                                  # broken YAML
+        "{editor: vim, sources: {npm: [x]}}\n",                       # a flow mapping
+        "editor: &e vim\nsources:\n  npm: [*e]\nsettings: {}\n",      # an alias before its anchor
+    ],
+)
+def test_settings_are_left_alone_when_they_cannot_move_safely(text):
+    assert move_to_settings(text) == (text, [])
+
+
+# privacy options, from the app Settings
+
+TOR = "socks5://127.0.0.1:9050"
+
+
+def privacy_of(text: str) -> dict:
+    return vars(parse_config(yaml.safe_load(text), allow_empty=True).privacy)
+
+
+def test_set_privacy_uncomments_the_example_configs_options():
+    text = set_privacy(EXAMPLE_CONFIG, {"proxy": TOR, "fast_mode": True})
+    assert f"    proxy: {TOR}\n" in text and "    fast_mode: true\n" in text
+    assert "# proxy:" not in text and "# fast_mode:" not in text
+    assert privacy_of(text)["proxy"] == TOR and privacy_of(text)["fast_mode"] is True
+    # every comment survives
+    comments = [line for line in EXAMPLE_CONFIG.splitlines() if line.strip().startswith("#")]
+    assert len([line for line in text.splitlines() if line.strip().startswith("#")]) == len(comments) - 2
+
+
+def test_set_privacy_off_comments_out_and_round_trips():
+    on = set_privacy(EXAMPLE_CONFIG, {"proxy": TOR, "fast_mode": True})
+    off = set_privacy(on, {"proxy": None, "fast_mode": None})
+    assert f"    # proxy: {TOR}\n" in off and "    # fast_mode: true\n" in off
+    assert privacy_of(off)["proxy"] is None and privacy_of(off)["fast_mode"] is False
+    # turning it back on uses the commented line and doesnt add another
+    again = set_privacy(off, {"proxy": "socks5://10.0.0.2:9150"})
+    assert again.count("proxy:") == 1 and "proxy: socks5://10.0.0.2:9150" in again
+
+
+def test_set_privacy_changes_a_value_in_place_keeping_its_comment():
+    text = "settings:\n  privacy:\n    proxy: socks5://a:1  # mine\n    jitter: [0, 1]\nsources:\n  git: [a/b]\n"
+    assert set_privacy(text, {"proxy": TOR}) == text.replace("socks5://a:1", TOR)
+
+
+def test_set_privacy_edits_a_top_level_privacy_where_it_is():
+    """not moved, so an older CLI reading the same config keeps its proxy"""
+    text = "privacy:\n  jitter: [0, 1]\nsources:\n  git: [a/b]\n"
+    edited = set_privacy(text, {"proxy": TOR})
+    assert edited == f"privacy:\n  jitter: [0, 1]\n  proxy: {TOR}\nsources:\n  git: [a/b]\n"
+
+
+@pytest.mark.parametrize(
+    "text, expected",
+    [
+        (
+            "# header\n\n# about sources\nsources:\n  git: [a/b]\n",
+            f"# header\n\nsettings:\n  privacy:\n    proxy: {TOR}\n\n# about sources\nsources:\n  git: [a/b]\n",
+        ),
+        ("settings:\nsources: {}\n", f"settings:\n  privacy:\n    proxy: {TOR}\nsources: {{}}\n"),
+        (
+            "settings:\n  expiry: 1y\nsources: {}\n",
+            f"settings:\n  privacy:\n    proxy: {TOR}\n  expiry: 1y\nsources: {{}}\n",
+        ),
+        ("settings:\n  privacy:\nsources: {}\n", f"settings:\n  privacy:\n    proxy: {TOR}\nsources: {{}}\n"),
+        ("", f"settings:\n  privacy:\n    proxy: {TOR}\n"),
+    ],
+    ids=["no settings", "empty settings", "other settings", "empty privacy", "empty file"],
+)
+def test_set_privacy_adds_what_is_missing(text, expected):
+    assert set_privacy(text, {"proxy": TOR}) == expected
+
+
+def test_set_privacy_turning_off_what_is_not_set_changes_nothing():
+    text = "sources:\n  git: [a/b]\n"
+    assert set_privacy(text, {"proxy": None, "fast_mode": None}) == text
+
+
+def test_set_privacy_keeps_crlf_line_ends():
+    text = "settings:\r\n  privacy:\r\n    jitter: [0, 1]\r\nsources: {}\r\n"
+    assert set_privacy(text, {"fast_mode": True}) == (
+        "settings:\r\n  privacy:\r\n    jitter: [0, 1]\r\n    fast_mode: true\r\nsources: {}\r\n"
+    )
+
+
+def test_set_privacy_quotes_a_proxy_that_needs_it():
+    text = set_privacy("sources: {}\n", {"proxy": "http://user:p#ss@host:8080"})
+    assert privacy_of(text)["proxy"] == "http://user:p#ss@host:8080"
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "settings: {privacy: {jitter: [0, 1]}}\nsources: {}\n",
+        "privacy: {jitter: [0, 1]}\nsources: {}\n",
+        "settings:\n  privacy:\n    proxy: >-\n      socks5://a:1\nsources: {}\n",
+    ],
+    ids=["flow settings", "flow privacy", "folded value"],
+)
+def test_set_privacy_refuses_what_it_cannot_edit_safely(text):
+    with pytest.raises(ConfigError, match="by hand: proxy: socks5"):
+        set_privacy(text, {"proxy": TOR})

@@ -19,7 +19,7 @@ Youpdated is a local CLI that reads public endpoints. The interesting attack sur
   that turns that content into code execution, a path outside the config/data directories, or a
   request to an unintended host is in scope. That includes `notify.command`: update fields reach
   it only as separate arguments, environment variables, and stdin, never through a shell.
-- **Privacy leaks.** Youpdated promises that when `privacy.proxy` is set, *every* request goes
+- **Privacy leaks.** Youpdated promises that when `settings.privacy.proxy` is set, *every* request goes
   through it, and that nothing is sent anywhere except the configured sources and notification
   webhooks. A path that bypasses
   the proxy, leaks the config or history off the machine, or attaches identifying data to requests

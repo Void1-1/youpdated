@@ -41,6 +41,8 @@ Used for the desktop apps and `youpdated api serve` to communicate. [contract.sc
 | `bad_entry` | The source rejects the entry |
 | `not_found` | Nothing matches the request |
 | `io_error` | A file couldn't be read or written |
+| `proxy_unreachable` | `privacy.set` couldn't connect to the proxy; nothing was saved |
+| `user_agent_unconfirmed` | `user_agent: youpdated` on an encrypted, proxied setup isn't confirmed yet. `check`, `targets.preview`, and `digest.send` sent nothing; `privacy.set` saved nothing |
 | `internal` | Bugs. `message` keeps the exception |
 
 `message` is plain English for the user. A client treats a code it doesn't know as a generic failure.
@@ -54,6 +56,7 @@ Used for the desktop apps and `youpdated api serve` to communicate. [contract.sc
 - **Timestamps:** UTC and whole seconds (`2026-10-29T08:00:06Z`)
 - **Item ids** are opaque and stable for as long as the item is in the inbox.
 - **Baselines.** A target's first check records what exists without notification (as normal in cli). Its newest item goes into the inbox with `read: true` and `baseline: true`. After `targets.add`, the app checks the new `targets` with `check {"targets": [...]}`.
+- **Filters** are an entry's `ignore: [prerelease]` and `versions:` rules. `filters.get` and `filters.set` give the rules the entry runs under. `filters.set` takes every rule and writes the entry only what differs. After, the app checks the target. `filters.preview` fetches what the source lists currently, so the app doesn't have to match patterns itself, and keeps it for ten minutes.
 - **Alerts** are OS notifications the engine wants posted
   - High priority: one alert per target.
   - Normal: one combined alert per check. While a digest time is set there's none, and the items are `held` until `digest.send`. Turning the digest off sends what it held with the next check, in its `items` and `alerts`.
@@ -62,6 +65,8 @@ Used for the desktop apps and `youpdated api serve` to communicate. [contract.sc
   - The same rules filter the config's `notify:` webhooks and commands.
 - **`last_run_by`** is `app` for a check through `api`, and `cli` for `youpdated check`. When it says `cli`, a scheduled job is probably also checking, and the app shows a one-time notice (`cli_notice_shown`).
 - **Snapshot privacy.** When the history is encrypted, `snapshot.write` writes only the unread count and the last check time (`redacted: true`). [snapshot.schema.json](snapshot.schema.json)
+- **Privacy.** `privacy.get` reads the config's `settings.privacy` with defaults filled in. `privacy.set` changes `proxy` and `fast_mode` only. It edits the config text in place, an option set to off is commented out.
+- **Youpdated user agent.** `user_agent: youpdated` identifies its traffic, so like the CLI, the engine sends nothing until it's confirmed when both encryption and a proxy are enabled. `status.named_user_agent` is `unconfirmed` until then. The answer is kept and shared with the CLI.
 - **Icons** are off unless `show_icons` is set.
   - After replying, a check fetches icons for a few targets without one. After enabling, icons arrive over a check or two. Each is refreshed monthly.
   - `icon` events tell each target whose icon arrived

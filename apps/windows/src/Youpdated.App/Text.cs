@@ -85,5 +85,37 @@ internal static class Text
     public static string Source(string source) =>
         source == Core.Platform.NotificationRequest.MixedGroup ? Get("SourceMixed") : Label(source, null);
 
+    /// <summary>"4 of the last 20 versions fit: 1.2.0, 1.1.0"</summary>
+    public static string Fits(FiltersViewModel filters)
+    {
+        if (filters.Preview is not { } preview)
+        {
+            return filters.LoadError is null ? Get("FiltersListing") : "";
+        }
+        if (preview.FetchError is { } error)
+        {
+            return Format("FiltersFetchFailed", error);
+        }
+        if (filters.LimitsNothing)
+        {
+            return Get("FiltersLimitsNothing");
+        }
+        var total = preview.Versions.Count;
+        if (total == 0)
+        {
+            return Get("FiltersNoVersions");
+        }
+        if (preview.Kept == 0)
+        {
+            return Format("FiltersFitNone", total);
+        }
+        if (preview.Kept == total)
+        {
+            return Format("FiltersFitAll", total);
+        }
+        var names = string.Join(", ", preview.Versions.Where(version => version.Kept).Take(3).Select(version => version.Version));
+        return Format("FiltersFitSome", preview.Kept, total, names);
+    }
+
     public static string Interval(int hours) => hours == 1 ? Get("EveryHour") : Format("EveryHours", hours);
 }

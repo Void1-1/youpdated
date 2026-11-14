@@ -26,6 +26,8 @@ public class ContractTests
         ["import.apply"] = ContractJson.Default.ImportApplyReply,
         ["settings.get"] = ContractJson.Default.SettingsReply,
         ["settings.set"] = ContractJson.Default.SettingsReply,
+        ["privacy.get"] = ContractJson.Default.PrivacyReply,
+        ["privacy.set"] = ContractJson.Default.PrivacyReply,
         ["priority.set"] = ContractJson.Default.PriorityReply,
         ["problems.list"] = ContractJson.Default.ProblemsListReply,
         ["digest.send"] = ContractJson.Default.DigestReply,
@@ -33,6 +35,9 @@ public class ContractTests
         ["config.init"] = ContractJson.Default.ConfigInitReply,
         ["shutdown"] = ContractJson.Default.EmptyReply,
         ["icon.get"] = ContractJson.Default.IconReply,
+        ["filters.get"] = ContractJson.Default.Filters,
+        ["filters.set"] = ContractJson.Default.Filters,
+        ["filters.preview"] = ContractJson.Default.FiltersPreview,
     };
 
     [Fact]
@@ -171,6 +176,9 @@ public class ContractTests
         ["import.apply/ok"] = client => client.ImportApplyAsync(new ImportSource.File("/Users/me/project/package.json")),
         ["settings.get/ok"] = client => client.SettingsGetAsync(),
         ["settings.set/ok"] = client => client.SettingsSetAsync(new SettingsPatch().Digest(new TimeOnly(18, 0))),
+        ["privacy.get/ok"] = client => client.PrivacyGetAsync(),
+        ["privacy.set/tor"] = client => client.PrivacySetAsync(new PrivacyPatch().Proxy("socks5://127.0.0.1:9050")),
+        ["privacy.set/off"] = client => client.PrivacySetAsync(new PrivacyPatch().Proxy(null).FastMode(false)),
         ["priority.set/ok"] = client => client.PrioritySetAsync(new TargetKey("steam", "440"), Priority.High),
         ["problems.list/ok"] = client => client.ProblemsListAsync(),
         ["digest.send/ok"] = client => client.DigestSendAsync(),

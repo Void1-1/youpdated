@@ -429,10 +429,10 @@ def test_import_test_shows_the_change_and_writes_nothing(config, project, capsys
 
 def test_import_into_a_config_with_no_sources_yet(tmp_path, project):
     config = tmp_path / "youpdated.yaml"
-    config.write_text("privacy:\n  timeout: 10\n", encoding="utf-8")
+    config.write_text("settings:\n  editor: vim\n", encoding="utf-8")
     assert main(["import", "-c", str(config), str(project / "requirements.txt")]) == 0
     assert config.read_text(encoding="utf-8") == (
-        "privacy:\n  timeout: 10\n\nsources:\n  pypi:\n    - httpx\n    - rich\n"
+        "settings:\n  editor: vim\n\nsources:\n  pypi:\n    - httpx\n    - rich\n"
     )
 
 

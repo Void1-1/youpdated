@@ -16,7 +16,9 @@ public sealed record StatusReply(
     DateTimeOffset? LastRun,
     string? LastRunBy,
     string? SelfWatch,
-    Counts? Counts);
+    Counts? Counts,
+    // `user_agent: youpdated` on an encrypted, proxied setup
+    string? NamedUserAgent = null);
 
 public sealed record CheckReply(
     DateTimeOffset CheckedAt,
@@ -71,7 +73,33 @@ public sealed record ImportApplyReply(
 
 public sealed record SettingsReply(Settings Settings);
 
+public sealed record PrivacyReply(Privacy Privacy);
+
 public sealed record PriorityReply(Priority Priority);
+
+/// <summary>A followed item's rules: <c>filters.get</c> and <c>filters.set</c></summary>
+/// <param name="Match">Globs; empty keeps every version</param>
+/// <param name="SkipPrereleasesInherited">The config skips them for the source</param>
+/// <param name="Reason">Why it isn't editable</param>
+public sealed record Filters(
+    IReadOnlyList<string> Match,
+    bool SkipPrereleases,
+    bool SkipPrereleasesInherited,
+    Bump Bump,
+    string? Min,
+    bool Editable,
+    string? Reason);
+
+public sealed record FilterVersion(string Version, bool Prerelease, bool Kept);
+
+/// <summary>A glob to offer</summary>
+public sealed record FilterPattern(string Pattern, string Label, int Count);
+
+public sealed record FiltersPreview(
+    IReadOnlyList<FilterVersion> Versions,
+    int Kept,
+    IReadOnlyList<FilterPattern> Patterns,
+    string? FetchError);
 
 public sealed record ProblemsListReply(IReadOnlyList<Problem> Problems, DateTimeOffset? CheckedAt);
 

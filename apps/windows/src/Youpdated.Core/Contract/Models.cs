@@ -12,6 +12,16 @@ public enum Priority
     [JsonStringEnumMemberName("low")] Low,
 }
 
+/// <summary><c>versions: {bump:}</c>: <c>any</c> reports every version, else the related number</summary>
+[JsonConverter(typeof(JsonStringEnumConverter<Bump>))]
+public enum Bump
+{
+    [JsonStringEnumMemberName("any")] Any,
+    [JsonStringEnumMemberName("patch")] Patch,
+    [JsonStringEnumMemberName("minor")] Minor,
+    [JsonStringEnumMemberName("major")] Major,
+}
+
 public sealed record TargetKey(string Source, string Key);
 
 public sealed record TargetRef(string Source, string Key, string Display)
@@ -105,6 +115,15 @@ public sealed record Settings(
         DigestTime is { } text && TimeOnly.TryParseExact(text, "HH:mm", out var time) ? time : null;
 }
 
+/// <summary>The config's <c>settings.privacy</c></summary>
+public sealed record Privacy(
+    string? Proxy,
+    bool FastMode,
+    string UserAgent,
+    IReadOnlyList<double> Jitter,
+    int Concurrency,
+    double Timeout);
+
 public sealed record Encrypted(bool Config, bool History)
 {
     public bool Any => Config || History;
@@ -142,7 +161,16 @@ public static class ErrorCodes
     public const string BadEntry = "bad_entry";
     public const string NotFound = "not_found";
     public const string IoError = "io_error";
+    public const string ProxyUnreachable = "proxy_unreachable";
+    public const string UserAgentUnconfirmed = "user_agent_unconfirmed";
     public const string Internal = "internal";
+}
+
+/// <summary><c>status.named_user_agent</c>: <c>user_agent: youpdated</c> on an encrypted, proxied setup</summary>
+public static class NamedUserAgent
+{
+    public const string Unconfirmed = "unconfirmed";
+    public const string Confirmed = "confirmed";
 }
 
 public static class SelfWatch

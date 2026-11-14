@@ -21,7 +21,7 @@
 | `Encryption error: ... no terminal to ask on` | A cron or piped run can't prompt. Set `YOUPDATED_PASSPHRASE`. |
 | `encryption needs the cryptography package` | `pipx install 'youpdated[encryption]'` (or `pip install`). |
 | `... is not encrypted, but a passphrase was given` | A half-converted setup. Re-run `youpdated encrypt` to finish it. |
-| `Proxy error: cannot reach the proxy at ...` | `privacy.proxy` is set but nothing is listening. Start Tor (or your proxy), or remove the line. Nothing was fetched or recorded. |
+| `Proxy error: cannot reach the proxy at ...` | `settings.privacy.proxy` is set but nothing is listening. Start Tor (or your proxy), or remove the line. Nothing was fetched or recorded. |
 | Every source fails with `ProtocolError: Malformed reply` | Something is listening on the proxy port but isn't a SOCKS5 proxy. Check the port and scheme. |
 
 To start over, delete the history database (the path is [findable here](configuration.md#where-is-the-config)); your config isn't affected.

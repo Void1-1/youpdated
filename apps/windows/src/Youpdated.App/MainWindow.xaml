@@ -68,6 +68,11 @@
         <ProgressBar x:Name="CheckProgress" Grid.Row="1" Visibility="Collapsed" />
 
         <StackPanel Grid.Row="2" Padding="16,0,16,0" Spacing="4">
+            <InfoBar x:Name="UserAgentBar" x:Uid="UserAgentBar" Severity="Warning" IsOpen="False" IsClosable="False">
+                <InfoBar.ActionButton>
+                    <Button x:Uid="UserAgentConfirm" Click="OnConfirmUserAgent" />
+                </InfoBar.ActionButton>
+            </InfoBar>
             <InfoBar x:Name="CliBar" x:Uid="CliNoticeBar" Severity="Warning" IsOpen="False" Closed="OnCliBarClosed">
                 <InfoBar.ActionButton>
                     <HyperlinkButton x:Uid="CliNoticeLink" NavigateUri="https://github.com/Void1-1/youpdated/blob/main/docs/usage.md" />

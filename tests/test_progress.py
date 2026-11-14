@@ -8,6 +8,7 @@ import signal
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
+from typing import IO, cast
 
 import httpx
 import pytest
@@ -494,7 +495,7 @@ def _live_on(terminal: _Terminal):
     from youpdated.cli import _LiveProgress
 
     console = Console(
-        file=terminal,
+        file=cast(IO[str], terminal),  # a TextIOBase, which typeshed doesn't count as IO[str]
         width=terminal.width,
         height=40,
         force_terminal=True,
@@ -561,6 +562,7 @@ def test_live_progress_hides_while_the_window_is_resized():
             live._progress.refresh()
             assert terminal.screen() == ["$ youpdated"]
 
+        assert live._render is not None
         live._render._hidden_until = 0  # the window stopped changing size
         live._progress.refresh()
         assert len(terminal.screen()) == 2

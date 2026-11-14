@@ -243,7 +243,9 @@ before `targets()` ever sees it, and applied to whatever you return.
 title repeats it. Pass it as upstream writes it (`v3.15.0rc1`, `1.25.0_2`);
 only its numbers are compared. Leave it `None` on items that aren't versions,
 such as posts and commits, which the rules never filter. Like `ignore`,
-`versions` is lifted off the config entry before `targets()` sees it.
+`versions` is lifted off the config entry before `targets()` sees it. A
+`match:` pattern is compared with the whole of `version`, which is another
+reason to pass it as upstream writes it.
 Tag prereleases `prerelease`: `bump` counts only the first one toward a
 version, and an untagged version counts as a final release.
 

@@ -11,10 +11,11 @@ from youpdated.http import Client, FetchError, ProxyUnavailable, probe_proxy
 from youpdated.runner import RunResult
 
 CONFIG = """\
-privacy:
-  proxy: socks5://127.0.0.1:{port}
-  jitter: [0, 0]
-  timeout: 2
+settings:
+  privacy:
+    proxy: socks5://127.0.0.1:{port}
+    jitter: [0, 0]
+    timeout: 2
 sources:
   feed:
     - https://example.com/feed.xml
@@ -184,7 +185,7 @@ def test_test_mode_reports_a_dead_proxy_without_aborting(tmp_path, closed_port, 
 def test_no_proxy_configured_skips_the_probe(tmp_path, monkeypatch):
     config = tmp_path / "youpdated.yaml"
     config.write_text(
-        "privacy:\n  jitter: [0, 0]\nsources:\n  feed:\n    - https://example.com/feed.xml\n",
+        "settings:\n  privacy:\n    jitter: [0, 0]\nsources:\n  feed:\n    - https://example.com/feed.xml\n",
         encoding="utf-8",
     )
     monkeypatch.setattr("youpdated.cli.run", lambda *a, **k: RunResult())

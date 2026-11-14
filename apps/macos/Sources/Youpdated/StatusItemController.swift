@@ -89,6 +89,9 @@ final class StatusItemController: NSObject, NSMenuDelegate, NSWindowDelegate {
         if model.needsPassphrase || model.status?.locked == true {
             return String(localized: "Locked: enter the passphrase to check")
         }
+        if model.needsUserAgentConfirmation {
+            return String(localized: "Checks paused for a confirmation")
+        }
         if model.isChecking, let progress = model.progress, progress.of > 0 {
             return String(localized: "Checking… \(progress.done) of \(progress.of)")
         }

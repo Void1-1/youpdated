@@ -47,15 +47,17 @@ def test_track_latest_is_off_unless_set():
 
 
 def test_track_latest_reaches_every_target():
-    config = parse_config({"sources": {"npm": ["x"], "git": ["a/b"]}, "track_latest": True})
+    config = parse_config(
+        {"sources": {"npm": ["x"], "git": ["a/b"]}, "settings": {"track_latest": True}}
+    )
     targets, _ = build_targets(config)
     assert [t.track_latest for t in targets] == [True, True]
 
 
 @pytest.mark.parametrize("value", ["yes", 1, None, ["git"]])
 def test_track_latest_must_be_a_boolean(value):
-    with pytest.raises(ConfigError, match="`track_latest` must be true or false"):
-        parse_config({"sources": {"npm": ["x"]}, "track_latest": value})
+    with pytest.raises(ConfigError, match="`settings.track_latest` must be true or false"):
+        parse_config({"sources": {"npm": ["x"]}, "settings": {"track_latest": value}})
 
 
 # redirects

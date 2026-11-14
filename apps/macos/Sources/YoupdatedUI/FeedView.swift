@@ -452,7 +452,7 @@ struct PriorityChoices: View {
     }
 }
 
-/// Open, Mark read/unread, Priority, Snooze, Copy link, Show in Following, Stop following
+/// Open, Mark read/unread, Priority, Filters, Snooze, Copy link, Show in Following, Stop following
 struct CardMenu: View {
     let card: FeedCard
     @Environment(AppModel.self) private var model
@@ -467,6 +467,10 @@ struct CardMenu: View {
             PriorityChoices(selection: card.priority) { new in
                 Task { await model.inbox.setPriority(new, for: card.target.targetKey) }
             }
+        }
+        if model.sources.canFilter,
+           let target = model.sources.targets.first(where: { $0.id == card.target.targetKey }) {
+            Button(String(localized: "Filters…")) { window.filtering = target }
         }
         Button(String(localized: "Snooze 1 Hour")) { Task { await model.feed.snooze(card) } }
         Divider()

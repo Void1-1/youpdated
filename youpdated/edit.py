@@ -16,11 +16,11 @@ from typing import Any, Callable, Generator, Sequence
 import yaml
 
 from . import crypto
-from .config import ConfigError, PrivacyConfig
+from .config import SETTINGS_KEYS, ConfigError, PrivacyConfig
 from .http import Client
 from .models import Target
 from .registry import all_aliases, all_sources, canonical_name
-from .sources.base import Source
+from .sources.base import Source, scalar_key
 from .state import State
 
 _NULL_TAG = "tag:yaml.org,2002:null"
@@ -30,6 +30,8 @@ _STEP = 2
 _CONTEXTS = ("- {}", "[{}]", "{}: x")
 # a value removed by key, which equals no config entry
 _NO_ENTRY = object()
+# An entry's keys the source never sees, see runner._split_entry_rules
+RULE_KEYS = ("ignore", "versions")
 
 
 class _Unsupported(Exception):
@@ -95,7 +97,124 @@ def tidy_config(text: str) -> tuple[str, list[str]]:
         where = "line" if len(lines) == 1 else "lines"
         fixes.append(f"{where} {', '.join(map(str, lines))}: no-break or invisible spaces")
     text = _quote_bare(text, fixes)
-    return _straighten(text, fixes), fixes
+    text = _straighten(text, fixes)
+    text, moved = move_to_settings(text)
+    if moved:
+        fixes.append(f"top-level {_named(moved)} --> under `settings:`")
+    return text, fixes
+
+
+def _named(keys: list[str]) -> str:
+    return ", ".join(f"`{key}`" for key in keys)
+
+
+def move_to_settings(text: str) -> tuple[str, list[str]]:
+    """``text`` with any settings still at the top level moved under `settings:`"""
+    body = text.replace("\r\n", "\n")
+    try:
+        root = yaml.compose(body, Loader=yaml.SafeLoader)
+        data = yaml.safe_load(body)
+    except yaml.YAMLError:
+        return text, []
+    if not isinstance(root, yaml.MappingNode) or root.flow_style or not isinstance(data, dict):
+        return text, []
+    try:
+        moved = _move_settings(body, root, data)
+    except _Unsupported:
+        return text, []
+    if moved is None:
+        return text, []
+    return _line_ends(moved[0], text), moved[1]
+
+
+def _move_settings(
+    body: str, root: yaml.MappingNode, data: dict[Any, Any]
+) -> tuple[str, list[str]] | None:
+    section = data.get("settings")
+    already = set(section) if isinstance(section, dict) else set()
+    # (first row, last row, key) of each top-level setting
+    blocks: list[tuple[int, int, str]] = []
+    lines = body.split("\n")
+    col = root.start_mark.column
+    previous_end = -1
+    for key, value in root.value:
+        end = _last_line(value, lines)
+        if isinstance(key, yaml.ScalarNode) and key.value in SETTINGS_KEYS:
+            if key.value in already:
+                # config refuses a setting in both places; let the user pick
+                raise _Unsupported(f"`{key.value}` is also under `settings:`")
+            first = key.start_mark.line
+            while first - 1 > previous_end and _is_comment(lines[first - 1], col, col):
+                first -= 1
+            while end + 1 < len(lines) and _is_comment(lines[end + 1], col + 1, None):
+                end += 1
+            blocks.append((first, end, key.value))
+        previous_end = end
+    if not blocks:
+        return None
+
+    found = _pair(root, "settings")
+    if found is not None:
+        key, node = found
+        if _is_empty(node):
+            _clear(lines, key, node)
+            after, shift = key.start_mark.line, key.start_mark.column + _STEP - col
+        elif isinstance(node, yaml.MappingNode) and not node.flow_style:
+            after, shift = _last_line(node, lines), node.start_mark.column - col
+        else:
+            raise _Unsupported("`settings` is not written as an indented block")
+        header: list[str] = []
+        insert_at = None
+    else:
+        after, shift, header = None, _STEP, [" " * col + "settings:"]
+        insert_at = blocks[0][0]
+
+    moved: list[str] = []
+    for index, (first, last, _) in enumerate(blocks):
+        moved += [" " * shift + line if line.strip() else line for line in lines[first : last + 1]]
+        spaced = last + 1 < len(lines) and not lines[last + 1].strip()
+        if spaced and index < len(blocks) - 1:
+            moved.append("")
+
+    removed = {row for first, last, _ in blocks for row in range(first, last + 1)}
+    for first, last, _ in blocks:
+        if last + 1 in removed:  # not the end of a run of blocks
+            continue
+        run_start = first
+        while run_start - 1 in removed:
+            run_start -= 1
+        if insert_at is not None and run_start <= insert_at <= last:
+            continue  # replaced by `settings:`, not removed
+        gap_after = last + 1 < len(lines) and not lines[last + 1].strip()
+        gap_before = run_start == 0 or not lines[run_start - 1].strip()
+        if gap_after and gap_before:
+            removed.add(last + 1)
+
+    out: list[str] = []
+    for row, line in enumerate(lines):
+        if row == insert_at:
+            out += header + moved
+        if row not in removed:
+            out.append(line)
+        if row == after:
+            out += moved
+    edited = "\n".join(out)
+
+    names = [name for _, _, name in blocks]
+    expected = {k: v for k, v in data.items() if k not in names}
+    expected["settings"] = {**(section or {}), **{name: data[name] for name in names}}
+    _verify(edited, expected)
+    return edited, names
+
+
+def _is_comment(line: str, at_least: int, at_most: int | None) -> bool:
+    """``line`` is a comment indented ``at_least`` up to ``at_most`` columns"""
+    indent = len(line) - len(line.lstrip(" "))
+    return (
+        line.lstrip(" ").startswith("#")
+        and indent >= at_least
+        and (at_most is None or indent <= at_most)
+    )
 
 
 def _quote_bare(text: str, fixes: list[str]) -> str:
@@ -319,6 +438,69 @@ def remove_from_config(
     return change
 
 
+@dataclass
+class Watching:
+    """A config entry that watches a target"""
+
+    # `sources:` key it is listed under
+    section: str
+    index: int
+    entry: Any
+    # every target the entry watches
+    keys: set[str]
+
+
+def watching(text: str, source: str, key: str) -> list[Watching]:
+    """``source``'s entries in ``text`` that watch ``key``"""
+    return _watching(_parse(text, source), key)
+
+
+def _watching(parsed: _Parsed, key: str) -> list[Watching]:
+    return [
+        Watching(name, index, entry, keys)
+        for name in parsed.sections()
+        for index, entry in enumerate(parsed.listed[name])
+        if key in (keys := _keys(parsed.handler, entry))
+    ]
+
+
+def set_entry_rules(text: str, source: str, key: str, rules: dict[str, Any]) -> Change:
+    """``text`` with the entry watching ``key`` given ``rules``"""
+    parsed = _parse(text, source)
+    change = Change(text=text, section=parsed.source)
+    found = _watching(parsed, key)
+    if not found:
+        change.skipped.append(key)
+        return change
+    if len(found) > 1:
+        raise ConfigError(
+            f"{key} is listed {len(found)} times under `sources: {parsed.source}:`. "
+            "Edit its rules manually."
+        )
+    hit = found[0]
+    change.section = hit.section
+    by_hand = f"Edit the rules of {key} under `sources: {hit.section}:` manually."
+    with _explained(by_hand):
+        if isinstance(hit.entry, dict):
+            fields = dict(hit.entry)
+        else:
+            name = scalar_key(parsed.handler, hit.entry)
+            if name is None or _keys(parsed.handler, {name: hit.entry}) != hit.keys:
+                raise _Unsupported("its entry can't be written as a mapping")
+            fields = {name: hit.entry}
+        new = {k: v for k, v in fields.items() if k not in RULE_KEYS}
+        new.update({k: rules[k] for k in RULE_KEYS if rules.get(k)})
+        if new == fields or (not isinstance(hit.entry, dict) and len(new) == 1):
+            return change
+        expected = copy.deepcopy(parsed.data)
+        expected["sources"][hit.section][hit.index] = new
+        edited = _rewrite(parsed.body, hit, new)
+        _verify(edited, expected)
+    change.applied.append(key)
+    change.text = _line_ends(edited, text)
+    return change
+
+
 def requested_urls(source: Source | None, targets: list[Target], state: State) -> set[str]:
     """URLs ``targets`` ask for"""
     if source is None:
@@ -351,6 +533,169 @@ def write_config(path: Path, text: str, passphrase: str | None = None) -> None:
             raise
     except OSError as exc:
         raise ConfigError(f"cannot write {target}: {exc}") from exc
+
+# privacy options
+
+# what the apps Settings can change
+PRIVACY_EDITABLE = ("proxy", "fast_mode")
+
+
+def set_privacy(text: str, changes: dict[str, Any]) -> str:
+    """``text`` with privacy options set, or commented out where ``None``"""
+    unknown = set(changes) - set(PRIVACY_EDITABLE)
+    if unknown:
+        raise ValueError(f"not editable here: {', '.join(sorted(unknown))}")
+    body = text.replace("\r\n", "\n")
+    by_hand = "Set it under `settings: privacy:` by hand: " + ", ".join(
+        f"{name}: {_privacy_value(value)}" if value is not None else f"remove {name}"
+        for name, value in changes.items()
+    )
+    with _explained(by_hand):
+        try:
+            data = yaml.safe_load(body)
+        except yaml.YAMLError as exc:
+            raise _Unsupported("it doesn't parse") from exc
+        for name, value in changes.items():
+            body = _set_privacy_option(body, name, value)
+        _verify_privacy(body, data, changes)
+    return _line_ends(body, text)
+
+
+def _privacy_value(value: Any) -> str:
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    return yaml_scalar(str(value))
+
+
+def _privacy_node(root: yaml.MappingNode) -> tuple[yaml.Node, yaml.Node] | None:
+    """`privacy:`'s key and value, at the top level or under `settings:`"""
+    found = _pair(root, "privacy")
+    if found is not None:
+        return found
+    settings = _pair(root, "settings")
+    if settings is None or not isinstance(settings[1], yaml.MappingNode) or settings[1].flow_style:
+        return None
+    return _pair(settings[1], "privacy")
+
+
+def _set_privacy_option(body: str, name: str, value: Any) -> str:
+    lines = body.split("\n")
+    root = yaml.compose(body, Loader=yaml.SafeLoader)
+    if root is None:  # empty or only comments
+        if value is None:
+            return body
+        while lines and not lines[-1].strip():
+            lines.pop()
+        head = lines + [""] if lines else []
+        new = ["settings:", " " * _STEP + "privacy:", " " * 2 * _STEP + f"{name}: {_privacy_value(value)}"]
+        return "\n".join(head + new + [""])
+    if not isinstance(root, yaml.MappingNode) or root.flow_style:
+        raise _Unsupported("its top level is not a mapping")
+
+    found = _privacy_node(root)
+    if found is None:
+        return body if value is None else _add_privacy(lines, root, name, value)
+    key, node = found
+    if _is_empty(node):
+        _clear(lines, key, node)
+        col, last = key.start_mark.column + _STEP, key.start_mark.line
+    elif isinstance(node, yaml.MappingNode) and not node.flow_style:
+        col, last = node.start_mark.column, _last_line(node, lines)
+        live = _pair(node, name)
+        if live is not None:
+            return _edit_live(lines, live, name, value)
+    else:
+        raise _Unsupported("`privacy` is not written as an indented block")
+
+    if value is None:
+        return "\n".join(lines)
+    line = " " * col + f"{name}: {_privacy_value(value)}"
+    # a `# name: ...` line
+    end = last
+    while end + 1 < len(lines) and _is_comment(lines[end + 1], key.start_mark.column + 1, None):
+        end += 1
+    pattern = re.compile(rf"^ {{{col}}}#\s?{re.escape(name)}:[^#]*?(\s+#.*)?$")
+    for row in range(key.start_mark.line + 1, end + 1):
+        match = pattern.match(lines[row])
+        if match:
+            lines[row] = line + (match.group(1) or "")
+            return "\n".join(lines)
+    return _insert_after(lines, last, [line])
+
+
+def _edit_live(lines: list[str], live: tuple[yaml.Node, yaml.Node], name: str, value: Any) -> str:
+    key, node = live
+    row = key.start_mark.line
+    if not (isinstance(node, yaml.ScalarNode) and node.start_mark.line == node.end_mark.line == row):
+        raise _Unsupported(f"`{name}` is not a value on its own line")
+    line = lines[row]
+    if value is None:
+        col = key.start_mark.column
+        lines[row] = line[:col] + "# " + line[col:]
+    else:
+        lines[row] = line[: node.start_mark.column] + _privacy_value(value) + line[node.end_mark.column :]
+    return "\n".join(lines)
+
+
+def _add_privacy(lines: list[str], root: yaml.MappingNode, name: str, value: Any) -> str:
+    """a new `privacy:` under `settings:`, which is added if missing"""
+    col = root.start_mark.column
+    found = _pair(root, "settings")
+    if found is None:
+        # above the first section
+        first = root.value[0][0].start_mark.line
+        while first > 0 and _is_comment(lines[first - 1], col, col):
+            first -= 1
+        block = [
+            " " * col + "settings:",
+            " " * (col + _STEP) + "privacy:",
+            " " * (col + 2 * _STEP) + f"{name}: {_privacy_value(value)}",
+            "",
+        ]
+        return "\n".join(lines[:first] + block + lines[first:])
+    key, settings = found
+    if _is_empty(settings):
+        _clear(lines, key, settings)
+        inner = key.start_mark.column + _STEP
+    elif isinstance(settings, yaml.MappingNode) and not settings.flow_style:
+        inner = settings.start_mark.column
+    else:
+        raise _Unsupported("`settings` is not written as an indented block")
+    block = [" " * inner + "privacy:", " " * (inner + _STEP) + f"{name}: {_privacy_value(value)}"]
+    return _insert_after(lines, key.start_mark.line, block)
+
+
+def _verify_privacy(edited: str, before: Any, changes: dict[str, Any]) -> None:
+    """only the changed privacy options differ"""
+    try:
+        after = yaml.safe_load(edited)
+    except yaml.YAMLError:
+        after = None
+    if not isinstance(after, dict) and not (after is None and not changes):
+        raise _Unsupported("the edited file would not read back as expected")
+
+    def split(data: Any) -> tuple[dict[Any, Any], Any]:
+        """(privacy options, everything else), empty sections as missing"""
+        rest = copy.deepcopy(data) if isinstance(data, dict) else {}
+        privacy = rest.pop("privacy", None)
+        settings = rest.get("settings")
+        if isinstance(settings, dict):
+            if privacy is None:
+                privacy = settings.pop("privacy", None)
+            if not settings:
+                rest.pop("settings")
+        elif "settings" in rest and settings is None:
+            rest.pop("settings")
+        return dict(privacy or {}), _empty_as_none(rest)
+
+    privacy, rest = split(before)
+    for name, value in changes.items():
+        if value is None:
+            privacy.pop(name, None)
+        else:
+            privacy[name] = value
+    if split(after) != (privacy, rest):
+        raise _Unsupported("the edited file would not read back as expected")
 
 # reading
 
@@ -579,6 +924,59 @@ def _items(items: list[str], col: int) -> list[str]:
 
 def _insert_after(lines: list[str], row: int, new: list[str]) -> str:
     return "\n".join(lines[: row + 1] + new + lines[row + 1 :])
+
+# rules
+
+def _flow(value: Any) -> str:
+    return yaml.safe_dump(value, default_flow_style=True, sort_keys=False, width=1 << 16).strip()
+
+
+def _rewrite(body: str, hit: Watching, new: dict[str, Any]) -> str:
+    """``body`` with the entry at ``hit`` reading as ``new``"""
+    sources = _sources_node(yaml.compose(body))
+    if sources is None:
+        raise _Unsupported("`sources` is not written as an indented block")
+    found = _pair(sources, hit.section)
+    if found is None or not isinstance(found[1], yaml.SequenceNode):
+        raise _Unsupported(f"`sources.{hit.section}` is not a list")
+    listing = found[1]
+    item = listing.value[hit.index]
+    start, end = item.start_mark, item.end_mark
+    lines = body.split("\n")
+    rules = [f"{name}: {_flow(new[name])}" for name in RULE_KEYS if name in new]
+
+    if isinstance(item, yaml.ScalarNode):
+        if listing.flow_style or start.line != end.line:
+            return body[: start.index] + _flow(new) + body[end.index :]
+        # `- a/b  # note` becomes `- repo: a/b  # note`, with its rules under it
+        name = next(k for k in new if k not in RULE_KEYS)
+        row = lines[start.line]
+        lines[start.line] = f"{row[: start.column]}{yaml_scalar(name)}: {row[start.column :]}"
+        return _insert_after(lines, start.line, [" " * start.column + rule for rule in rules])
+
+    if not isinstance(item, yaml.MappingNode):
+        raise _Unsupported("an entry is neither a value nor a mapping")
+    if item.flow_style:
+        return body[: start.index] + _flow(new) + body[end.index :]
+
+    written: list[tuple[int, int, int, str]] = []
+    for key, value in item.value:
+        if isinstance(key, yaml.ScalarNode) and key.value in RULE_KEYS:
+            first = key.start_mark.line
+            written.append((first, max(first, _last_line(value, lines)), key.start_mark.column, key.value))
+    have = {name for _, _, _, name in written}
+    added = [" " * start.column + rule for rule in rules if rule.split(":")[0] not in have]
+    lines = _insert_after(lines, _last_line(item, lines), added).split("\n")
+    for first, last, column, name in sorted(written, reverse=True):
+        lead = lines[first][:column]
+        if name in new:
+            lines[first : last + 1] = [f"{lead}{name}: {_flow(new[name])}"]
+            continue
+        del lines[first : last + 1]
+        if lead.strip():
+            # it was on the entry's `- `: the next key moves up to it
+            lines[first] = lead + lines[first].lstrip()
+    return "\n".join(lines)
 
 # removing
 

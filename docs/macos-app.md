@@ -24,6 +24,7 @@ Youpdated has no Dock icon. Look for the bell in your menu bar.
 - Follow something: paste a link or a name into +.
 - Get a notification, and try its buttons.
 - Give targets different priorities, and set a daily digest in Settings.
+- Right-click something you follow and choose **Filters...** to see only some of its versions.
 - Turn on **Start at login**, then restart your Mac.
 - Select a link in another app, then use **Watch with Youpdated** from the Services menu.
 - Use the Youpdated actions in Shortcuts.
@@ -35,7 +36,7 @@ Youpdated has no Dock icon. Look for the bell in your menu bar.
 - **The widget and Share extension** aren't included (signing restrictions).
 - **Updates aren't automatic.** The app tells you when there's a new version. Download it and replace the app in Applications. Your updates and settings will stay, but you may need to re-verify through System Settings → Privacy & Security.
 
-Releases of the command-line tool also show up in your feed.
+Youpdated's own entry follows only the Mac app's releases. To also see the command-line tool, tick `v…` in its **Filters...**. If you followed Youpdated with 0.9.0, the entry has no filter yet, and every release will show up.
 
 ## If you also use the command line
 

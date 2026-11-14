@@ -1,0 +1,22 @@
+{
+  "description": "No proxy and fast mode off",
+  "request": {
+    "id": 63,
+    "op": "privacy.set",
+    "proxy": null,
+    "fast_mode": false
+  },
+  "events": [],
+  "reply": {
+    "id": 63,
+    "ok": true,
+    "privacy": {
+      "proxy": null,
+      "fast_mode": false,
+      "user_agent": "rotate",
+      "jitter": [0.5, 3.0],
+      "concurrency": 4,
+      "timeout": 20.0
+    }
+  }
+}

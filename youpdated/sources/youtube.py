@@ -437,6 +437,8 @@ class YouTubeSource:
         try:
             fetched = client.get(url, headers={"X-Goog-Api-Key": key}, retries=0)
             items = fetched.json().get("items") if fetched else None
+            if not items:
+                return None
             return _title(items[0]["snippet"]["title"])
         except Exception:  # the videos matter, the name is a nicety
             return None

@@ -1,0 +1,23 @@
+{
+  "description": "Opening Filters... on the app's entry",
+  "request": {
+    "id": 40,
+    "op": "filters.get",
+    "source": "git",
+    "key": "github.com/Void1-1/youpdated"
+  },
+  "events": [],
+  "reply": {
+    "id": 40,
+    "ok": true,
+    "match": [
+      "app-macos-v*"
+    ],
+    "skip_prereleases": true,
+    "skip_prereleases_inherited": false,
+    "bump": "any",
+    "min": null,
+    "editable": true,
+    "reason": null
+  }
+}

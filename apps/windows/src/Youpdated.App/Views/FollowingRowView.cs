@@ -163,6 +163,18 @@ public sealed class FollowingRowView : UserControl
         var show = new MenuFlyoutItem { Text = Text.Get("MenuShowInUpdates"), Icon = new FontIcon { Glyph = "\uE8F1" } };
         show.Click += (_, _) => app.Following.Select(row.Target);
         menu.Items.Add(show);
+        if (app.Sources.CanFilter)
+        {
+            var filters = new MenuFlyoutItem { Text = Text.Get("MenuFilters"), Icon = new FontIcon { Glyph = "\uE71C" } };
+            filters.Click += async (_, _) =>
+            {
+                if (XamlRoot is { } root)
+                {
+                    await FiltersDialog.ShowAsync(root, app.Sources.FiltersFor(row.Target));
+                }
+            };
+            menu.Items.Add(filters);
+        }
         var stop = new MenuFlyoutItem { Text = Text.Get("MenuStopFollowing"), Icon = new FontIcon { Glyph = "\uE74D" } };
         stop.Click += async (_, _) => await StopFollowingAsync(row.Target);
         menu.Items.Add(new MenuFlyoutSeparator());

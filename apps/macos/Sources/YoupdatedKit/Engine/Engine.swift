@@ -120,10 +120,52 @@ public struct Engine: Sendable {
         return reply.settings
     }
 
+    /// Only when `hello.ops` has `privacy.get`
+    public func privacy() async throws -> Privacy {
+        let reply: PrivacyReply = try await client.call("privacy.get")
+        return reply.privacy
+    }
+
+    /// `proxy: .some(nil)` stops using one. A new proxy that can't be reached is `proxyUnreachable`.
+    /// A change that needs `user_agent: youpdated` confirmed is `userAgentUnconfirmed` without `confirmUserAgent`
+    public func setPrivacy(
+        proxy: String?? = nil, fastMode: Bool? = nil, confirmUserAgent: Bool = false
+    ) async throws -> Privacy {
+        let reply: PrivacyReply = try await client.call(
+            "privacy.set",
+            Params.SetPrivacy(proxy: proxy, fastMode: fastMode, confirmUserAgent: confirmUserAgent ? true : nil))
+        return reply.privacy
+    }
+
     public func setPriority(_ priority: Priority, source: String, key: String) async throws -> Priority {
         let reply: PriorityReply = try await client.call(
             "priority.set", Params.SetPriority(source: source, key: key, priority: priority))
         return reply.priority
+    }
+
+    /// Only when `hello.ops` has `filters.get`
+    public func filters(source: String, key: String) async throws -> Filters {
+        try await client.call("filters.get", Params.Icon(source: source, key: key))
+    }
+
+    public func setFilters(
+        source: String, key: String, match: [String], skipPrereleases: Bool, bump: Bump, min: String?
+    ) async throws -> Filters {
+        try await client.call(
+            "filters.set",
+            Params.SetFilters(
+                source: source, key: key, match: match, skipPrereleases: skipPrereleases, bump: bump, min: min))
+    }
+
+    public func previewFilters(
+        source: String, key: String, match: [String]? = nil, skipPrereleases: Bool? = nil,
+        bump: Bump? = nil, min: String? = nil, refresh: Bool? = nil
+    ) async throws -> FiltersPreview {
+        try await client.call(
+            "filters.preview",
+            Params.PreviewFilters(
+                source: source, key: key, match: match, skipPrereleases: skipPrereleases, bump: bump,
+                min: min, refresh: refresh))
     }
 
     public func problems() async throws -> ProblemsReply {
@@ -209,10 +251,41 @@ enum Params {
         }
     }
     struct SetSettings: Encodable, Sendable { let settings: SettingsPatch }
+    struct SetPrivacy: Encodable, Sendable {
+        let proxy: String??
+        let fastMode: Bool?
+        let confirmUserAgent: Bool?
+
+        enum CodingKeys: String, CodingKey { case proxy, fastMode, confirmUserAgent }
+
+        func encode(to encoder: Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            if let proxy { try container.encode(proxy, forKey: .proxy) }
+            try container.encodeIfPresent(fastMode, forKey: .fastMode)
+            try container.encodeIfPresent(confirmUserAgent, forKey: .confirmUserAgent)
+        }
+    }
     struct SetPriority: Encodable, Sendable {
         let source: String
         let key: String
         let priority: Priority
+    }
+    struct SetFilters: Encodable, Sendable {
+        let source: String
+        let key: String
+        let match: [String]
+        let skipPrereleases: Bool
+        let bump: Bump
+        let min: String?
+    }
+    struct PreviewFilters: Encodable, Sendable {
+        let source: String
+        let key: String
+        let match: [String]?
+        let skipPrereleases: Bool?
+        let bump: Bump?
+        let min: String?
+        let refresh: Bool?
     }
     struct Snapshot: Encodable, Sendable { let path: String }
     struct Icon: Encodable, Sendable {

@@ -304,7 +304,8 @@ class Scrollbar(tk.Canvas):
         self.bind("<Enter>", lambda _e: self.itemconfigure(self.thumb, fill=THUMB_HOVER))
         self.bind("<Leave>", lambda _e: self.itemconfigure(self.thumb, fill=THUMB))
 
-    def set(self, first: str, last: str) -> None:
+    def set(self, first: float | str, last: float | str) -> None:
+        # Tk passes strings, typeshed says floats
         self.span = (float(first), float(last))
         self._draw()
 

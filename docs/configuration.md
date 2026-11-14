@@ -32,7 +32,7 @@ Four locations are checked when running, in the following order, and the first o
 
 Use `youpdated init -c ./youpdated.yaml` if you'd rather keep the config in a project folder. Add `--force` to overwrite an existing file.
 
-`youpdated edit` opens whichever one is used in your editor, so you don't need its path. See [`edit`](usage.md). To choose the editor, set `editor:` to a command (`code`, `vim -n`), a program's path, or (on macOS) an app's name or path (`TextEdit`, `/Applications/Zed.app`). It's used over `$VISUAL` and `$EDITOR`.
+`youpdated edit` opens whichever one is used in your editor, so you don't need its path. See [`edit`](usage.md). To choose the editor, set `settings.editor` to a command (`code`, `vim -n`), a program's path, or (on macOS) an app's name or path (`TextEdit`, `/Applications/Zed.app`). It's used over `$VISUAL` and `$EDITOR`.
 
 ## Identifier details
 
@@ -51,13 +51,21 @@ More details and options beyond the [basics](../README.md#where-to-find-identifi
 Every source entry takes **a bare value** or **a mapping**. The bare value is the simplest form; mappings can add more options.
 
 ```yaml
-privacy:
-  # proxy: socks5://127.0.0.1:9050   # Tor's default SOCKS port
-  user_agent: rotate                 # 'rotate', 'youpdated', or a fixed UA string
-  jitter: [0.5, 3.0]                 # random gap between hits on one site
-  concurrency: 4                     # requests in flight at once
-  timeout: 20                        # seconds; connecting gets 8 of them, unless through a proxy
-  # fast_mode: true                  # faster, less private: see docs/privacy.md
+settings:                            # run-wide options
+  privacy:
+    # proxy: socks5://127.0.0.1:9050 # Tor's default SOCKS port
+    user_agent: rotate               # 'rotate', 'youpdated', or a fixed UA string
+    jitter: [0.5, 3.0]               # random gap between hits on one site
+    concurrency: 4                   # requests in flight at once
+    timeout: 20                      # seconds; connecting gets 8 of them, unless through a proxy
+    # fast_mode: true                # faster, less private: see docs/privacy.md
+  expiry: 1y                         # forget items missing from every fetch this long
+  track_latest: true                 # also ask forges and Steam for the latest release
+  editor: code                       # what `youpdated edit` opens
+  notify:                            # optional: push new updates somewhere
+    webhooks:
+      - https://ntfy.sh/my-private-topic
+    command: notify-send "{label}" "{title}"
 
 ignore:                              # update types you never want reported
   '*': [prerelease]                  # '*' is every source
@@ -65,10 +73,6 @@ ignore:                              # update types you never want reported
 
 versions:                            # which versions are reported
   npm: {bump: major}                 # only new major versions, like 19.0.0
-
-expiry: 1y                           # forget items missing from every fetch this long
-track_latest: true                   # also ask forges and Steam for the latest release
-editor: code                         # what `youpdated edit` opens
 
 sources:
   git:                               # GitHub, GitLab, Codeberg, Forgejo/Gitea
@@ -140,15 +144,9 @@ sources:
     - url: https://www.7-zip.org/
       name: 7-Zip
       regex: 'Download 7-Zip ([\d.]+)' # define the version information location
-
-notify:                              # optional: push new updates somewhere
-  webhooks:
-    - https://ntfy.sh/my-private-topic
-  command: notify-send "{label}" "{title}"
 ```
 
-The `privacy:` block is explained in [Privacy](privacy.md), and `notify:` in
-[Notifications](notifications.md).
+The top level has three parts: `settings:` for options that apply to the whole run/tool, `ignore:` and `versions:` rules for which updates are reported, and `sources:` (required). `settings.privacy` is explained in [Privacy](privacy.md), and `settings.notify` in [Notifications](notifications.md).
 
 ## Git forges
 
@@ -253,10 +251,15 @@ sources:
     - package: django
       versions:
         min: "5.0"                      # 5.0 and later, nothing from 4.2
+  git:
+    - repo: python/cpython
+      versions:
+        match: "v3.12.*"                # only the 3.12 line
 ```
 
 - **`bump: major`** reports a version only when its first number is higher than every release before it: 4.0.0 after 3.9.2, but not 4.0.1. `minor` also reports 3.10.0, and `patch` also reports 3.9.3. A backport, such as 3.12.8 released after 3.13.0, is never a bump, and neither is a build number like Chrome's 131.0.6778.85 after 131.0.6778.69. `bump: any` reports every version, which is the default.
 - **`min`** reports only versions at or above it. `min: 4` keeps 4.0.0 and its release candidates, and drops 3.9.2. Put it in quotes when it has a dot, as YAML reads `3.10` as the number 3.1.
+- **`match`** reports only versions a pattern fits. `*` is any text, `?` one character, and `[0-9]` one of a set. The pattern has to fit the whole version as its source writes it. A list takes a version any of its patterns fit: `["llvmorg-*", "swift-*"]`. Always put a pattern in quotes.
 
 Versions are compared by their numbers: `v3.15.0rc1` counts as 3.15, `1.25.0_2` as 1.25, and `curl-8_11_1` as 8.11.1, so any dotted or underscored numbering works, not only semver. A version with the same numbers as one before it, such as `2026.1.post1` or a Homebrew revision, isn't a second bump. Updates without a version, such as commits, devlog posts, and videos, are never filtered; a version without a number to read, like `stable` or a dated snapshot tag, always is.
 
@@ -282,7 +285,11 @@ sources:
       versions: {bump: any}           # every version
 ```
 
-Unlike an ignored update, a version a rule leaves out still counts as seen, so loosening the rule later doesn't report the versions it skipped. The summary line says how many were left out, and `--json` counts them as `filtered`.
+Unlike an ignored update, a version `bump` or `min` leaves out still counts as seen, so loosening the rule later doesn't report the versions it skipped. The summary line says how many were left out, and `--json` counts them as `filtered`.
+
+`match` works like `ignore:` instead. A version it doesn't fit is dropped: unrecorded, counted with the ignored updates, and a widened pattern will report the ones the source still lists. So `bump` compares only the versions that fit, and `app-v1.1.0` is a minor bump after `app-v1.0.0` even when the same repo has released `v1.5.0`. Updates without a version are kept.
+
+Other releases can push the one you follow off the list, and `track_latest` doesn't help here, as a repo's latest release may not fit the pattern. When a `git` entry's list of releases has none that fit, up to five more pages are read for the newest that does.
 
 A target with `bump` keeps its highest versions in its history. A new version is compared against releases the source no longer lists, and a source that lists only the current version, like `homebrew`, has something to compare the next one against. `check --all` compares only against what the source lists, since the history is past every version listed. So it can show the oldest listed version of a line as a bump, like 3.15.1 once 3.15.0 has dropped off the list. A target's first check with `bump` is compared the same way.
 
@@ -293,18 +300,20 @@ Each check reads only the newest items a source lists, ex: 10 releases for a Git
 `npm` and `pypi` also list the 10 newest final releases and the `latest` version, from the same request, so they always do this. So does Brave's stable channel when the GitHub API is rate-limited and the feed it falls back to is all nightlies. For `git` and `steam` it takes a request of its own per entry, so it's opt-in:
 
 ```yaml
-track_latest: true
+settings:
+  track_latest: true
 ```
 
 With it, a `git` entry watching releases also asks the forge for its latest release: where `/releases/latest` points on GitHub (the API, with a token), GitLab's latest permalink, or Forgejo's latest release. A `steam` entry asks for the newest post the developer marked as an update. It's added only when the list doesn't have it already, so nothing is reported twice. When the list comes back unchanged (`304 Not Modified`), the latest release is likely unchanged, so it's asked for again only every 12 hours. A list holding every release (fewer than a page, with no next one) already has the latest, so it isn't asked for at all. Without a GitHub token, that release has no date. `check --test -v` lists the extra requests.
 
 ## How long history is kept
 
-The history database remembers every item it has reported so nothing repeats. To bound its growth, an item that hasn't appeared in any fetch for a year is forgotten, along with everything from targets you've removed from the config. Change the window with `expiry:`, or turn pruning off:
+The history database remembers every item it has reported so nothing repeats. To bound its growth, an item that hasn't appeared in any fetch for a year is forgotten, along with everything from targets you've removed from the config. Change the window with `settings.expiry`, or turn pruning off:
 
 ```yaml
-expiry: 180d      # 30d, 52w, 2y, ... (at least 1d, max 100y)
-# expiry: never   # keep everything
+settings:
+  expiry: 180d      # 30d, 52w, 2y, ... (at least 1d, max 100y)
+  # expiry: never   # keep everything
 ```
 
 Pruning is safe: an item still listed by its source is never forgotten, however old, so nothing is reported a second time. Targets that failed this run, or were left out with `--source`, keep their history until they next fetch cleanly.

@@ -19,7 +19,7 @@ body:
         - Mac app (beta)
         - Windows app (beta)
         - Command line
-        - Both
+        - All
     validations:
       required: true
 

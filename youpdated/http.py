@@ -125,15 +125,15 @@ def probe_proxy(proxy: str, timeout: float = 5.0) -> None:
     parts = urlsplit(proxy)
     host = parts.hostname
     if not host:
-        raise ProxyUnavailable(f"`privacy.proxy` has no host: {proxy}")
+        raise ProxyUnavailable(f"`settings.privacy.proxy` has no host: {proxy}")
     try:
         port = parts.port
     except ValueError as exc:  # out-of-range port in the URL
-        raise ProxyUnavailable(f"`privacy.proxy` has an invalid port: {proxy}") from exc
+        raise ProxyUnavailable(f"`settings.privacy.proxy` has an invalid port: {proxy}") from exc
     port = port or _DEFAULT_PROXY_PORTS.get(parts.scheme.lower())
     if port is None:
         raise ProxyUnavailable(
-            f"`privacy.proxy` needs an explicit port for scheme `{parts.scheme}`: {proxy}"
+            f"`settings.privacy.proxy` needs an explicit port for scheme `{parts.scheme}`: {proxy}"
         )
 
     try:
@@ -142,8 +142,7 @@ def probe_proxy(proxy: str, timeout: float = 5.0) -> None:
     except OSError as exc:
         raise ProxyUnavailable(
             f"cannot reach the proxy at {host}:{port}: {exc}.\n"
-            "Start the proxy (Tor listens on 9050 by default), or remove "
-            "`privacy.proxy` from your config."
+            "Start the proxy or remove `settings.privacy.proxy`."
         ) from exc
 
 
@@ -568,7 +567,7 @@ class Client:
                 url, cache_key, headers, conditional, soft, retries, follow_redirects
             )
         finally:
-            if leader:
+            if leader and flight is not None:
                 with self._bodies_lock:
                     self._flights.pop(cache_key, None)
                 flight.set()

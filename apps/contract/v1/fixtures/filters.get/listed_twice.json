@@ -1,0 +1,23 @@
+{
+  "description": "Two config entries follow the repo; the sheet is read-only",
+  "request": {
+    "id": 41,
+    "op": "filters.get",
+    "source": "git",
+    "key": "github.com/python/cpython"
+  },
+  "events": [],
+  "reply": {
+    "id": 41,
+    "ok": true,
+    "match": [
+      "v3.12.*"
+    ],
+    "skip_prereleases": false,
+    "skip_prereleases_inherited": false,
+    "bump": "any",
+    "min": null,
+    "editable": false,
+    "reason": "It's listed multiple times in the config, so its filters are edited there."
+  }
+}

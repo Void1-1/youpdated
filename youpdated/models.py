@@ -35,7 +35,7 @@ class Target:
     ignore: frozenset[str] = frozenset()
     # Which versions are reported
     versions: VersionRules = VersionRules()
-    # `track_latest:`, also ask for the latest release (if it takes another request)
+    # `settings.track_latest`, also ask for the latest release (if it takes another request)
     track_latest: bool = False
 
     @property
@@ -51,6 +51,15 @@ class Target:
         if not self.ignore:
             return False
         return any(tag.strip().lower() in self.ignore for tag in tags)
+
+    def keeps(self, update: Update) -> bool:
+        """If ``update`` is recorded: no ignored tag, and a version `match:` takes"""
+        return not self.ignores(update.tags) and self.versions.matches(update.version)
+
+    @property
+    def drop_rules(self) -> frozenset[str]:
+        """The rules for :meth:`keeps`. When changed the target is fetched in full"""
+        return self.ignore | {f"match:{glob}" for glob in self.versions.match}
 
 
 @dataclass(frozen=True)

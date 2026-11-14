@@ -300,7 +300,7 @@ public sealed partial class FeedCardView : UserControl
         }
     }
 
-    /// <summary>Open, Mark read / unread, Priority, Snooze 1 hour, Copy link, Show in Following, Delete, Stop following</summary>
+    /// <summary>Open, Mark read / unread, Priority, Filters, Snooze 1 hour, Copy link, Show in Following, Delete, Stop following</summary>
     private void OnMenuOpening(object? sender, object e)
     {
         if (sender is not MenuFlyout menu || Card is not { } card || Feed is not { } feed || AppController.Current?.App is not { } app)
@@ -318,6 +318,16 @@ public sealed partial class FeedCardView : UserControl
             priority.Items.Add(item);
         }
         menu.Items.Add(priority);
+        if (app.Sources.CanFilter && app.Sources.Targets.FirstOrDefault(t => t.AsKey() == card.Target) is { } filtered)
+        {
+            menu.Items.Add(Item("MenuFilters", "\uE71C", async () =>
+            {
+                if (XamlRoot is { } root)
+                {
+                    await FiltersDialog.ShowAsync(root, app.Sources.FiltersFor(filtered));
+                }
+            }));
+        }
         menu.Items.Add(Item("MenuSnooze", "\uE916", async () => await feed.SnoozeAsync(card)));
         menu.Items.Add(Item("MenuCopyLink", "\uE71B", () =>
         {

@@ -248,6 +248,8 @@ public struct UnlockReply: Codable, Sendable {
 public struct StatusReply: Codable, Sendable {
     public enum RunBy: String, Codable, Sendable { case app, cli }
     public enum SelfWatch: String, Codable, Sendable { case watching, declined, absent }
+    /// `user_agent: youpdated` on an encrypted, proxied setup
+    public enum NamedUserAgent: String, Codable, Sendable { case unconfirmed, confirmed }
 
     public struct Counts: Codable, Sendable, Hashable {
         public var targets: Int
@@ -265,6 +267,7 @@ public struct StatusReply: Codable, Sendable {
     public var lastRunBy: RunBy?
     public var selfWatch: SelfWatch?
     public var counts: Counts?
+    public var namedUserAgent: NamedUserAgent?
 }
 
 public struct CheckReply: Codable, Sendable {
@@ -353,8 +356,78 @@ public struct SettingsReply: Codable, Sendable {
     public var settings: Settings
 }
 
+/// `settings.privacy`
+public struct Privacy: Codable, Sendable, Hashable {
+    public var proxy: String?
+    public var fastMode: Bool
+    /// "rotate", "youpdated", or a fixed user agent
+    public var userAgent: String
+    /// [min, max] seconds between requests to a site
+    public var jitter: [Double]
+    public var concurrency: Int
+    public var timeout: Double
+
+    public init(
+        proxy: String? = nil, fastMode: Bool = false, userAgent: String = "rotate",
+        jitter: [Double] = [0.5, 3.0], concurrency: Int = 4, timeout: Double = 20
+    ) {
+        self.proxy = proxy
+        self.fastMode = fastMode
+        self.userAgent = userAgent
+        self.jitter = jitter
+        self.concurrency = concurrency
+        self.timeout = timeout
+    }
+}
+
+public struct PrivacyReply: Codable, Sendable {
+    public var privacy: Privacy
+}
+
 public struct PriorityReply: Codable, Sendable {
     public var priority: Priority
+}
+
+/// `versions: {bump:}`: `any` reports every version
+public enum Bump: String, Codable, Sendable, CaseIterable {
+    case any, patch, minor, major
+}
+
+/// The rules for a followed item: `filters.get` and `filters.set`
+public struct Filters: Codable, Sendable, Hashable {
+    /// Globs; empty keeps every version
+    public var match: [String]
+    public var skipPrereleases: Bool
+    /// The config skips them for the whole source
+    public var skipPrereleasesInherited: Bool
+    public var bump: Bump
+    public var min: String?
+    public var editable: Bool
+    /// Why it isn't editable
+    public var reason: String?
+}
+
+/// What rules would keep of the versions a source lists now: `filters.preview`
+public struct FiltersPreview: Codable, Sendable, Hashable {
+    public struct Version: Codable, Sendable, Hashable {
+        public var version: String
+        public var prerelease: Bool
+        public var kept: Bool
+    }
+
+    public struct Pattern: Codable, Sendable, Hashable, Identifiable {
+        public var pattern: String
+        public var label: String
+        public var count: Int
+
+        public var id: String { pattern }
+    }
+
+    /// Newest first
+    public var versions: [Version]
+    public var kept: Int
+    public var patterns: [Pattern]
+    public var fetchError: String?
 }
 
 public struct ProblemsReply: Codable, Sendable {
@@ -416,7 +489,7 @@ public struct EngineError: Error, Sendable, Hashable, Codable, LocalizedError {
     public enum Code: Sendable, Hashable {
         case badRequest, unknownOp, locked, wrongPassphrase, encryptionUnavailable, noConfig
         case configError, historyBusy, busy, ambiguous, unrecognized, badEntry, notFound
-        case ioError, `internal`
+        case ioError, proxyUnreachable, userAgentUnconfirmed, `internal`
         case other(String)
 
         static let wire: [String: Code] = [
@@ -425,6 +498,7 @@ public struct EngineError: Error, Sendable, Hashable, Codable, LocalizedError {
             "no_config": .noConfig, "config_error": .configError, "history_busy": .historyBusy,
             "busy": .busy, "ambiguous": .ambiguous, "unrecognized": .unrecognized,
             "bad_entry": .badEntry, "not_found": .notFound, "io_error": .ioError,
+            "proxy_unreachable": .proxyUnreachable, "user_agent_unconfirmed": .userAgentUnconfirmed,
             "internal": .internal,
         ]
 

@@ -1,0 +1,17 @@
+{
+  "description": "Proxy was unable to be reached",
+  "request": {
+    "id": 62,
+    "op": "privacy.set",
+    "proxy": "socks5://127.0.0.1:9050"
+  },
+  "events": [],
+  "reply": {
+    "id": 62,
+    "ok": false,
+    "error": {
+      "code": "proxy_unreachable",
+      "message": "cannot reach the proxy at 127.0.0.1:9050: [Errno 61] Connection refused.\nStart the proxy or remove `settings.privacy.proxy`."
+    }
+  }
+}
