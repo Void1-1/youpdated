@@ -1,0 +1,139 @@
+name: issue triage
+
+# Keeps the account-level "Stage" issue field in step with milestones and pull
+# requests, and labels new issues and PRs. Issue types (Bug, Feature, Task) come
+# from the issue forms, not from here.
+#
+#   Issue added to a milestone           -> Planned (unless already In progress)
+#   Issue removed from its milestone     -> cleared, if it was Planned
+#   PR opened that says "Fixes #N"       -> #N In progress
+#   That PR closed without merging       -> #N back to Planned, or cleared
+#   Issue closed                         -> cleared
+#   Issue reopened                       -> Planned if it has a milestone
+#
+# pull_request_target runs this file from main, with a token that can write to
+# issues even for PRs from forks. Nothing here checks out or runs PR code.
+
+on:
+  issues:
+    types: [opened, milestoned, demilestoned, closed, reopened]
+  pull_request_target:
+    types: [opened, reopened, edited, synchronize, closed]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: triage-${{ github.event.issue.number || github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  status:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: read
+    steps:
+      - uses: actions/github-script@v9
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+
+            const fields = await github.graphql(`
+              query($owner: String!, $repo: String!) {
+                repository(owner: $owner, name: $repo) {
+                  issueFields(first: 50) {
+                    nodes { ... on IssueFieldSingleSelect { id name options { id name } } }
+                  }
+                }
+              }`, { owner, repo });
+            const field = fields.repository.issueFields.nodes.find(f => f && f.name === "Stage");
+            if (!field) {
+              core.warning('No "Stage" issue field on this repository; nothing to do.');
+              return;
+            }
+            const option = name => field.options.find(o => o.name === name).id;
+
+            async function issue(number) {
+              const r = await github.graphql(`
+                query($owner: String!, $repo: String!, $number: Int!) {
+                  repository(owner: $owner, name: $repo) {
+                    issue(number: $number) {
+                      id state milestone { number }
+                      issueFieldValues(first: 20) {
+                        nodes { ... on IssueFieldSingleSelectValue { name field { ... on IssueFieldSingleSelect { id } } } }
+                      }
+                    }
+                  }
+                }`, { owner, repo, number });
+              const i = r.repository.issue;
+              const value = i.issueFieldValues.nodes.find(v => v && v.field && v.field.id === field.id);
+              return { id: i.id, number, open: i.state === "OPEN", milestone: !!i.milestone, status: value ? value.name : null };
+            }
+
+            async function set(i, status) {
+              if (i.status === status) return;
+              const value = status ? { fieldId: field.id, singleSelectOptionId: option(status) }
+                                   : { fieldId: field.id, delete: true };
+              await github.graphql(`
+                mutation($issueId: ID!, $value: IssueFieldCreateOrUpdateInput!) {
+                  setIssueFieldValue(input: { issueId: $issueId, issueFields: [$value] }) { clientMutationId }
+                }`, { issueId: i.id, value });
+              core.info(`#${i.number}: ${i.status ?? "(none)"} -> ${status ?? "(none)"}`);
+            }
+
+            const resting = i => (i.open && i.milestone ? "Planned" : null);
+
+            if (context.eventName === "issues") {
+              const action = context.payload.action;
+              if (action === "opened") return;
+              const i = await issue(context.payload.issue.number);
+              if (action === "milestoned" && i.status !== "In progress") await set(i, "Planned");
+              if (action === "demilestoned" && i.status === "Planned") await set(i, null);
+              if (action === "closed") await set(i, null);
+              if (action === "reopened") await set(i, resting(i));
+              return;
+            }
+
+            // Pull request: find the issues it will close ("Fixes #N", or linked in the sidebar).
+            const pr = context.payload.pull_request;
+            const linked = await github.graphql(`
+              query($owner: String!, $repo: String!, $number: Int!) {
+                repository(owner: $owner, name: $repo) {
+                  pullRequest(number: $number) {
+                    closingIssuesReferences(first: 20) { nodes { number repository { nameWithOwner } } }
+                  }
+                }
+              }`, { owner, repo, number: pr.number });
+            const numbers = linked.repository.pullRequest.closingIssuesReferences.nodes
+              .filter(n => n.repository.nameWithOwner === `${owner}/${repo}`)
+              .map(n => n.number);
+
+            for (const n of numbers) {
+              const i = await issue(n);
+              if (!i.open) continue;
+              if (pr.state === "open") await set(i, "In progress");
+              else if (!pr.merged && i.status === "In progress") await set(i, resting(i));
+              // Merged: the issue closes itself, and the "closed" event clears it.
+            }
+
+  labels:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+      contents: read
+    steps:
+      - if: github.event_name == 'pull_request_target' && github.event.action != 'closed'
+        uses: actions/labeler@v7
+
+      # The bug form's "Where it happened" answer lands in the body under its heading.
+      - if: >-
+          github.event_name == 'issues' && github.event.action == 'opened' &&
+          (contains(github.event.issue.body, 'Mac app (beta)') ||
+           contains(github.event.issue.body, 'Windows app (beta)'))
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          NUMBER: ${{ github.event.issue.number }}
+        run: gh issue edit "$NUMBER" --add-label app
