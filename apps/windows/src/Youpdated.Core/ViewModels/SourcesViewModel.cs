@@ -300,7 +300,7 @@ public sealed partial class AddSourceViewModel(EngineClient engine, TimeProvider
     }
 }
 
-/// <summary>Import a package.json, requirements.txt, or Brewfile: preview what's added and skipped, then confirm</summary>
+/// <summary>Import a package.json, requirements.txt, pyproject.toml, or Brewfile: preview what's added and skipped, then confirm</summary>
 public sealed partial class ImportViewModel(EngineClient engine) : ObservableObject
 {
     public event Action<IReadOnlyList<TargetRef>>? Added;

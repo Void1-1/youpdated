@@ -389,7 +389,7 @@ public sealed partial class MainWindow : Window, IMainWindow
         return menu;
     }
 
-    /// <summary>package.json, requirements.txt, or Brewfile</summary>
+    /// <summary>package.json, requirements.txt, pyproject.toml, or Brewfile</summary>
     private async Task PickAndImportAsync()
     {
         var picker = new FileOpenPicker { SuggestedStartLocation = PickerLocationId.DocumentsLibrary };

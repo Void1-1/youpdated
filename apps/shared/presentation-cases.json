@@ -166,6 +166,26 @@
       "label": "Browsers"
     },
     {
+      "source": "webpage",
+      "key": "https://downloads.example.com/app/",
+      "display": "https://downloads.example.com/app/",
+      "hash": 34979380,
+      "color": 4,
+      "color_name": "Green",
+      "initials": "A",
+      "label": "downloads.example.com"
+    },
+    {
+      "source": "json",
+      "key": "https://updates.example.com/app/latest.json",
+      "display": "https://updates.example.com/app/latest.json",
+      "hash": 162431243,
+      "color": 11,
+      "color_name": "Graphite",
+      "initials": "L",
+      "label": "updates.example.com"
+    },
+    {
       "source": "mysource",
       "key": "thing",
       "display": "Thing",

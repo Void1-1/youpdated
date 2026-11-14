@@ -16,6 +16,8 @@ body:
 
         If it has no feed but a download page shows the current version, try the
         built-in `webpage` source: `youpdated add https://example.com/download`.
+        And if it publishes its version in a JSON or YAML file, the built-in `json`
+        source reads it: `youpdated add https://example.com/latest.json`.
 
         A dedicated source is worth building when the service has no feed, or when
         a feed loses information a real API would give you (version numbers,

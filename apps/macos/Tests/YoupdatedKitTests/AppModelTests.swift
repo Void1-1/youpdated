@@ -398,6 +398,7 @@ import Testing
         #expect(ImportInput.format(forFileName: "package.json") == "package.json")
         #expect(ImportInput.format(forFileName: "requirements-dev.txt") == "requirements.txt")
         #expect(ImportInput.format(forFileName: "Brewfile") == "Brewfile")
+        #expect(ImportInput.format(forFileName: "pyproject.toml") == "pyproject.toml")
         #expect(ImportInput.format(forFileName: "notes.txt") == nil)
     }
 

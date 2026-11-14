@@ -28,7 +28,7 @@ public enum AddFlow: Hashable, Sendable {
     }
 }
 
-/// Import a package.json, requirements.txt, or Brewfile: preview, then confirm
+/// Import a package.json, requirements.txt, pyproject.toml, or Brewfile: preview, then confirm
 public enum ImportFlow: Hashable, Sendable {
     case idle
     case previewing(ImportInput)

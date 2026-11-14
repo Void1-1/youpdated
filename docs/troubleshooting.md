@@ -14,6 +14,8 @@
 | An itch game reports nothing | It has neither a devlog nor a file listing. Confirm with `youpdated check -s itch --all -v`. |
 | A `webpage` fails with `more than one version`, `no version found`, or `found X in … but Y in …` | The page doesn't say clearly which version is current, so it isn't guessed. Add `regex:` that matches it; see [Web pages](configuration.md#web-pages). |
 | A `webpage` fails with `earlier checks found the version in …` | The page changed, and the version is now somewhere else. Check the page, then add a `regex:`, or `youpdated rm --wipe webpage URL` and `add` it again. |
+| A `json` fails with `found multiple versions` or `no ... key has a version` | The document doesn't have a clear version. Add `version:` with the path of the one to watch, or `items:` for a list; see [JSON documents](configuration.md#json-documents). |
+| A `json` fails with `earlier checks read the version at ...` | The document changed, and the version is no longer where it was. Check the document, add a `version:`, or `youpdated rm --wipe json URL` and `add` it again. |
 | Everything reports as new again | The history database was deleted or `--state` points somewhere new. |
 | `youpdated: command not found` | The install location isn't on your `PATH`. With pipx, run `pipx ensurepath` and open a new terminal; from source, use `.venv/bin/youpdated`. |
 | `ModuleNotFoundError: youpdated` | You used `pip install -e .` on macOS. Use `pip install .` instead. |

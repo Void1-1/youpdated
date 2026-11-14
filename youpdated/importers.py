@@ -93,6 +93,8 @@ def file_kind(path: Path, fallback: str | None = None) -> str:
         "requirements" in name or path.parent.name.lower() == "requirements"
     ):
         return "requirements.txt"
+    if name == "pyproject.toml":
+        return "pyproject.toml"
     if fallback is not None:
         return fallback
     raise ConfigError(
@@ -193,9 +195,6 @@ def read_requirements(path: Path, found: Found) -> None:
 
 
 def _read_pip(path: Path, found: Found, pip: _Pip) -> None:
-    # here, not at the top: every command would pay to load it
-    from packaging.requirements import InvalidRequirement, Requirement
-
     resolved = path.resolve()
     if resolved in pip.read:
         return
@@ -213,8 +212,7 @@ def _read_pip(path: Path, found: Found, pip: _Pip) -> None:
             elif flag in ("-e", "--editable"):
                 found.skip(value, "an editable install, not from PyPI")
             elif flag in ("-i", "--index-url"):
-                url = url_parts(value)
-                pip.index = None if url and url[0] in _PYPI_HOSTS else value
+                pip.index = None if _is_pypi(value) else value
             elif flag == "--extra-index-url":
                 pip.extra.append(value)
             elif flag == "--no-index":
@@ -226,18 +224,27 @@ def _read_pip(path: Path, found: Found, pip: _Pip) -> None:
             if word.startswith("-"):
                 break
             words.append(word)
-        text = " ".join(words)
-        try:
-            requirement = Requirement(text)
-        except InvalidRequirement:
-            found.skip(text, "not a PyPI requirement")
-            continue
-        if requirement.url:
-            found.skip(requirement.name, f"installed from {requirement.url}, not PyPI")
-        elif requirement.name.lower().endswith(_ARCHIVES):
-            found.skip(text, "a local file, not PyPI")
-        else:
-            pip.names.append(requirement.name)
+        name = _pypi_name(" ".join(words), found)
+        if name is not None:
+            pip.names.append(name)
+
+
+def _pypi_name(text: str, found: Found) -> str | None:
+    """project a PEP 508 requirement installs from an index, or None after skipping it"""
+    from packaging.requirements import InvalidRequirement, Requirement
+
+    try:
+        requirement = Requirement(text)
+    except InvalidRequirement:
+        found.skip(text, "not a PyPI requirement")
+        return None
+    if requirement.url:
+        found.skip(requirement.name, f"installed from {requirement.url}, not PyPI")
+        return None
+    if requirement.name.lower().endswith(_ARCHIVES):
+        found.skip(text, "a local file, not PyPI")
+        return None
+    return requirement.name
 
 
 def _included(value: str, path: Path) -> Path | None:
@@ -277,6 +284,124 @@ def _option(line: str) -> tuple[str, str]:
         flag, value = flag[:2], flag[2:]
     return flag, value.strip()
 
+# pyproject.toml
+
+def read_pyproject(path: Path, found: Found) -> None:
+    """PEP 621 dependencies, extras, and PEP 735 groups, with uv's sources and indexes"""
+    import tomllib
+
+    from packaging.utils import canonicalize_name
+
+    try:
+        doc = tomllib.loads(_read(path))
+    except tomllib.TOMLDecodeError as exc:
+        raise ConfigError(f"{path} is not valid TOML: {exc}") from exc
+    project = _table(doc, "project")
+    tool = _table(doc, "tool")
+    uv = _table(tool, "uv")
+
+    listed = _strings(project.get("dependencies"))
+    for extra in _table(project, "optional-dependencies").values():
+        listed += _strings(extra)
+    for group in _table(doc, "dependency-groups").values():
+        listed += _strings(group)
+
+    dynamic = [
+        key for key in ("dependencies", "optional-dependencies")
+        if key in _strings(project.get("dynamic"))
+    ]
+    if dynamic:
+        found.warn(
+            f"{path} leaves its {' and '.join(dynamic)} to the build backend "
+            "(`dynamic`), so they are not read"
+        )
+    poetry = _table(tool, "poetry")
+    if "dependencies" in poetry or "group" in poetry:
+        found.warn(f"{path} lists dependencies under [tool.poetry], which are not read")
+
+    own = project.get("name")
+    own = canonicalize_name(own) if isinstance(own, str) else None
+    indexes = _uv_indexes(uv)
+    sources = {canonicalize_name(name): spec for name, spec in _table(uv, "sources").items()}
+    if uv.get("no-index") is True:
+        elsewhere = "uv is told not to use an index"
+    else:
+        default = next(
+            (url for url, default, _ in indexes.values() if default), uv.get("index-url")
+        )
+        elsewhere = (
+            f"installed from {default}, not PyPI"
+            if isinstance(default, str) and not _is_pypi(default)
+            else None
+        )
+
+    for text in listed:
+        name = _pypi_name(text, found)
+        if name is None or canonicalize_name(name) == own:
+            # `demo[test]` is not another project
+            continue
+        why = _uv_source(sources.get(canonicalize_name(name)), indexes) or elsewhere
+        if why:
+            found.skip(name, why)
+        else:
+            found.add("pypi", name)
+
+    extra = [url for url, default, explicit in indexes.values() if not default and not explicit]
+    extra += _strings(uv.get("extra-index-url"))
+    for url in extra:
+        if not _is_pypi(url):
+            found.warn(
+                f"{path} also installs from {url}; a package from there is watched on PyPI, "
+                "which may not be the same package"
+            )
+
+
+def _table(doc: object, key: str) -> dict:
+    value = doc.get(key) if isinstance(doc, dict) else None
+    return value if isinstance(value, dict) else {}
+
+
+def _strings(value: object) -> list[str]:
+    return [item for item in value if isinstance(item, str)] if isinstance(value, list) else []
+
+
+def _is_pypi(url: str) -> bool:
+    parts = url_parts(url)
+    return bool(parts) and parts[0] in _PYPI_HOSTS
+
+
+def _uv_indexes(uv: dict) -> dict[str, tuple[str, bool, bool]]:
+    """``[[tool.uv.index]]`` by name, as ``(url, default, explicit)``"""
+    indexes: dict[str, tuple[str, bool, bool]] = {}
+    listed = uv.get("index")
+    for index in listed if isinstance(listed, list) else []:
+        url = index.get("url") if isinstance(index, dict) else None
+        if isinstance(url, str):
+            name = index.get("name")
+            key = name if isinstance(name, str) else url
+            indexes[key] = (url, index.get("default") is True, index.get("explicit") is True)
+    return indexes
+
+
+def _uv_source(spec: object, indexes: dict[str, tuple[str, bool, bool]]) -> str | None:
+    """why a ``[tool.uv.sources]`` entry isn't PyPI"""
+    for one in spec if isinstance(spec, list) else [spec]:
+        if not isinstance(one, dict):
+            continue
+        if one.get("workspace") is True:
+            return "a workspace member, not from PyPI"
+        for key in ("git", "url", "path"):
+            if isinstance(one.get(key), str):
+                return f"installed from {one[key]}, not PyPI"
+        index = one.get("index")
+        if isinstance(index, str):
+            url = indexes.get(index, (None,))[0]
+            if url is None:
+                return f"installed from uv index `{index}`, not PyPI"
+            if not _is_pypi(url):
+                return f"installed from {url}, not PyPI"
+    return None
+
 # Brewfile
 
 def read_brewfile(path: Path, found: Found) -> None:
@@ -297,5 +422,6 @@ def read_brewfile(path: Path, found: Found) -> None:
 READERS: dict[str, Callable[[Path, Found], None]] = {
     "package.json": read_package_json,
     "requirements.txt": read_requirements,
+    "pyproject.toml": read_pyproject,
     "Brewfile": read_brewfile,
 }

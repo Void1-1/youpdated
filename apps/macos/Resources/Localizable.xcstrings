@@ -1,35 +1,147 @@
 {
   "sourceLanguage" : "en",
   "strings" : {
-    "“%@” could be %@. Set Source to one of them." : {
+    " · " : {
+
+    },
+    "%@" : {
+
+    },
+    "%@ s" : {
+
+    },
+    "%@ · %@" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "“%1$@” could be %2$@. Set Source to one of them."
+            "value" : "%1$@ · %2$@"
           }
         }
       }
     },
-    "%@" : {
+    "%lld of the last %lld versions fit: %@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld of the last %2$lld versions fit: %3$@"
+          }
+        }
+      }
+    },
+    "%lld problems" : {
+
+    },
+    "%lld recent" : {
+
+    },
+    "%lldd ago" : {
+
+    },
+    "%lldh ago" : {
+
+    },
+    "%lldm ago" : {
+
+    },
+    "* for any characters. Separate patterns with commas." : {
+
+    },
+    "+%lld more" : {
+
+    },
+    ", and %lld more" : {
 
     },
     "1 Hour" : {
 
     },
+    "A new browser each check" : {
+
+    },
+    "A standard version number" : {
+
+    },
+    "About" : {
+
+    },
+    "Absolute" : {
+
+    },
+    "Add" : {
+
+    },
     "Add Source" : {
+
+    },
+    "Address" : {
+
+    },
+    "Advanced" : {
+
+    },
+    "All" : {
+
+    },
+    "All Sources" : {
+
+    },
+    "All of the last %lld versions fit." : {
+
+    },
+    "Allow in Login Items…" : {
+
+    },
+    "Alphas, betas, release candidates, and nightlies" : {
+
+    },
+    "Already Following" : {
 
     },
     "Already watching %@." : {
 
     },
-    "and %lld more…" : {
+    "Also forget its history" : {
+
+    },
+    "Also new" : {
+
+    },
+    "Any version" : {
+
+    },
+    "App version" : {
+
+    },
+    "Browsers" : {
+
+    },
+    "Cancel" : {
+
+    },
+    "Change these manually under `settings: privacy:`." : {
+
+    },
+    "Change these manually with `youpdated edit`." : {
+
+    },
+    "Check Now" : {
 
     },
     "Check for Updates" : {
 
     },
-    "Check Now" : {
+    "Check for updates" : {
+
+    },
+    "Check now" : {
+
+    },
+    "Checked %@" : {
+
+    },
+    "Checking" : {
 
     },
     "Checking…" : {
@@ -45,19 +157,250 @@
         }
       }
     },
-    "Checks everything Youpdated watches now." : {
+    "Checks are also running from the command line. Updates they find won't appear here." : {
+
+    },
+    "Checks everything Youpdated watches." : {
+
+    },
+    "Checks paused for a confirmation" : {
+
+    },
+    "Checks paused: confirm Youpdated may name itself in requests." : {
 
     },
     "Checks stop while Youpdated is closed." : {
 
     },
+    "Clear" : {
+
+    },
+    "Comfortable" : {
+
+    },
+    "Compact" : {
+
+    },
+    "Config" : {
+
+    },
+    "Confirm…" : {
+
+    },
+    "Connecting to the proxy…" : {
+
+    },
+    "Copy Details" : {
+
+    },
+    "Copy Link" : {
+
+    },
+    "Couldn't add Youpdated's entry." : {
+
+    },
+    "Couldn't change the priority." : {
+
+    },
+    "Couldn't change what's read." : {
+
+    },
+    "Couldn't create a config." : {
+
+    },
+    "Couldn't delete the update." : {
+
+    },
+    "Couldn't list versions: %@" : {
+
+    },
+    "Couldn't load the inbox." : {
+
+    },
+    "Couldn't load what Youpdated watches." : {
+
+    },
+    "Couldn't mark everything read." : {
+
+    },
+    "Couldn't read Settings." : {
+
+    },
+    "Couldn't read Youpdated's status." : {
+
+    },
+    "Couldn't save Settings." : {
+
+    },
+    "Couldn't save that Youpdated may identify itself." : {
+
+    },
+    "Couldn't send the digest." : {
+
+    },
+    "Couldn't snooze." : {
+
+    },
+    "Couldn't stop watching %@." : {
+
+    },
+    "Custom" : {
+
+    },
+    "Custom pattern" : {
+
+    },
+    "Day" : {
+
+    },
+    "Delete %lld Updates" : {
+
+    },
+    "Delete Update" : {
+
+    },
+    "Density" : {
+
+    },
+    "Digest time" : {
+
+    },
+    "Done" : {
+
+    },
     "Download" : {
+
+    },
+    "Download it from the Youpdated menu." : {
 
     },
     "Downloading Youpdated %@…" : {
 
     },
+    "Earlier" : {
+
+    },
+    "Engine version" : {
+
+    },
+    "Every %lld hours" : {
+
+    },
+    "Every hour" : {
+
+    },
+    "Every request goes through this proxy. If it stops answering, checks stop." : {
+
+    },
+    "Every version" : {
+
+    },
+    "Failed: %@" : {
+
+    },
+    "Fast mode" : {
+
+    },
+    "Feed" : {
+
+    },
+    "Fetched through your proxy settings" : {
+
+    },
+    "Filter" : {
+
+    },
+    "Filter by Source" : {
+
+    },
+    "Filters for %@" : {
+
+    },
+    "Filters…" : {
+
+    },
+    "Follow" : {
+
+    },
+    "Follow something new" : {
+
+    },
+    "Follow something new…" : {
+
+    },
+    "Following" : {
+
+    },
+    "Following %lld more" : {
+
+    },
+    "Forgets what it has seen, its updates, and its priority" : {
+
+    },
+    "Gap between requests to a site" : {
+
+    },
+    "General" : {
+
+    },
     "Get Unread Updates" : {
+
+    },
+    "GitHub repo" : {
+
+    },
+    "Group By" : {
+
+    },
+    "Group Read Updates" : {
+
+    },
+    "Group by" : {
+
+    },
+    "Group read updates" : {
+
+    },
+    "Hide from the Feed" : {
+
+    },
+    "Hide suggestions to watch Youpdated" : {
+
+    },
+    "High" : {
+
+    },
+    "Import %@" : {
+
+    },
+    "Import %lld" : {
+
+    },
+    "Import a File…" : {
+
+    },
+    "Import a file…" : {
+
+    },
+    "Inbox only" : {
+
+    },
+    "It left no message." : {
+
+    },
+    "It lists no versions to filter." : {
+
+    },
+    "Keeps the passphrase in your keychain" : {
+
+    },
+    "Last 30 Days" : {
+
+    },
+    "Last 7 Days" : {
+
+    },
+    "Learn More" : {
 
     },
     "Link" : {
@@ -66,37 +409,151 @@
     "Link or Name" : {
 
     },
+    "Link or name" : {
+
+    },
+    "List versions again" : {
+
+    },
+    "Listing versions…" : {
+
+    },
     "Locked: enter the passphrase to check" : {
 
     },
-    "Mark All as Read" : {
+    "Low" : {
+
+    },
+    "Low priority" : {
 
     },
     "Mark All Updates as Read" : {
 
     },
+    "Mark All as Read" : {
+
+    },
+    "Mark Read" : {
+
+    },
+    "Mark Unread" : {
+
+    },
+    "Mark all as Read" : {
+
+    },
     "Mark as Read" : {
+
+    },
+    "Mark as Read or Unread" : {
+
+    },
+    "Mark as Unread" : {
+
+    },
+    "Mark everything in the inbox as read." : {
 
     },
     "Marked everything as read." : {
 
     },
-    "Marks everything in the inbox as read." : {
+    "More" : {
 
     },
     "Name" : {
 
     },
+    "Needed when the name could be more than one source." : {
+
+    },
+    "New" : {
+
+    },
+    "New major versions" : {
+
+    },
+    "New minor versions" : {
+
+    },
+    "New patch versions" : {
+
+    },
+    "Next check" : {
+
+    },
     "No new updates" : {
 
     },
-    "Only needed when the name could be more than one thing, like npm or pypi." : {
+    "No prompts to add Youpdated to your sources." : {
+
+    },
+    "None" : {
+
+    },
+    "None of the last %lld versions fit." : {
+
+    },
+    "Normal" : {
+
+    },
+    "Not Now" : {
+
+    },
+    "Not checked yet" : {
+
+    },
+    "Not running" : {
+
+    },
+    "Not watching for new versions" : {
+
+    },
+    "Nothing before" : {
+
+    },
+    "Nothing yet" : {
+
+    },
+    "Notification Settings…" : {
+
+    },
+    "Notifications" : {
+
+    },
+    "Notify" : {
+
+    },
+    "Notify immediately" : {
+
+    },
+    "Now" : {
+
+    },
+    "OK" : {
+
+    },
+    "Only versions like…" : {
 
     },
     "Open" : {
 
     },
     "Open Youpdated…" : {
+
+    },
+    "Open link" : {
+
+    },
+    "Other Config settings" : {
+
+    },
+    "Passphrase" : {
+
+    },
+    "Paste a link or name" : {
+
+    },
+    "Paste a link to anything you want to follow" : {
 
     },
     "Pause" : {
@@ -108,16 +565,142 @@
     "Paused until %@" : {
 
     },
+    "Previews" : {
+
+    },
+    "Priorities" : {
+
+    },
+    "Priority" : {
+
+    },
+    "Priority: %@" : {
+
+    },
+    "Privacy" : {
+
+    },
+    "Problems" : {
+
+    },
+    "Proxy" : {
+
+    },
     "Quit Youpdated" : {
+
+    },
+    "Read updates" : {
+
+    },
+    "Read updates organized by group instead of Earlier" : {
+
+    },
+    "Reading the file…" : {
+
+    },
+    "Relative" : {
+
+    },
+    "Remember on this computer" : {
+
+    },
+    "Remember passphrase on this computer" : {
+
+    },
+    "Report" : {
+
+    },
+    "Requests at once" : {
+
+    },
+    "Requests may look automated. Sites are more likely to rate limit or block them, and they're easier to link to you, even through a proxy." : {
 
     },
     "Resume Checks" : {
 
     },
+    "Retry" : {
+
+    },
+    "Save" : {
+
+    },
+    "Save diagnostic logs" : {
+
+    },
+    "Saves errors to ~/Library/Logs/Youpdated/app.log for bug reports." : {
+
+    },
+    "Select or enter patterns." : {
+
+    },
+    "Send a daily digest" : {
+
+    },
+    "Send as Youpdated" : {
+
+    },
+    "Send requests as Youpdated?" : {
+
+    },
     "Settings…" : {
 
     },
+    "Shorter gaps between requests. Faster checks, but it is easier to identify traffic." : {
+
+    },
+    "Show" : {
+
+    },
+    "Show Config in Finder" : {
+
+    },
+    "Show Everything" : {
+
+    },
+    "Show Full Notes" : {
+
+    },
+    "Show Log in Finder" : {
+
+    },
     "Show Problems…" : {
+
+    },
+    "Show Updates" : {
+
+    },
+    "Show icons" : {
+
+    },
+    "Show in Following" : {
+
+    },
+    "Show in the Feed" : {
+
+    },
+    "Show notifications" : {
+
+    },
+    "Since %@" : {
+
+    },
+    "Since this afternoon" : {
+
+    },
+    "Since this evening" : {
+
+    },
+    "Since this morning" : {
+
+    },
+    "Since yesterday" : {
+
+    },
+    "Skip prereleases" : {
+
+    },
+    "Skipped" : {
 
     },
     "Snooze 1 Hour" : {
@@ -126,19 +709,113 @@
     "Source" : {
 
     },
-    "Starts watching a link or name, the same as pasting it into Youpdated." : {
+    "Start at login" : {
 
     },
-    "The updates you haven't opened yet, newest first." : {
+    "Starts watching a link or name." : {
+
+    },
+    "Steam game" : {
+
+    },
+    "Stop Following" : {
+
+    },
+    "Stop Following…" : {
+
+    },
+    "Stop following %@?" : {
+
+    },
+    "That passphrase didn't unlock Youpdated." : {
+
+    },
+    "The Youpdated engine couldn't restart." : {
+
+    },
+    "The Youpdated engine couldn't start: %@" : {
+
+    },
+    "The Youpdated engine is missing from %@." : {
+
+    },
+    "The Youpdated engine sent a reply this app can't read (%@)." : {
+
+    },
+    "The Youpdated engine stopped unexpectedly (exit %d)." : {
+
+    },
+    "The Youpdated engine stopped unexpectedly (signal %d)." : {
+
+    },
+    "The check didn't finish." : {
+
+    },
+    "The config can't be read" : {
+
+    },
+    "The config skips them for this source" : {
+
+    },
+    "The config's user agent setting is \"youpdated\" which names Youpdated and its version. This setup is encrypted and uses a proxy, but that setting identifies its traffic. \"rotate\" blends in more." : {
 
     },
     "There's no link or name to watch in the selection." : {
 
     },
+    "This Youpdated engine (%@) uses contract %lld, and this app needs %lld. Reinstall or update Youpdated." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "This Youpdated engine (%1$@) uses contract %2$lld, and this app needs %3$lld. Reinstall or update Youpdated."
+          }
+        }
+      }
+    },
+    "This engine can't change privacy settings. Edit `settings.privacy` manually." : {
+
+    },
+    "This week" : {
+
+    },
+    "Timeout" : {
+
+    },
+    "Times" : {
+
+    },
     "Title" : {
 
     },
+    "Today" : {
+
+    },
+    "Tor" : {
+
+    },
+    "Tor Browser" : {
+
+    },
+    "Try Again" : {
+
+    },
+    "Turn On Fast Mode" : {
+
+    },
+    "Turn on fast mode?" : {
+
+    },
+    "Unlock" : {
+
+    },
     "Unlock Youpdated…" : {
+
+    },
+    "Unopened updates, newest first." : {
+
+    },
+    "Unread" : {
 
     },
     "Unread Updates" : {
@@ -153,19 +830,128 @@
     "Update" : {
 
     },
+    "Updates" : {
+
+    },
+    "Use" : {
+
+    },
+    "User agent" : {
+
+    },
+    "View" : {
+
+    },
+    "Watch" : {
+
+    },
     "Watch ${value}" : {
+
+    },
+    "Watch Youpdated for app updates" : {
+
+    },
+    "Watch Youpdated for app updates?" : {
 
     },
     "Watching %@." : {
 
     },
+    "Web page" : {
+
+    },
+    "What changed in the things you follow" : {
+
+    },
+    "Will Follow" : {
+
+    },
+    "Yesterday" : {
+
+    },
+    "You're up to date" : {
+
+    },
+    "YouTube channel" : {
+
+    },
     "Youpdated" : {
 
     },
-    "Youpdated is locked. Open it and enter the passphrase first." : {
+    "Youpdated %@ is available" : {
 
     },
-    "Youpdated isn't running its checks yet. Open it and try again." : {
+    "Youpdated can't check" : {
+
+    },
+    "Youpdated identifies itself" : {
+
+    },
+    "Youpdated is locked" : {
+
+    },
+    "Youpdated is locked. Open and enter the passphrase." : {
+
+    },
+    "Youpdated is up to date" : {
+
+    },
+    "Youpdated isn't running its checks yet. Open and try again." : {
+
+    },
+    "Youpdated on GitHub" : {
+
+    },
+    "Youpdated passphrase" : {
+
+    },
+    "Youpdated's engine isn't running." : {
+
+    },
+    "Youpdated, checking" : {
+
+    },
+    "Youpdated, locked" : {
+
+    },
+    "Youpdated, paused" : {
+
+    },
+    "Youpdated, problems" : {
+
+    },
+    "^[%lld new update](inflect: true)" : {
+
+    },
+    "^[%lld update](inflect: true)" : {
+
+    },
+    "and %lld more" : {
+
+    },
+    "and %lld more…" : {
+
+    },
+    "just now" : {
+
+    },
+    "npm package" : {
+
+    },
+    "· %@" : {
+
+    },
+    "“%@” could be %@. Set Source to one of them." : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "“%1$@” could be %2$@. Set Source to one of them."
+          }
+        }
+      }
+    },
+    "•" : {
 
     }
   },

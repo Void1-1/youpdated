@@ -295,7 +295,7 @@
           "additionalProperties": false,
           "properties": {
             "content": { "type": "string" },
-            "format": { "enum": ["package.json", "requirements.txt", "Brewfile"] }
+            "format": { "enum": ["package.json", "requirements.txt", "pyproject.toml", "Brewfile"] }
           }
         }
       ]

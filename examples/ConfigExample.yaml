@@ -109,6 +109,14 @@ sources:
       name: Obsidian
       limit: 5                       # newest items read per check
 
+  json:                              # the version in a JSON or YAML document
+    - https://example.com/app/latest.yml
+    - url: https://nodejs.org/dist/index.json
+      name: Node.js
+      items: .                       # every entry of a list, here it's the whole document
+      published: date                # paths start at the entry: version, title, link, published
+      limit: 5                       # newest entries read per check
+
   webpage:                           # anything else: the version a download page shows
     - https://www.videolan.org/vlc/
     - url: https://www.7-zip.org/

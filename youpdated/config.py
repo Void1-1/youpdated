@@ -810,6 +810,10 @@ sources:
     - url: https://github.com/obsidianmd/obsidian-releases/releases.atom
       name: Obsidian
 
+  # A JSON or YAML version tracking file:
+  # json:
+  #   - https://example.com/app/latest.yml
+
   # Anything without a feed:
   # webpage:
   #   - https://www.videolan.org/vlc/

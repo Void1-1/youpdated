@@ -561,7 +561,8 @@ class WebpageSource:
                 f"the address is a feed, not a web page: youpdated add feed {target.key}"
             )
         if instead is not None:
-            raise FetchError(f"the address returned {instead}, not a web page")
+            hint = f": youpdated add json {target.key}" if "json" in instead else ""
+            raise FetchError(f"the address returned {instead}, not a web page{hint}")
 
         markup = fetched.text
         page = read_page(markup, fetched.url)
