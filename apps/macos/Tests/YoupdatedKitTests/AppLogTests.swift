@@ -5,7 +5,7 @@ import Testing
 @Suite struct AppLogTests {
     private func makeLog() -> (AppLog, URL) {
         let folder = FileManager.default.temporaryDirectory.appending(path: "youpdated-log-\(UUID().uuidString)")
-        let defaults = UserDefaults(suiteName: "YoupdatedTests-\(UUID().uuidString)")!
+        let defaults = UserDefaults(suiteName: folder.appending(path: "defaults").path)!
         return (AppLog(folder: folder, defaults: defaults), folder)
     }
 

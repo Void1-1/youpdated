@@ -13,6 +13,8 @@ let fixtures = URL(filePath: #filePath)
     .appending(path: "contract/v1/fixtures")
 // within six hours of the fixtures' last check, so nothing is due
 let now = ContractCoding.parseTimestamp("2026-10-29T13:30:00Z")!
+// each model's defaults
+let scratch = FileManager.default.temporaryDirectory.appending(path: "youpdated-screens-\(UUID().uuidString)")
 
 /// Draws into its own frame wherever it's put, so it can sit off every screen
 final class OffscreenWindow: NSWindow {
@@ -58,7 +60,8 @@ func inboxWithNotes() -> [String: Any] {
 @MainActor
 func makeModel(replies: [String: [String: Any]] = [:]) async -> (AppModel, ReplayTransport) {
     let transport = ReplayTransport(fixtures: fixtures, replies: replies)
-    let defaults = AppDefaults(UserDefaults(suiteName: "YoupdatedScreens-\(UUID().uuidString)")!)
+    // by path, in a folder removed on exit, as a named suite would stay in ~/Library/Preferences
+    let defaults = AppDefaults(UserDefaults(suiteName: scratch.appending(path: UUID().uuidString).path)!)
     let model = AppModel(launch: { transport }, platform: QuietPlatform(), defaults: defaults,
                          appVersion: "1.0.0", now: { now })
     await model.launch()
@@ -222,8 +225,10 @@ app.setActivationPolicy(.accessory)
 Task { @MainActor in
     do {
         try await run()
+        try? FileManager.default.removeItem(at: scratch)
         exit(0)
     } catch {
+        try? FileManager.default.removeItem(at: scratch)
         FileHandle.standardError.write(Data("\(error)\n".utf8))
         exit(1)
     }

@@ -327,9 +327,11 @@ import Testing
         let second = FakeEngine()
         let engines = EngineQueue([first, second])
         let platform = FakePlatform()
+        let scratch = ScratchDefaults()
+        defer { withExtendedLifetime(scratch) {} }
         let model = AppModel(
             launch: { try engines.next() }, platform: platform,
-            defaults: AppDefaults(UserDefaults(suiteName: "YoupdatedTests-\(UUID().uuidString)")!),
+            defaults: AppDefaults(scratch.defaults),
             appVersion: "1.0.0", now: { ContractCoding.parseTimestamp("2026-10-29T08:00:06Z")! },
             sleep: { _ in await Task.yield() })
         await model.launch()
