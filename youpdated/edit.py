@@ -557,7 +557,7 @@ def set_privacy(text: str, changes: dict[str, Any]) -> str:
             raise _Unsupported("it doesn't parse") from exc
         for name, value in changes.items():
             body = _set_privacy_option(body, name, value)
-        _verify_privacy(body, data, changes)
+        _verify_setting(body, data, "privacy", changes)
     return _line_ends(body, text)
 
 
@@ -567,15 +567,15 @@ def _privacy_value(value: Any) -> str:
     return yaml_scalar(str(value))
 
 
-def _privacy_node(root: yaml.MappingNode) -> tuple[yaml.Node, yaml.Node] | None:
-    """`privacy:`'s key and value, at the top level or under `settings:`"""
-    found = _pair(root, "privacy")
+def _setting_node(root: yaml.MappingNode, name: str) -> tuple[yaml.Node, yaml.Node] | None:
+    """``name``'s key and value, at top level or under `settings:`"""
+    found = _pair(root, name)
     if found is not None:
         return found
     settings = _pair(root, "settings")
     if settings is None or not isinstance(settings[1], yaml.MappingNode) or settings[1].flow_style:
         return None
-    return _pair(settings[1], "privacy")
+    return _pair(settings[1], name)
 
 
 def _set_privacy_option(body: str, name: str, value: Any) -> str:
@@ -592,9 +592,11 @@ def _set_privacy_option(body: str, name: str, value: Any) -> str:
     if not isinstance(root, yaml.MappingNode) or root.flow_style:
         raise _Unsupported("its top level is not a mapping")
 
-    found = _privacy_node(root)
+    found = _setting_node(root, "privacy")
     if found is None:
-        return body if value is None else _add_privacy(lines, root, name, value)
+        return body if value is None else _add_setting(
+            lines, root, "privacy", lambda col: [" " * col + f"{name}: {_privacy_value(value)}"]
+        )
     key, node = found
     if _is_empty(node):
         _clear(lines, key, node)
@@ -637,8 +639,10 @@ def _edit_live(lines: list[str], live: tuple[yaml.Node, yaml.Node], name: str, v
     return "\n".join(lines)
 
 
-def _add_privacy(lines: list[str], root: yaml.MappingNode, name: str, value: Any) -> str:
-    """a new `privacy:` under `settings:`, which is added if missing"""
+def _add_setting(
+    lines: list[str], root: yaml.MappingNode, section: str, block: Callable[[int], list[str]]
+) -> str:
+    """a new ``section:`` under `settings:`, which is added if missing. ``block(col)`` fills it"""
     col = root.start_mark.column
     found = _pair(root, "settings")
     if found is None:
@@ -646,13 +650,13 @@ def _add_privacy(lines: list[str], root: yaml.MappingNode, name: str, value: Any
         first = root.value[0][0].start_mark.line
         while first > 0 and _is_comment(lines[first - 1], col, col):
             first -= 1
-        block = [
+        new = [
             " " * col + "settings:",
-            " " * (col + _STEP) + "privacy:",
-            " " * (col + 2 * _STEP) + f"{name}: {_privacy_value(value)}",
+            " " * (col + _STEP) + f"{section}:",
+            *block(col + 2 * _STEP),
             "",
         ]
-        return "\n".join(lines[:first] + block + lines[first:])
+        return "\n".join(lines[:first] + new + lines[first:])
     key, settings = found
     if _is_empty(settings):
         _clear(lines, key, settings)
@@ -661,12 +665,11 @@ def _add_privacy(lines: list[str], root: yaml.MappingNode, name: str, value: Any
         inner = settings.start_mark.column
     else:
         raise _Unsupported("`settings` is not written as an indented block")
-    block = [" " * inner + "privacy:", " " * (inner + _STEP) + f"{name}: {_privacy_value(value)}"]
-    return _insert_after(lines, key.start_mark.line, block)
+    return _insert_after(lines, key.start_mark.line, [" " * inner + f"{section}:", *block(inner + _STEP)])
 
 
-def _verify_privacy(edited: str, before: Any, changes: dict[str, Any]) -> None:
-    """only the changed privacy options differ"""
+def _verify_setting(edited: str, before: Any, section: str, changes: dict[str, Any]) -> None:
+    """only the changed options of ``section`` differ"""
     try:
         after = yaml.safe_load(edited)
     except yaml.YAMLError:
@@ -675,27 +678,115 @@ def _verify_privacy(edited: str, before: Any, changes: dict[str, Any]) -> None:
         raise _Unsupported("the edited file would not read back as expected")
 
     def split(data: Any) -> tuple[dict[Any, Any], Any]:
-        """(privacy options, everything else), empty sections as missing"""
+        """(the section's options, everything else), empty sections as missing"""
         rest = copy.deepcopy(data) if isinstance(data, dict) else {}
-        privacy = rest.pop("privacy", None)
+        options = rest.pop(section, None)
         settings = rest.get("settings")
         if isinstance(settings, dict):
-            if privacy is None:
-                privacy = settings.pop("privacy", None)
+            if options is None:
+                options = settings.pop(section, None)
             if not settings:
                 rest.pop("settings")
         elif "settings" in rest and settings is None:
             rest.pop("settings")
-        return dict(privacy or {}), _empty_as_none(rest)
+        return dict(options or {}), _empty_as_none(rest)
 
-    privacy, rest = split(before)
+    options, rest = split(before)
     for name, value in changes.items():
         if value is None:
-            privacy.pop(name, None)
+            options.pop(name, None)
         else:
-            privacy[name] = value
-    if split(after) != (privacy, rest):
+            options[name] = value
+    if split(after) != (options, rest):
         raise _Unsupported("the edited file would not read back as expected")
+
+# notify endpoints
+
+NOTIFY_EDITABLE = ("webhooks", "command")
+
+
+class _BlockDumper(yaml.SafeDumper):
+    def increase_indent(self, flow: bool = False, indentless: bool = False) -> None:
+        return super().increase_indent(flow, False)
+
+
+def _block(name: str, value: Any, col: int) -> list[str]:
+    """``name: value`` as block YAML lines at ``col``"""
+    dumped = yaml.dump(
+        {name: value},
+        Dumper=_BlockDumper,
+        sort_keys=False,
+        default_flow_style=False,
+        allow_unicode=True,
+        width=1 << 30,
+    )
+    return [" " * col + line if line else line for line in dumped.rstrip("\n").split("\n")]
+
+
+def set_notify(text: str, changes: dict[str, Any]) -> str:
+    """``text`` with `notify:` options replaced, or removed where ``None``"""
+    unknown = set(changes) - set(NOTIFY_EDITABLE)
+    if unknown:
+        raise ValueError(f"not editable here: {', '.join(sorted(unknown))}")
+    body = text.replace("\r\n", "\n")
+    with _explained("Set it under `settings: notify:` by hand"):
+        try:
+            data = yaml.safe_load(body)
+        except yaml.YAMLError as exc:
+            raise _Unsupported("it doesn't parse") from exc
+        for name, value in changes.items():
+            body = _set_notify_option(body, name, value)
+        _verify_setting(body, data, "notify", changes)
+    return _line_ends(body, text)
+
+
+def _set_notify_option(body: str, name: str, value: Any) -> str:
+    lines = body.split("\n")
+    root = yaml.compose(body, Loader=yaml.SafeLoader)
+    if root is None:  # empty or only comments
+        if value is None:
+            return body
+        while lines and not lines[-1].strip():
+            lines.pop()
+        head = lines + [""] if lines else []
+        new = ["settings:", " " * _STEP + "notify:", *_block(name, value, 2 * _STEP)]
+        return "\n".join(head + new + [""])
+    if not isinstance(root, yaml.MappingNode) or root.flow_style:
+        raise _Unsupported("its top level is not a mapping")
+
+    found = _setting_node(root, "notify")
+    if found is None:
+        if value is None:
+            return body
+        return _add_setting(lines, root, "notify", lambda col: _block(name, value, col))
+    key, node = found
+    if _is_empty(node):
+        if value is None:
+            return body
+        _clear(lines, key, node)
+        return _insert_after(
+            lines, key.start_mark.line, _block(name, value, key.start_mark.column + _STEP)
+        )
+    if not isinstance(node, yaml.MappingNode) or node.flow_style:
+        raise _Unsupported("`notify` is not written as an indented block")
+
+    live = _pair(node, name)
+    if live is None:
+        if value is None:
+            return body
+        return _insert_after(lines, _last_line(node, lines), _block(name, value, node.start_mark.column))
+    option, written = live
+    first, last = option.start_mark.line, _last_line(written, lines)
+    if value is not None:
+        new = _block(name, value, option.start_mark.column)
+    else:
+        new = []
+        if len(node.value) == 1:
+            option = key
+            first = key.start_mark.line
+    if lines[first][: option.start_mark.column].strip():
+        raise _Unsupported(f"`{name}` does not start its own line")
+    return "\n".join(lines[:first] + new + lines[last + 1 :])
 
 # reading
 

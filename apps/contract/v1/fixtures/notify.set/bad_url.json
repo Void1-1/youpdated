@@ -1,0 +1,10 @@
+{
+  "description": "A webhook URL that isn't http(s); nothing is saved",
+  "request": { "id": 69, "op": "notify.set", "webhooks": [{ "url": "ntfy.sh/topic" }] },
+  "events": [],
+  "reply": {
+    "id": 69,
+    "ok": false,
+    "error": { "code": "bad_request", "message": "`settings.notify.webhooks` entry needs an http(s) `url`" }
+  }
+}

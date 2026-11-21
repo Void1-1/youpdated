@@ -231,6 +231,38 @@ public class EngineHostTests
     }
 
     [Fact]
+    public void AMissingEngineSaysSo()
+    {
+        var missing = Path.Combine(Path.GetTempPath(), "youpdated-no-such-dir", "youpdated-engine.exe");
+        var exc = Assert.Throws<EngineStartException>(
+            () => ProcessTransport.Start(new EngineCommand(missing, ["api", "serve"], Path.GetTempPath())));
+        Assert.Equal($"The Youpdated engine is missing from {missing}.", exc.Message);
+    }
+
+    [Fact]
+    public async Task TryAgainSkipsTheBackoff()
+    {
+        var time = new FakeTimeProvider();
+        var engine = new FakeEngine();
+        var missing = true;
+        await using var host = new EngineHost(
+            () => missing ? throw new EngineStartException("The Youpdated engine is missing from C:\\x.exe.") : engine,
+            Client, time);
+
+        await host.StartAsync(Token);
+        Assert.Equal(EngineState.Restarting, host.State);
+        Assert.NotNull(host.RestartAt);
+
+        missing = false;
+        await host.RetryNowAsync();
+
+        // without advancing the clock
+        Assert.Equal(EngineState.Running, host.State);
+        Assert.Null(host.RestartAt);
+        Assert.Single(engine.RequestsFor("hello"));
+    }
+
+    [Fact]
     public async Task StopSendsShutdownAndDoesNotRestart()
     {
         var engine = new FakeEngine();

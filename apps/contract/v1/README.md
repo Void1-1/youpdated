@@ -14,7 +14,7 @@ Used for the desktop apps and `youpdated api serve` to communicate. [contract.sc
 
 ## Order and concurrency
 
-- Replies can arrive out of order. `check` runs in the background, and other ops are answered while it runs, so the inbox stays usable during a long check.
+- Replies can arrive out of order. `check` runs in the background, and other ops are answered while it runs, so the inbox stays usable during a long check. `notify.test` runs in the background too, since a slow server or command can take its whole timeout.
 - One check at a time. A second `check` while one runs is `busy`. After a check replies it may still be fetching icons. A new `check` then waits for the current icon to be stored, stops the rest, and starts. If that takes over 30 seconds, it's `busy`.
 - While a check runs, other ops share the history it has open. Otherwise the engine takes the history lock per op, so a `youpdated add` from a terminal doesn't wait for the app. When the CLI holds it for longer than the engine waits, the op fails with `history_busy`; the app can retry later.
 - The engine re-reads the config on every op.
@@ -43,6 +43,7 @@ Used for the desktop apps and `youpdated api serve` to communicate. [contract.sc
 | `io_error` | A file couldn't be read or written |
 | `proxy_unreachable` | `privacy.set` couldn't connect to the proxy; nothing was saved |
 | `user_agent_unconfirmed` | `user_agent: youpdated` on an encrypted, proxied setup isn't confirmed yet. `check`, `targets.preview`, and `digest.send` sent nothing; `privacy.set` saved nothing |
+| `notify_failed` | `notify.test` couldn't deliver to the webhook, or the command failed. `message` for why |
 | `internal` | Bugs. `message` keeps the exception |
 
 `message` is plain English for the user. A client treats a code it doesn't know as a generic failure.
@@ -66,6 +67,7 @@ Used for the desktop apps and `youpdated api serve` to communicate. [contract.sc
 - **`last_run_by`** is `app` for a check through `api`, and `cli` for `youpdated check`. When it says `cli`, a scheduled job is probably also checking, and the app shows a one-time notice (`cli_notice_shown`).
 - **Snapshot privacy.** When the history is encrypted, `snapshot.write` writes only the unread count and the last check time (`redacted: true`). [snapshot.schema.json](snapshot.schema.json)
 - **Privacy.** `privacy.get` reads the config's `settings.privacy` with defaults filled in. `privacy.set` changes `proxy` and `fast_mode` only. It edits the config text in place, an option set to off is commented out.
+- **Webhooks and commands.** `notify.get` reads the config's `settings.notify`. `notify.set` replaces `webhooks` and/or `command` and leaves the rest of the file as written. A webhook whose options are all defaults is written as its bare URL. `run` is the command as a string. `timeout` is read-only. `notify.test` sends a sample update to one webhook or command, ignoring its priority and digest. A webhook test always goes through the proxy and privacy settings.
 - **Youpdated user agent.** `user_agent: youpdated` identifies its traffic, so like the CLI, the engine sends nothing until it's confirmed when both encryption and a proxy are enabled. `status.named_user_agent` is `unconfirmed` until then. The answer is kept and shared with the CLI.
 - **Icons** are off unless `show_icons` is set.
   - After replying, a check fetches icons for a few targets without one. After enabling, icons arrive over a check or two. Each is refreshed monthly.

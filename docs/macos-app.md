@@ -25,6 +25,7 @@ Youpdated has no Dock icon. Look for the bell in your menu bar.
 - Get a notification, and try its buttons.
 - Give targets different priorities, and set a daily digest in Settings.
 - Right-click something you follow and choose **Filters...** to see only some of its versions.
+- Add a webhook or a command in **Settings → Notifications**, and use **Send test** before saving.
 - Turn on **Start at login**, then restart your Mac.
 - Select a link in another app, then use **Watch with Youpdated** from the Services menu.
 - Use the Youpdated actions in Shortcuts.
@@ -42,7 +43,7 @@ Youpdated's own entry follows only the Mac app's releases. To also see the comma
 
 The app and the `youpdated` command share a config and history, so what you follow in one should appear in the other.
 
-Use version 0.5.0 or newer of the command-line tool (`youpdated --version` to check). It sends a webhook or command only the updates at its `priority:` and above, using the priorities you set in the app. It has no digest, so it ignores `digest:` and sends updates as it finds them. Older versions stop with an error if your config has either option under `notify:`. Everything the app writes itself is safe.
+Use version 0.5.0 or newer of the command-line tool (`youpdated --version` to check). It sends a webhook or command only the updates at its `priority:` and above, using the priorities you set in the app. It has no digest, so it ignores `digest:` and sends updates as it finds them. Older versions stop with an error if your config has either option under `notify:`, and the app writes them when a webhook or the command is set.
 
 ## Privacy
 

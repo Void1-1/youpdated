@@ -1,0 +1,16 @@
+{
+  "description": "An unsaved webhook takes the sample update",
+  "request": {
+    "id": 70,
+    "op": "notify.test",
+    "webhook": {
+      "url": "https://ntfy.sh/my-private-topic",
+      "format": "ntfy",
+      "headers": [],
+      "priority": "high",
+      "digest": true
+    }
+  },
+  "events": [],
+  "reply": { "id": 70, "ok": true }
+}

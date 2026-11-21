@@ -27,6 +27,8 @@ public enum AppPage
 public enum WindowState
 {
     Starting,
+    /// <summary>The engine couldn't start, and hasn't yet; see <see cref="AppViewModel.EngineFailure"/></summary>
+    EngineFailed,
     Locked,
     Welcome,
     Feed,
@@ -191,6 +193,9 @@ public sealed partial class AppViewModel : ObservableObject, IAsyncDisposable
     /// <summary>Unlocked, synced: pages have something to show</summary>
     [ObservableProperty]
     public partial bool IsReady { get; private set; }
+
+    [ObservableProperty]
+    public partial string? EngineFailure { get; private set; }
 
     [ObservableProperty]
     public partial bool IsChecking { get; private set; }
@@ -540,6 +545,10 @@ public sealed partial class AppViewModel : ObservableObject, IAsyncDisposable
             return;
         }
         await Settings.LoadPrivacyAsync();
+        if (Settings.Notify is not null)
+        {
+            await Settings.LoadNotifyAsync();
+        }
         await RefreshAsync();
     }
 
@@ -569,6 +578,7 @@ public sealed partial class AppViewModel : ObservableObject, IAsyncDisposable
 
     private async Task OnEngineStartedAsync(HelloReply hello)
     {
+        EngineFailure = null;
         Settings.SetEngine(hello);
         Sources.SetEngine(hello);
         await SyncAsync();
@@ -757,6 +767,21 @@ public sealed partial class AppViewModel : ObservableObject, IAsyncDisposable
         Scheduler.Stop();
         Problems.AddEngineProblem(problem);
         UpdateTray();
+        // else the window waits on a spinner while it retries
+        if (!IsReady)
+        {
+            EngineFailure = problem.Message;
+            UpdateWindowState();
+        }
+    }
+
+    /// <summary>"Try again" on the failed-engine page, without waiting out the backoff</summary>
+    [RelayCommand]
+    private async Task RetryEngine()
+    {
+        EngineFailure = null;
+        UpdateWindowState();
+        await _host.RetryNowAsync();
     }
 
     private void OnProgress(ProgressEvent progress)
@@ -868,7 +893,7 @@ public sealed partial class AppViewModel : ObservableObject, IAsyncDisposable
     private void UpdateWindowState()
     {
         WindowState = IsLocked ? WindowState.Locked
-            : !IsReady ? WindowState.Starting
+            : !IsReady ? (EngineFailure is null ? WindowState.Starting : WindowState.EngineFailed)
             : Following.NothingFollowed && Feed.SelfUpdate is null ? WindowState.Welcome
             : WindowState.Feed;
     }

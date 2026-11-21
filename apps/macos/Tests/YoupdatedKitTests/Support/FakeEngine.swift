@@ -162,12 +162,12 @@ struct Harness {
     let engine = FakeEngine()
     let platform = FakePlatform()
     let clock = TestClock()
+    let scratch = ScratchDefaults()
     let defaults: AppDefaults
     let model: AppModel
 
     init(version: String = "1.0.0", configure: (FakeEngine) -> Void = { _ in }) {
-        let suite = UserDefaults(suiteName: "YoupdatedTests-\(UUID().uuidString)")!
-        defaults = AppDefaults(suite)
+        defaults = AppDefaults(scratch.defaults)
         configure(engine)
         let engine = engine
         let clock = clock

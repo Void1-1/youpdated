@@ -56,6 +56,7 @@
             "io_error",
             "proxy_unreachable",
             "user_agent_unconfirmed",
+            "notify_failed",
             "internal"
           ]
         },
@@ -675,6 +676,117 @@
       }
     },
     "privacy.set.reply": { "$ref": "#/$defs/privacy.get.reply" },
+
+    "Webhook": {
+      "description": "A `settings.notify.webhooks` entry",
+      "type": "object",
+      "required": ["url", "format", "sends_as", "headers", "priority", "digest"],
+      "additionalProperties": false,
+      "properties": {
+        "url": { "type": "string", "description": "http(s) URL. May hold a token" },
+        "format": {
+          "description": "As the config names it. null is Automatic: guessed from the URL",
+          "oneOf": [{ "$ref": "#/$defs/WebhookFormat" }, { "type": "null" }]
+        },
+        "sends_as": { "$ref": "#/$defs/WebhookFormat", "description": "The format used: `format`, or the guess" },
+        "headers": {
+          "description": "Sent with each request, in config order. May hold a token",
+          "type": "array",
+          "items": { "$ref": "#/$defs/Header" }
+        },
+        "priority": { "$ref": "#/$defs/Priority", "description": "Lowest target priority it gets" },
+        "digest": { "type": "boolean", "description": "Holds normal items while the app's digest time is set" }
+      }
+    },
+    "Header": {
+      "description": "A list, not a mapping",
+      "type": "object",
+      "required": ["name", "value"],
+      "additionalProperties": false,
+      "properties": { "name": { "type": "string" }, "value": { "type": "string" } }
+    },
+    "WebhookFormat": { "enum": ["json", "discord", "slack", "ntfy"] },
+    "WebhookInput": {
+      "description": "A webhook to save or test. A missing or null `format` is guessed from the URL",
+      "type": "object",
+      "required": ["url"],
+      "additionalProperties": false,
+      "properties": {
+        "url": { "type": "string" },
+        "format": { "oneOf": [{ "$ref": "#/$defs/WebhookFormat" }, { "type": "null" }] },
+        "headers": { "type": "array", "items": { "$ref": "#/$defs/Header" } },
+        "priority": { "$ref": "#/$defs/Priority" },
+        "digest": { "type": "boolean" }
+      }
+    },
+    "NotifyCommand": {
+      "description": "`settings.notify.command`, run once per update",
+      "type": "object",
+      "required": ["run", "priority", "digest"],
+      "additionalProperties": false,
+      "properties": {
+        "run": { "type": "string", "description": "As written, `{title}`-style placeholders included" },
+        "priority": { "$ref": "#/$defs/Priority" },
+        "digest": { "type": "boolean" }
+      }
+    },
+    "NotifyCommandInput": {
+      "type": "object",
+      "required": ["run"],
+      "additionalProperties": false,
+      "properties": {
+        "run": { "type": "string", "minLength": 1 },
+        "priority": { "$ref": "#/$defs/Priority" },
+        "digest": { "type": "boolean" }
+      }
+    },
+    "Notify": {
+      "description": "The config's `settings.notify`",
+      "type": "object",
+      "required": ["webhooks", "command", "timeout"],
+      "additionalProperties": false,
+      "properties": {
+        "webhooks": { "type": "array", "items": { "$ref": "#/$defs/Webhook" } },
+        "command": { "oneOf": [{ "$ref": "#/$defs/NotifyCommand" }, { "type": "null" }] },
+        "timeout": { "type": "number", "exclusiveMinimum": 0, "description": "Seconds a command may run" }
+      }
+    },
+
+    "notify.get.request": { "type": "object", "additionalProperties": false },
+    "notify.get.reply": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["notify"],
+      "properties": { "notify": { "$ref": "#/$defs/Notify" } }
+    },
+
+    "notify.set.request": {
+      "description": "Writes the config in place. Comments inside a replaced option are lost",
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "properties": {
+        "webhooks": { "type": "array", "items": { "$ref": "#/$defs/WebhookInput" } },
+        "command": {
+          "description": "null removes it",
+          "oneOf": [{ "$ref": "#/$defs/NotifyCommandInput" }, { "type": "null" }]
+        }
+      }
+    },
+    "notify.set.reply": { "$ref": "#/$defs/notify.get.reply" },
+
+    "notify.test.request": {
+      "description": "Sends a sample update to an endpoint. Fails with `notify_failed`",
+      "type": "object",
+      "additionalProperties": false,
+      "minProperties": 1,
+      "maxProperties": 1,
+      "properties": {
+        "webhook": { "$ref": "#/$defs/WebhookInput" },
+        "command": { "$ref": "#/$defs/NotifyCommandInput" }
+      }
+    },
+    "notify.test.reply": { "type": "object", "additionalProperties": false },
 
     "priority.set.request": {
       "type": "object",

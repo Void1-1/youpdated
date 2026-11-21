@@ -16,6 +16,7 @@ import Testing
         "snapshot.write": SnapshotReply.self, "config.init": ConfigInitReply.self,
         "shutdown": EmptyReply.self, "icon.get": IconReply.self,
         "privacy.get": PrivacyReply.self, "privacy.set": PrivacyReply.self,
+        "notify.get": NotifyReply.self, "notify.set": NotifyReply.self, "notify.test": EmptyReply.self,
         "filters.get": Filters.self, "filters.set": Filters.self, "filters.preview": FiltersPreview.self,
     ]
 
@@ -118,6 +119,16 @@ import Testing
         ("privacy.set/tor", Params.SetPrivacy(proxy: "socks5://127.0.0.1:9050", fastMode: nil, confirmUserAgent: nil)),
         ("privacy.set/off", Params.SetPrivacy(proxy: .some(nil), fastMode: false, confirmUserAgent: nil)),
         ("privacy.set/confirm_user_agent", Params.SetPrivacy(proxy: nil, fastMode: nil, confirmUserAgent: true)),
+        ("notify.set/webhooks", Params.SetNotify(webhooks: [
+            Webhook(url: "https://ntfy.sh/my-private-topic"),
+            Webhook(url: "https://example.com/hook", format: "json",
+                    headers: [Header(name: "Authorization", value: "Bearer abc123")], priority: .high, digest: false),
+        ], command: nil)),
+        ("notify.set/remove_command", Params.SetNotify(webhooks: [], command: .some(nil))),
+        ("notify.test/webhook", Params.TestNotify(
+            webhook: Webhook(url: "https://ntfy.sh/my-private-topic", format: "ntfy", priority: .high), command: nil)),
+        ("notify.test/command_failed", Params.TestNotify(
+            webhook: nil, command: NotifyCommand(run: #"notify-send "{label}" "{title}""#))),
         ("priority.set/ok", Params.SetPriority(source: "steam", key: "440", priority: .high)),
         ("config.init/existing", Params.ConfigInit(selfWatch: true)),
         ("icon.get/found", Params.Icon(source: "steam", key: "440")),
@@ -150,11 +161,29 @@ import Testing
         #expect(String(decoding: unchanged, as: UTF8.self) == #"{"os_notifications":false}"#)
     }
 
+    @Test func headerNamesKeepTheirSpelling() throws {
+        let hook = Webhook(url: "https://example.com", headers: [Header(name: "X-Api_Key", value: "a")])
+        let data = try ContractCoding.encoder().encode(hook)
+        #expect(String(decoding: data, as: UTF8.self).contains(#"{"name":"X-Api_Key","value":"a"}"#))
+        let back = try ContractCoding.decoder().decode(Webhook.self, from: data)
+        #expect(back.headers.first?.name == "X-Api_Key")
+    }
+
     @Test func envelopePutsParamsBesideIdAndOp() throws {
         let data = try ContractCoding.encoder().encode(
             RequestEnvelope(id: 7, op: "targets.preview", params: Params.Preview(value: "express", source: nil)))
         #expect(String(decoding: data, as: UTF8.self) == #"{"id":7,"op":"targets.preview","value":"express"}"#)
         let empty = try ContractCoding.encoder().encode(RequestEnvelope(id: 1, op: "status", params: NoParams()))
         #expect(String(decoding: empty, as: UTF8.self) == #"{"id":1,"op":"status"}"#)
+    }
+
+    /// Same as the engine's `settings.notify.webhooks` check
+    @Test func webhookURLsNeedHTTPAndAHost() {
+        for url in ["https://ntfy.sh/topic", "http://127.0.0.1:8787/x", " HTTPS://example.com "] {
+            #expect(Webhook.isValidURL(url), "\(url)")
+        }
+        for url in ["", "fff", "ntfy.sh/topic", "https://", "ftp://example.com", "mailto:a@b.c"] {
+            #expect(!Webhook.isValidURL(url), "\(url)")
+        }
     }
 }

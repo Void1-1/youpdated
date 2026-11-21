@@ -1,0 +1,13 @@
+{
+  "description": "The command exited with an error",
+  "request": { "id": 71, "op": "notify.test", "command": { "run": "notify-send \"{label}\" \"{title}\"", "priority": "normal", "digest": true } },
+  "events": [],
+  "reply": {
+    "id": 71,
+    "ok": false,
+    "error": {
+      "code": "notify_failed",
+      "message": "notify-send: failed for 1 of 1 update(s); first: exit 1: Cannot autolaunch D-Bus without X11 $DISPLAY"
+    }
+  }
+}

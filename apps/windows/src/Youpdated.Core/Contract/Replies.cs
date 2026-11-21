@@ -75,6 +75,8 @@ public sealed record SettingsReply(Settings Settings);
 
 public sealed record PrivacyReply(Privacy Privacy);
 
+public sealed record NotifyReply(Notify Notify);
+
 public sealed record PriorityReply(Priority Priority);
 
 /// <summary>A followed item's rules: <c>filters.get</c> and <c>filters.set</c></summary>

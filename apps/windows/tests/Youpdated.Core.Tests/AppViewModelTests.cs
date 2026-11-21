@@ -1,5 +1,6 @@
 using System.Text.Json.Nodes;
 using Youpdated.Core.Contract;
+using Youpdated.Core.Engine;
 using Youpdated.Core.Platform;
 using Youpdated.Core.ViewModels;
 
@@ -104,6 +105,65 @@ public class AppViewModelTests
         Assert.Null(settings.PrivacyError);
         Assert.Equal(ProxyChoice.Tor, settings.ProxyChoice);
         Assert.Equal("socks5://127.0.0.1:9050", engine.RequestsFor("privacy.set").Last()["proxy"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public async Task AnEngineThatWontStartIsShownInsteadOfASpinner()
+    {
+        var engine = new FakeEngine();
+        var missing = true;
+        await using var test = new TestApp(engine,
+            () => missing ? throw new EngineStartException("The Youpdated engine is missing from C:\\Youpdated\\youpdated-engine.exe.") : engine);
+
+        await test.App.StartAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(WindowState.EngineFailed, test.App.WindowState);
+        Assert.Contains("is missing from", test.App.EngineFailure);
+
+        missing = false;
+        await test.App.RetryEngineCommand.ExecuteAsync(null);
+        await test.App.Ready.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        Assert.Null(test.App.EngineFailure);
+        Assert.NotEqual(WindowState.EngineFailed, test.App.WindowState);
+        Assert.NotEqual(WindowState.Starting, test.App.WindowState);
+    }
+
+    [Fact]
+    public async Task WebhooksAreReadForSettingsAndSavedOrExplained()
+    {
+        var engine = new FakeEngine();
+        await using var test = new TestApp(engine);
+        await test.StartAsync();
+        var settings = test.App.Settings;
+        Assert.True(settings.CanEditNotify);
+        // only once Settings asks
+        Assert.Null(settings.Notify);
+        Assert.Empty(engine.RequestsFor("notify.get"));
+        await settings.LoadNotifyAsync(TestContext.Current.CancellationToken);
+        // the ntfy topic is on Automatic
+        Assert.Equal([null, "discord"], settings.Notify!.Webhooks.Select(h => h.Format));
+        Assert.Equal(["ntfy", "discord"], settings.Notify!.Webhooks.Select(h => h.SendsAs));
+
+        engine.Next("notify.set", "webhooks");
+        Assert.Null(await settings.SaveWebhookAsync(null, Webhook.New() with { Url = "https://example.com/hook" }));
+        var sent = engine.RequestsFor("notify.set").Last();
+        Assert.Equal(3, sent["webhooks"]!.AsArray().Count);
+        Assert.False(sent.ContainsKey("command"));
+        Assert.Equal("Bearer abc123", settings.Notify!.Webhooks[1].Headers.Single().Value);
+
+        engine.Next("notify.set", "bad_url");
+        var refused = await settings.SaveWebhookAsync(0, Webhook.New() with { Url = "ntfy.sh/topic" });
+        Assert.Contains("http(s)", refused);
+        Assert.Equal(2, settings.Notify!.Webhooks.Count);
+
+        engine.Next("notify.set", "remove_command");
+        await settings.RemoveCommandAsync();
+        Assert.Null(settings.NotifyError);
+        Assert.Null(settings.Notify!.Command);
+
+        engine.Next("notify.test", "command_failed");
+        var failed = await settings.TestCommandAsync(new NotifyCommand("notify-send", Priority.Normal, true));
+        Assert.Contains("exit 1", failed);
+        Assert.Null(await settings.TestWebhookAsync(Webhook.New() with { Url = "https://ntfy.sh/my-private-topic" }));
     }
 
     [Fact]

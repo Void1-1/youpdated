@@ -92,6 +92,37 @@
                     </controls:SettingsCard.ActionIcon>
                 </controls:SettingsCard>
 
+                <!-- settings.notify -->
+                <StackPanel Visibility="{x:Bind Settings.CanEditNotify, Mode=OneWay}" Spacing="4">
+                    <!-- A card until there's a webhook to list, so nothing expands to an empty area -->
+                    <controls:SettingsCard x:Name="WebhooksCard" x:Uid="SettingsWebhooks"
+                                           IsEnabled="{x:Bind local:Bind.NotNull(Settings.Notify), Mode=OneWay}">
+                        <controls:SettingsCard.HeaderIcon>
+                            <FontIcon Glyph="&#xE71B;" />
+                        </controls:SettingsCard.HeaderIcon>
+                        <Button x:Uid="SettingsAddWebhook" Click="OnAddWebhook" />
+                    </controls:SettingsCard>
+                    <controls:SettingsExpander x:Name="WebhooksExpander" x:Uid="SettingsWebhooks" IsExpanded="False" Visibility="Collapsed"
+                                               IsEnabled="{x:Bind local:Bind.NotNull(Settings.Notify), Mode=OneWay}">
+                        <controls:SettingsExpander.HeaderIcon>
+                            <FontIcon Glyph="&#xE71B;" />
+                        </controls:SettingsExpander.HeaderIcon>
+                        <Button x:Uid="SettingsAddWebhook" Click="OnAddWebhook" />
+                    </controls:SettingsExpander>
+                    <controls:SettingsCard x:Name="CommandCard" x:Uid="SettingsCommand"
+                                           IsEnabled="{x:Bind local:Bind.NotNull(Settings.Notify), Mode=OneWay}">
+                        <controls:SettingsCard.HeaderIcon>
+                            <FontIcon Glyph="&#xE756;" />
+                        </controls:SettingsCard.HeaderIcon>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button x:Name="CommandEditButton" Click="OnEditCommand" />
+                            <Button x:Name="CommandRemoveButton" x:Uid="SettingsRemoveCommand" Click="OnRemoveCommand" />
+                        </StackPanel>
+                    </controls:SettingsCard>
+                    <!-- filled by ErrorBar.Show, for the code spans -->
+                    <InfoBar x:Name="NotifyErrorBar" Severity="Error" IsClosable="False" />
+                </StackPanel>
+
                 <!-- The config's settings.privacy -->
                 <StackPanel Visibility="{x:Bind Settings.CanEditPrivacy, Mode=OneWay}" Spacing="4">
                     <TextBlock x:Uid="SettingsGroupPrivacy" Style="{StaticResource BodyStrongTextBlockStyle}" Margin="1,24,0,4" />

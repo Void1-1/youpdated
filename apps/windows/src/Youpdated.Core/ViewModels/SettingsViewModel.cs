@@ -163,6 +163,103 @@ public sealed partial class SettingsViewModel : ObservableObject
     {
         EngineVersion = hello.Commit is { } commit ? $"{hello.Engine} ({commit})" : hello.Engine;
         CanEditPrivacy = hello.Ops.Contains("privacy.set");
+        CanEditNotify = hello.Ops.Contains("notify.set");
+    }
+
+    /// <summary>If the engine can edit the config's webhooks and command</summary>
+    [ObservableProperty]
+    public partial bool CanEditNotify { get; private set; }
+
+    /// <summary>The config's webhooks and command</summary>
+    [ObservableProperty]
+    public partial Notify? Notify { get; private set; }
+
+    /// <summary>Removing a webhook or the command failed</summary>
+    [ObservableProperty]
+    public partial string? NotifyError { get; private set; }
+
+    public async Task LoadNotifyAsync(CancellationToken cancellationToken = default)
+    {
+        if (!CanEditNotify)
+        {
+            return;
+        }
+        try
+        {
+            Notify = (await _engine.NotifyGetAsync(cancellationToken)).Notify;
+        }
+        catch (Exception exc) when (exc is EngineException or EngineUnavailableException or EngineExitedException or EngineProtocolException)
+        {
+            Notify = null;
+        }
+    }
+
+    /// <summary>Replaces every webhook</summary>
+    public Task<string?> SaveWebhooksAsync(IReadOnlyList<Webhook> webhooks) =>
+        EditNotifyAsync(() => _engine.NotifySetWebhooksAsync(webhooks));
+
+    /// <summary>Null removes the command</summary>
+    public Task<string?> SaveCommandAsync(NotifyCommand? command) =>
+        EditNotifyAsync(() => _engine.NotifySetCommandAsync(command));
+
+    /// <summary>Saves a webhook added (<paramref name="index"/> null) or edited</summary>
+    public Task<string?> SaveWebhookAsync(int? index, Webhook webhook)
+    {
+        var list = (Notify?.Webhooks ?? []).ToList();
+        if (index is { } at && at >= 0 && at < list.Count)
+        {
+            list[at] = webhook;
+        }
+        else
+        {
+            list.Add(webhook);
+        }
+        return SaveWebhooksAsync(list);
+    }
+
+    public async Task RemoveWebhookAsync(int index)
+    {
+        var list = (Notify?.Webhooks ?? []).ToList();
+        if (index < 0 || index >= list.Count)
+        {
+            return;
+        }
+        list.RemoveAt(index);
+        NotifyError = await SaveWebhooksAsync(list);
+    }
+
+    public async Task RemoveCommandAsync() => NotifyError = await SaveCommandAsync(null);
+
+    private async Task<string?> EditNotifyAsync(Func<Task<NotifyReply>> edit)
+    {
+        try
+        {
+            Notify = (await edit()).Notify;
+            NotifyError = null;
+            return null;
+        }
+        catch (Exception exc) when (exc is EngineException or EngineUnavailableException or EngineExitedException or EngineProtocolException)
+        {
+            return exc.Message;
+        }
+    }
+
+    /// <summary>Sends an example update</summary>
+    public Task<string?> TestWebhookAsync(Webhook webhook) => TestNotifyAsync(() => _engine.NotifyTestAsync(webhook));
+
+    public Task<string?> TestCommandAsync(NotifyCommand command) => TestNotifyAsync(() => _engine.NotifyTestAsync(command));
+
+    private static async Task<string?> TestNotifyAsync(Func<Task<EmptyReply>> send)
+    {
+        try
+        {
+            await send();
+            return null;
+        }
+        catch (Exception exc) when (exc is EngineException or EngineUnavailableException or EngineExitedException or EngineProtocolException)
+        {
+            return exc.Message;
+        }
     }
 
     /// <summary>Reads config privacy options</summary>

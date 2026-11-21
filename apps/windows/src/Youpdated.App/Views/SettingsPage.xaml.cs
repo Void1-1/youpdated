@@ -4,7 +4,9 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Navigation;
 using Windows.System;
+using CommunityToolkit.WinUI.Controls;
 using Youpdated.App.Platform;
+using Youpdated.Core.Contract;
 using Youpdated.Core.ViewModels;
 
 namespace Youpdated.App.Views;
@@ -69,7 +71,12 @@ public sealed partial class SettingsPage : Page
         }
         _filling = false;
         SyncPrivacy();
+        SyncNotify();
+        ErrorBar.Show(NotifyErrorBar, Settings.NotifyError);
+        LoadNotify();
     }
+
+    private async void LoadNotify() => await Settings.LoadNotifyAsync();
 
     protected override void OnNavigatedFrom(NavigationEventArgs e)
     {
@@ -84,7 +91,73 @@ public sealed partial class SettingsPage : Page
         {
             SyncPrivacy();
         }
+        if (e.PropertyName is nameof(SettingsViewModel.Notify))
+        {
+            SyncNotify();
+        }
+        if (e.PropertyName is nameof(SettingsViewModel.NotifyError))
+        {
+            ErrorBar.Show(NotifyErrorBar, Settings.NotifyError);
+        }
     }
+
+    private void SyncNotify()
+    {
+        var notify = Settings.Notify;
+        WebhooksExpander.Items.Clear();
+        foreach (var (hook, index) in (notify?.Webhooks ?? []).Select((hook, index) => (hook, index)))
+        {
+            var edit = new Button { Content = Text.Get("SettingsEdit") };
+            edit.Click += async (_, _) =>
+            {
+                if (XamlRoot is { } root)
+                {
+                    await NotifyEditors.EditWebhookAsync(root, Settings, index, hook);
+                }
+            };
+            var remove = new Button { Content = Text.Get("SettingsRemoveWebhook") };
+            remove.Click += async (_, _) => await Settings.RemoveWebhookAsync(index);
+            WebhooksExpander.Items.Add(new SettingsCard
+            {
+                Header = NotifyText.Host(hook.Url),
+                Description = NotifyText.Summary(hook),
+                Content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { edit, remove } },
+            });
+        }
+        var any = WebhooksExpander.Items.Count > 0;
+        WebhooksCard.Visibility = any ? Visibility.Collapsed : Visibility.Visible;
+        WebhooksExpander.Visibility = any ? Visibility.Visible : Visibility.Collapsed;
+        var command = notify?.Command;
+        CommandCard.Description = command is null
+            ? Text.Get("SettingsCommandNone")
+            : $"{command.Run}\n{NotifyText.Rules(command.Priority, command.Digest)}";
+        CommandEditButton.Content = Text.Get(command is null ? "SettingsSetCommand" : "SettingsEdit");
+        CommandRemoveButton.Visibility = command is null ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    private async void OnAddWebhook(object sender, RoutedEventArgs e)
+    {
+        if (XamlRoot is { } root)
+        {
+            var before = Settings.Notify?.Webhooks.Count ?? 0;
+            await NotifyEditors.EditWebhookAsync(root, Settings, null, Webhook.New());
+            // Collapsed by default, but show the one just added
+            if ((Settings.Notify?.Webhooks.Count ?? 0) > before)
+            {
+                WebhooksExpander.IsExpanded = true;
+            }
+        }
+    }
+
+    private async void OnEditCommand(object sender, RoutedEventArgs e)
+    {
+        if (XamlRoot is { } root)
+        {
+            await NotifyEditors.EditCommandAsync(root, Settings, Settings.Notify?.Command);
+        }
+    }
+
+    private async void OnRemoveCommand(object sender, RoutedEventArgs e) => await Settings.RemoveCommandAsync();
 
     /// <summary>Proxy and fast mode follow the config</summary>
     private void SyncPrivacy()

@@ -93,6 +93,16 @@
         <Grid Grid.Row="3">
             <ProgressRing x:Name="StartingRing" IsActive="True" Width="32" Height="32" />
 
+            <!-- The engine couldn't start, like the Mac's "Youpdated can't check" -->
+            <StackPanel x:Name="EngineFailedPanel" Visibility="Collapsed" MaxWidth="420" Spacing="12" Padding="24"
+                        HorizontalAlignment="Center" VerticalAlignment="Center">
+                <FontIcon Glyph="&#xE783;" FontSize="40" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                <TextBlock x:Uid="EngineFailedTitle" Style="{StaticResource SubtitleTextBlockStyle}" HorizontalAlignment="Center" />
+                <TextBlock x:Name="EngineFailedMessage" TextWrapping="Wrap" TextAlignment="Center" IsTextSelectionEnabled="True"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                <Button x:Uid="EngineFailedRetry" HorizontalAlignment="Center" Click="OnRetryEngine" />
+            </StackPanel>
+
             <!-- Locked -->
             <StackPanel x:Name="LockedPanel" Visibility="Collapsed" MaxWidth="360" Spacing="12" Padding="24"
                         HorizontalAlignment="Center" VerticalAlignment="Center">

@@ -124,6 +124,40 @@ public sealed record Privacy(
     int Concurrency,
     double Timeout);
 
+/// <summary>A list in the contract</summary>
+public sealed record Header(string Name, string Value);
+
+/// <summary>A <c>settings.notify.webhooks</c> entry</summary>
+/// <param name="Format">One of <see cref="WebhookFormats.All"/>, a string for formats newer than this app;
+/// null is Automatic, guessed from the URL</param>
+/// <param name="Priority">The lowest target priority it gets</param>
+/// <param name="Digest">Holds normal items while a digest time is set</param>
+public sealed record Webhook(string Url, string? Format, IReadOnlyList<Header> Headers, Priority Priority, bool Digest)
+{
+    public static Webhook New() => new("", null, [], Priority.Normal, true);
+
+    /// <summary>The format the engine sends as, from replies only</summary>
+    public string? SendsAs { get; init; }
+
+    public static bool IsValidUrl(string url) =>
+        Uri.TryCreate(url.Trim(), UriKind.Absolute, out var uri)
+        && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps)
+        && uri.Host.Length > 0;
+}
+
+public static class WebhookFormats
+{
+    public static IReadOnlyList<string> All { get; } = ["json", "discord", "slack", "ntfy"];
+}
+
+/// <summary><c>settings.notify.command</c>, run once per update</summary>
+/// <param name="Run">As written, <c>{title}</c>-style placeholders included</param>
+public sealed record NotifyCommand(string Run, Priority Priority, bool Digest);
+
+/// <summary>The config's <c>settings.notify</c></summary>
+/// <param name="Timeout">Seconds a command may run</param>
+public sealed record Notify(IReadOnlyList<Webhook> Webhooks, NotifyCommand? Command, double Timeout);
+
 public sealed record Encrypted(bool Config, bool History)
 {
     public bool Any => Config || History;
@@ -163,6 +197,7 @@ public static class ErrorCodes
     public const string IoError = "io_error";
     public const string ProxyUnreachable = "proxy_unreachable";
     public const string UserAgentUnconfirmed = "user_agent_unconfirmed";
+    public const string NotifyFailed = "notify_failed";
     public const string Internal = "internal";
 }
 

@@ -123,6 +123,22 @@ public sealed class EngineHost : IEngineChannel, IAsyncDisposable
         }
     }
 
+    /// <summary>"Try again": starts now instead of waiting out the backoff</summary>
+    public Task RetryNowAsync()
+    {
+        lock (_gate)
+        {
+            if (State != EngineState.Restarting || _stopping)
+            {
+                return Task.CompletedTask;
+            }
+            _restart?.Cancel();
+            RestartAt = null;
+            State = EngineState.Stopped;
+        }
+        return StartAsync(CancellationToken.None);
+    }
+
     /// <summary>Send <c>shutdown</c>, then stop; quitting the app</summary>
     public async Task StopAsync()
     {

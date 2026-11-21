@@ -173,8 +173,10 @@ struct NotificationSettings: View {
                     NSWorkspace.shared.open(url)
                 }
             }
+            NotifySections()
         }
         .formStyle(.grouped)
+        .task { await model.loadNotify() }
     }
 
     static func date(for time: String) -> Date {

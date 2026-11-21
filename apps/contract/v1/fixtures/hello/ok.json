@@ -1,5 +1,5 @@
 {
-  "description": "Initial app handshakeß",
+  "description": "Initial app handshake",
   "request": {
     "id": 13,
     "op": "hello",
@@ -34,6 +34,9 @@
       "settings.set",
       "privacy.get",
       "privacy.set",
+      "notify.get",
+      "notify.set",
+      "notify.test",
       "priority.set",
       "filters.get",
       "filters.set",

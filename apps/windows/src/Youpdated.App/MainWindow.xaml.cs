@@ -199,6 +199,7 @@ public sealed partial class MainWindow : Window, IMainWindow
             switch (args.PropertyName)
             {
                 case nameof(AppViewModel.WindowState):
+                case nameof(AppViewModel.EngineFailure):
                     UpdateContent();
                     break;
                 case nameof(AppViewModel.IsChecking):
@@ -231,6 +232,8 @@ public sealed partial class MainWindow : Window, IMainWindow
         StartingRing.IsActive = state == WindowState.Starting;
         StartingRing.Visibility = Bind.Show(state == WindowState.Starting && !_settingsOpen);
         LockedPanel.Visibility = Bind.Show(state == WindowState.Locked && !_settingsOpen);
+        EngineFailedPanel.Visibility = Bind.Show(state == WindowState.EngineFailed && !_settingsOpen);
+        EngineFailedMessage.Text = _app.EngineFailure ?? "";
         WelcomePanel.Visibility = Bind.Show(state == WindowState.Welcome && !following && !_settingsOpen);
         Feed.Visibility = Bind.Show(state == WindowState.Feed && !following && !_settingsOpen);
         Following.Visibility = Bind.Show(state is WindowState.Feed or WindowState.Welcome && following && !_settingsOpen);
@@ -244,6 +247,8 @@ public sealed partial class MainWindow : Window, IMainWindow
         TitleText.Text = _settingsOpen ? Text.Get("SettingsTitleBar") : "Youpdated";
         UpdateTitleBarRegions();
     }
+
+    private void OnRetryEngine(object sender, RoutedEventArgs e) => _app.RetryEngineCommand.Execute(null);
 
     private void UpdateChecking()
     {

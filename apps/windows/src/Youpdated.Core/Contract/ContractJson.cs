@@ -28,6 +28,7 @@ namespace Youpdated.Core.Contract;
 [JsonSerializable(typeof(ImportApplyReply))]
 [JsonSerializable(typeof(SettingsReply))]
 [JsonSerializable(typeof(PrivacyReply))]
+[JsonSerializable(typeof(NotifyReply))]
 [JsonSerializable(typeof(PriorityReply))]
 [JsonSerializable(typeof(Filters))]
 [JsonSerializable(typeof(FiltersPreview))]
@@ -120,6 +121,33 @@ public sealed class SettingsPatch
     }
 
     public JsonObject ToJson() => (JsonObject)_fields.DeepClone();
+}
+
+/// <summary>Webhooks and commands for <c>notify.set</c> and <c>notify.test</c></summary>
+public static class NotifyJson
+{
+    public static JsonObject ToJson(Webhook hook)
+    {
+        var json = new JsonObject
+        {
+            ["url"] = hook.Url,
+            ["headers"] = new JsonArray([.. hook.Headers.Select(h => (JsonNode?)new JsonObject { ["name"] = h.Name, ["value"] = h.Value })]),
+            ["priority"] = JsonSerializer.SerializeToNode(hook.Priority, ContractJson.Default.Priority),
+            ["digest"] = hook.Digest,
+        };
+        if (hook.Format is not null)
+        {
+            json["format"] = hook.Format;
+        }
+        return json;
+    }
+
+    public static JsonObject ToJson(NotifyCommand command) => new()
+    {
+        ["run"] = command.Run,
+        ["priority"] = JsonSerializer.SerializeToNode(command.Priority, ContractJson.Default.Priority),
+        ["digest"] = command.Digest,
+    };
 }
 
 /// <summary>Fields <c>privacy.set</c> changes</summary>

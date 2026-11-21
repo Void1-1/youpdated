@@ -9,7 +9,7 @@ import Testing
         await harness.model.launch()
         let model = harness.model
         #expect(model.engineState == .ready)
-        #expect(harness.engine.ops == ["hello", "status", "settings.get", "privacy.get", "problems.list", "inbox.list", "targets.list"])
+        #expect(harness.engine.ops == ["hello", "status", "settings.get", "privacy.get", "notify.get", "problems.list", "inbox.list", "targets.list"])
         #expect(model.engineVersion == "1.0.0")
         #expect(model.inbox.items.count == 6)
         #expect(model.unread == 4)
@@ -236,6 +236,41 @@ import Testing
         #expect(harness.model.appProblems.isEmpty)
     }
 
+    @Test func webhooksAreReadForSettingsAndSavedOrExplained() async {
+        let harness = Harness {
+            $0.script("notify.set", "notify.set/webhooks", "notify.set/bad_url", "notify.set/remove_command")
+            $0.script("notify.test", "notify.test/webhook", "notify.test/command_failed")
+        }
+        await harness.model.launch()
+        // at launch
+        #expect(harness.model.notify?.webhooks.map(\.format) == [nil, "discord"])
+        #expect(harness.model.notify?.webhooks.map(\.sendsAs) == ["ntfy", "discord"])
+
+        let hooks = [
+            Webhook(url: "https://ntfy.sh/my-private-topic"),
+            Webhook(url: "https://example.com/hook", format: "json",
+                    headers: [Header(name: "Authorization", value: "Bearer abc123")], priority: .high, digest: false),
+        ]
+        #expect(await harness.model.saveWebhooks(hooks) == nil)
+        #expect(harness.model.notify?.webhooks.last?.headers == [Header(name: "Authorization", value: "Bearer abc123")])
+        let sent = harness.engine.requests("notify.set").last
+        #expect(sent?["command"] == nil)
+        #expect((sent?["webhooks"] as? [[String: Any]])?.first?["format"] == nil)
+
+        let refused = await harness.model.saveWebhooks([Webhook(url: "ntfy.sh/topic")])
+        #expect(refused?.contains("http(s)") == true)
+        #expect(harness.model.notify?.webhooks.count == 2)
+
+        #expect(await harness.model.saveCommand(nil) == nil)
+        #expect(harness.engine.requests("notify.set").last?["command"] is NSNull)
+        #expect(harness.model.notify?.command == nil)
+
+        #expect(await harness.model.testWebhook(hooks[0]) == nil)
+        let failed = await harness.model.testCommand(NotifyCommand(run: #"notify-send "{label}" "{title}""#))
+        #expect(failed?.contains("exit 1") == true)
+        #expect(harness.model.appProblems.isEmpty)
+    }
+
     @Test func selfWatchOffer() async {
         let harness = Harness()
         harness.engine.answer("status", reply: statusReply(["self_watch": "absent"]))
@@ -292,9 +327,11 @@ import Testing
         let second = FakeEngine()
         let engines = EngineQueue([first, second])
         let platform = FakePlatform()
+        let scratch = ScratchDefaults()
+        defer { withExtendedLifetime(scratch) {} }
         let model = AppModel(
             launch: { try engines.next() }, platform: platform,
-            defaults: AppDefaults(UserDefaults(suiteName: "YoupdatedTests-\(UUID().uuidString)")!),
+            defaults: AppDefaults(scratch.defaults),
             appVersion: "1.0.0", now: { ContractCoding.parseTimestamp("2026-10-29T08:00:06Z")! },
             sleep: { _ in await Task.yield() })
         await model.launch()

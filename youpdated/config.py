@@ -57,6 +57,8 @@ class Webhook:
     priority: str = "normal"
     # follow app's digest if set
     digest: bool = True
+    # the config names `format:`
+    format_given: bool = False
 
 
 @dataclass
@@ -527,7 +529,7 @@ def _parse_endpoint_rules(fields: dict[Any, Any], where: str, name: str) -> tupl
     return priority.strip().lower(), digest
 
 
-def _parse_command(raw: Any, where: str) -> Command:
+def parse_command(raw: Any, where: str) -> Command:
     """`command:` as a string or list, or a mapping with `run:` and options"""
     if not isinstance(raw, dict):
         return Command(split_command(raw, where))
@@ -543,7 +545,7 @@ def _parse_command(raw: Any, where: str) -> Command:
     return Command(split_command(raw["run"], where, "`settings.notify.command.run`"), priority, digest)
 
 
-def _parse_webhook(raw: Any, where: str) -> Webhook:
+def parse_webhook(raw: Any, where: str) -> Webhook:
     fields = {"url": raw} if isinstance(raw, str) else raw
     if not isinstance(fields, dict):
         raise ConfigError(f"{where}`settings.notify.webhooks` entries must be a URL or a mapping")
@@ -563,6 +565,7 @@ def _parse_webhook(raw: Any, where: str) -> Webhook:
         raise ConfigError(f"{where}`settings.notify.webhooks` entry needs an http(s) `url`")
 
     fmt = fields.get("format")
+    format_given = fmt is not None
     if fmt is None:
         fmt = guess_webhook_format(url)
     elif not isinstance(fmt, str) or fmt.strip().lower() not in WEBHOOK_FORMATS:
@@ -595,6 +598,7 @@ def _parse_webhook(raw: Any, where: str) -> Webhook:
         headers={k: str(v) for k, v in headers.items()},
         priority=priority,
         digest=digest,
+        format_given=format_given,
     )
 
 
@@ -609,11 +613,11 @@ def _parse_notify(raw: Any, where: str) -> NotifyConfig:
     hooks = raw.get("webhooks")
     if hooks is not None:
         for hook in hooks if isinstance(hooks, list) else [hooks]:
-            notify.webhooks.append(_parse_webhook(hook, where))
+            notify.webhooks.append(parse_webhook(hook, where))
 
     command = raw.get("command")
     if command is not None:
-        notify.commands.append(_parse_command(command, where))
+        notify.commands.append(parse_command(command, where))
 
     timeout = raw.get("timeout")
     if timeout is not None:

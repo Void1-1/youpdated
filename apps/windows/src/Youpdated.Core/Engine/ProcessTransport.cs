@@ -61,6 +61,11 @@ public sealed class ProcessTransport : IEngineTransport
         info.Environment["PYTHONIOENCODING"] = "utf-8";
         info.Environment["PYTHONUTF8"] = "1";
 
+        // Say so plainly, like the Mac app, rather than Win32's "cannot find the file"
+        if (Path.IsPathRooted(command.FileName) && !File.Exists(command.FileName))
+        {
+            throw new EngineStartException($"The Youpdated engine is missing from {command.FileName}.");
+        }
         var process = new Process { StartInfo = info, EnableRaisingEvents = true };
         try
         {

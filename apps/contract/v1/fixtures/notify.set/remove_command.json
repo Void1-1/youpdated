@@ -1,0 +1,10 @@
+{
+  "description": "Removes the command and every webhook",
+  "request": { "id": 68, "op": "notify.set", "webhooks": [], "command": null },
+  "events": [],
+  "reply": {
+    "id": 68,
+    "ok": true,
+    "notify": { "webhooks": [], "command": null, "timeout": 30.0 }
+  }
+}
