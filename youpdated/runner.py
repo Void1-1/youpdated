@@ -13,7 +13,7 @@ from .http import Client, Validator
 from .models import RunError, Target, Update
 from .registry import all_sources, canonical_name
 from .state import State
-from .versions import Highest, VersionRules, highest
+from .versions import Highest, VersionRules, highest, release
 
 # ``(source, key)`` of a target
 Key = tuple[str, str]
@@ -38,6 +38,10 @@ class _Pending:
     keep_sources: set[str]
     # The newest item of each target fetched
     latest: list[Update] = field(default_factory=list)
+    # ``(source, key, message)`` of each failing target
+    failed: list[tuple[str, str, str]] = field(default_factory=list)
+    # Item before `bump:` target's highest release
+    top: list[Update] = field(default_factory=list)
 
 
 @dataclass
@@ -318,17 +322,24 @@ def run(
     new.sort(key=lambda u: u.published or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
     result.updates = new
     seen = [u for u in fetched if u.dedupe_key not in withheld]
+    highest_rows, top = _highest_versions(state, seen, targets, succeeded)
     result._pending = _Pending(
         seen=seen,
         validators=validators,
         links=links,
         succeeded=succeeded,
         rules=succeeded_rules,
-        highest=_highest_versions(state, seen, targets, succeeded),
+        highest=highest_rows,
+        top=top,
         # Targets not fetched cleanly (failed, or left out by --source) keep history
         keep_targets={(t.source, t.key) for t in configured} - succeeded.keys(),
         keep_sources=unlisted,
         latest=latest,
+        failed=list({
+            (e.source, e.key): (e.source, e.key, e.message)
+            for e in result.errors
+            if e.key is not None and (e.source, e.key) not in succeeded
+        }.values()),
     )
 
     if save:
@@ -365,18 +376,30 @@ def _interleaved(targets: list[Target]) -> list[int]:
 
 def _highest_versions(
     state: State, seen: list[Update], targets: list[Target], succeeded: dict[Key, Target]
-) -> list[tuple[str, str, str]]:
-    """The highest releases of each target a `bump:` rule applies to"""
+) -> tuple[list[tuple[str, str, str]], list[Update]]:
+    """The highest releases of each target a `bump:` rule applies to, and the items before them"""
     measured = {(t.source, t.key) for t in targets if t.versions.bump} & succeeded.keys()
     by_key: dict[Key, list[Update]] = {key: [] for key in measured}
     for update in seen:
         by_key.get((update.source, update.target), []).append(update)
-    rows = []
+    rows, items = [], []
     for (source, key), updates in by_key.items():
         top = highest(updates, Highest.parse(state.highest_version(source, key)))
-        if top is not None:
-            rows.append((source, key, str(top)))
-    return rows
+        if top is None:
+            continue
+        rows.append((source, key, str(top)))
+        wanted = top.final or top.overall
+        found = next(
+            (
+                u for u in updates
+                if release(u.version) == wanted
+                and (top.final is None or "prerelease" not in u.tags)
+            ),
+            None,
+        )
+        if found is not None:
+            items.append(found)
+    return rows, items
 
 
 def record(state: State, result: RunResult, by: str = "cli") -> None:
@@ -395,6 +418,12 @@ def record(state: State, result: RunResult, by: str = "cli") -> None:
     state.mark_ignore_rules((s, k, pending.rules[(s, k)]) for s, k in pending.succeeded)
     state.mark_highest_versions(pending.highest)
     state.mark_latest(pending.latest)
+    state.mark_latest(pending.top, kind="top")
+    # Names sources resolved while fetching for `list` and apps
+    for target in result.targets:
+        if target.label:
+            state.cache_set("app", f"label:{target.source}:{target.key}", target.display)
+    state.mark_failing(pending.failed, pending.succeeded)
     state.set_last_run(by=by)
     # Prune only after marking
     result.pruned = state.prune(

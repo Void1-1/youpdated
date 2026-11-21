@@ -57,6 +57,8 @@
 
 Want an app version? [Youpdated for Mac](https://github.com/Void1-1/youpdated/blob/main/docs/macos-app.md) and [Youpdated for Windows](https://github.com/Void1-1/youpdated/blob/main/docs/windows-app.md) are in beta.
 
+> Youpdated CLI v1.0.0 and full App releases are planned for January 1, 2027!
+
 ### 1. Install
 
 Works on macOS, Linux, and Windows. Needs **Python 3.11 or newer** (`python3 --version` to check). Then:
@@ -144,6 +146,7 @@ youpdated check --all        # everything, not just what's new
 youpdated check --since 7d   # only things from the last week
 youpdated check -s steam     # only one source
 youpdated check --test -v    # check your config without fetching anything
+youpdated list               # everything you watch and its latest version
 youpdated add npm react      # start watching something
 youpdated remove npm react   # stop watching it
 youpdated import Brewfile    # watch everything a dependency file lists

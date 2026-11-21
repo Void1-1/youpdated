@@ -296,6 +296,59 @@ def _when(raw: str | None) -> str | None:
         return None
 
 
+def stored_problems(state: State) -> tuple[list[dict[str, str | None]], str | None]:
+    """The last app check's problems"""
+    raw = state.cache_get("app", "problems")
+    if not raw:
+        return [], None
+    try:
+        stored = json.loads(raw)
+        problems = [{"key": None, **problem} for problem in stored["problems"]]
+        return problems, stored["checked_at"]
+    except (ValueError, KeyError, TypeError):
+        return [], None
+
+
+def target_rows(targets: list[Target], state: State) -> list[dict[str, Any]]:
+    """`youpdated list`"""
+    labels = state.cache_items("app", "label:")
+    priorities = state.priorities()
+    baselines = state.cache_items("baseline")
+    unread = state.inbox_unread_by_target()
+    latest = state.latest()
+    problems, _ = stored_problems(state)
+    listed = []
+    seen: set[Key] = set()
+    for t in targets:
+        key = (t.source, t.key)
+        if key in seen:
+            continue
+        seen.add(key)
+        display = labels.get(f"{t.source}:{t.key}") or t.display
+        # by key
+        names = {display, t.display, t.key}
+        error = next(
+            (
+                pr["message"] for pr in problems
+                if pr["kind"] == "source" and pr["source"] == t.source
+                and (pr["key"] == t.key if pr["key"] is not None else pr["target"] in names)
+            ),
+            None,
+        )
+        listed.append({
+            "source": t.source,
+            "key": t.key,
+            "display": display,
+            "priority": priorities.get(key, "normal"),
+            "starred": _starred(*key),
+            "last_checked": _when(baselines.get(f"{t.source}:{t.key}")),
+            "last_error": error,
+            "unread": unread.get(key, 0),
+            "latest": latest.get(key),
+        })
+    return listed
+
+
 def _problem(error: RunError) -> dict[str, str | None]:
     kind = "notify" if error.source == "notify" else "config" if error.target == "-" else "source"
     return {
@@ -537,15 +590,7 @@ class Engine:
         return settings
 
     def _problems(self, state: State) -> tuple[list[dict[str, str | None]], str | None]:
-        raw = state.cache_get("app", "problems")
-        if not raw:
-            return [], None
-        try:
-            stored = json.loads(raw)
-            problems = [{"key": None, **problem} for problem in stored["problems"]]
-            return problems, stored["checked_at"]
-        except (ValueError, KeyError, TypeError):
-            return [], None
+        return stored_problems(state)
 
     def _item(
         self,
@@ -785,9 +830,6 @@ class Engine:
     ) -> dict[str, Any]:
         """Put a check's findings in the inbox, and notify"""
         labels = {(t.source, t.key): t.display for t in result.targets}
-        for target in result.targets:
-            if target.label:
-                state.cache_set("app", f"label:{target.source}:{target.key}", target.display)
         new_ids = state.inbox_add(result.updates, labels)
         baseline_ids = state.inbox_add(result.baseline_items, labels, baseline=True)
         if full:
@@ -941,41 +983,7 @@ class Engine:
         config = self._config()
         targets, _ = build_targets(config)
         with self._history(config) as state:
-            labels = state.cache_items("app", "label:")
-            priorities = state.priorities()
-            baselines = state.cache_items("baseline")
-            unread = state.inbox_unread_by_target()
-            latest = state.latest()
-            problems, _ = self._problems(state)
-        listed = []
-        seen: set[Key] = set()
-        for t in targets:
-            key = (t.source, t.key)
-            if key in seen:
-                continue
-            seen.add(key)
-            display = labels.get(f"{t.source}:{t.key}") or t.display
-            # by key; older problems without one match by name
-            names = {display, t.display, t.key}
-            error = next(
-                (
-                    pr["message"] for pr in problems
-                    if pr["kind"] == "source" and pr["source"] == t.source
-                    and (pr["key"] == t.key if pr["key"] is not None else pr["target"] in names)
-                ),
-                None,
-            )
-            listed.append({
-                "source": t.source,
-                "key": t.key,
-                "display": display,
-                "priority": priorities.get(key, "normal"),
-                "starred": _starred(*key),
-                "last_checked": _when(baselines.get(f"{t.source}:{t.key}")),
-                "last_error": error,
-                "unread": unread.get(key, 0),
-                "latest": latest.get(key),
-            })
+            listed = target_rows(targets, state)
         return {"targets": listed}
 
     def op_targets_preview(self, p: _Params) -> dict[str, Any]:
