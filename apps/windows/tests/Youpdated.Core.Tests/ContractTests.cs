@@ -28,6 +28,9 @@ public class ContractTests
         ["settings.set"] = ContractJson.Default.SettingsReply,
         ["privacy.get"] = ContractJson.Default.PrivacyReply,
         ["privacy.set"] = ContractJson.Default.PrivacyReply,
+        ["notify.get"] = ContractJson.Default.NotifyReply,
+        ["notify.set"] = ContractJson.Default.NotifyReply,
+        ["notify.test"] = ContractJson.Default.EmptyReply,
         ["priority.set"] = ContractJson.Default.PriorityReply,
         ["problems.list"] = ContractJson.Default.ProblemsListReply,
         ["digest.send"] = ContractJson.Default.DigestReply,
@@ -179,6 +182,15 @@ public class ContractTests
         ["privacy.get/ok"] = client => client.PrivacyGetAsync(),
         ["privacy.set/tor"] = client => client.PrivacySetAsync(new PrivacyPatch().Proxy("socks5://127.0.0.1:9050")),
         ["privacy.set/off"] = client => client.PrivacySetAsync(new PrivacyPatch().Proxy(null).FastMode(false)),
+        ["notify.get/ok"] = client => client.NotifyGetAsync(),
+        ["notify.set/webhooks"] = client => client.NotifySetWebhooksAsync([
+            Webhook.New() with { Url = "https://ntfy.sh/my-private-topic" },
+            new Webhook("https://example.com/hook", "json", [new Header("Authorization", "Bearer abc123")], Priority.High, false),
+        ]),
+        ["notify.test/webhook"] = client => client.NotifyTestAsync(
+            Webhook.New() with { Url = "https://ntfy.sh/my-private-topic", Format = "ntfy", Priority = Priority.High }),
+        ["notify.test/command_failed"] = client => Assert.ThrowsAsync<EngineException>(() => client.NotifyTestAsync(
+            new NotifyCommand("notify-send \"{label}\" \"{title}\"", Priority.Normal, true))),
         ["priority.set/ok"] = client => client.PrioritySetAsync(new TargetKey("steam", "440"), Priority.High),
         ["problems.list/ok"] = client => client.ProblemsListAsync(),
         ["digest.send/ok"] = client => client.DigestSendAsync(),
@@ -212,6 +224,27 @@ public class ContractTests
         var settings = engine.Requests.Single()["settings"]!.AsObject();
         Assert.True(settings.ContainsKey("digest_time"));
         Assert.Null(settings["digest_time"]);
+    }
+
+    [Fact]
+    public async Task RemovingTheCommandSendsNull()
+    {
+        var engine = new FakeEngine().Next("notify.set", "remove_command");
+        await using var connection = new EngineConnection(engine);
+        var reply = await new EngineClient(connection).NotifySetCommandAsync(null, TestContext.Current.CancellationToken);
+
+        var sent = engine.Requests.Single();
+        Assert.True(sent.ContainsKey("command") && sent["command"] is null);
+        Assert.False(sent.ContainsKey("webhooks"));
+        Assert.Null(reply.Notify.Command);
+    }
+
+    [Fact]
+    public void HeaderNamesKeepTheirSpelling()
+    {
+        var hook = Webhook.New() with { Url = "https://example.com", Headers = [new Header("X-Api_Key", "a")] };
+        var header = NotifyJson.ToJson(hook)["headers"]![0]!.AsObject();
+        Assert.Equal("X-Api_Key", header["name"]!.GetValue<string>());
     }
 
     private static JsonNode Normalize(JsonObject request)

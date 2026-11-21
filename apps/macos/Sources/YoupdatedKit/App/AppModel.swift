@@ -27,6 +27,8 @@ public final class AppModel {
     public private(set) var status: StatusReply?
     public private(set) var settings: Settings = .defaults
     public private(set) var privacy: Privacy?
+    /// The config's webhooks and commands
+    public private(set) var notify: Notify?
     public internal(set) var unread = 0
     public private(set) var isChecking = false
     public private(set) var progress: ProgressEvent?
@@ -463,6 +465,7 @@ public final class AppModel {
         await refreshStatus()
         await sources.reload()
         await loadPrivacy()
+        if notify != nil { await loadNotify() }
     }
 
     /// The engine reads and writes the config's privacy options
@@ -513,6 +516,58 @@ public final class AppModel {
         }
         await refreshStatus()
         await tick()
+    }
+
+    public var canEditNotify: Bool { hello?.ops.contains("notify.set") == true }
+
+    public func loadNotify() async {
+        guard let engine, canEditNotify, !needsPassphrase, status?.locked != true else { return }
+        do {
+            notify = try await engine.notify()
+        } catch {
+            notify = nil
+        }
+    }
+
+    /// Replaces every webhook in the config
+    public func saveWebhooks(_ webhooks: [Webhook]) async -> String? {
+        await editNotify { try await $0.setNotify(webhooks: webhooks) }
+    }
+
+    public func saveCommand(_ command: NotifyCommand?) async -> String? {
+        await editNotify { try await $0.setNotify(command: .some(command)) }
+    }
+
+    private func editNotify(_ edit: (Engine) async throws -> Notify) async -> String? {
+        guard let engine else { return String(localized: "Youpdated's engine isn't running.") }
+        do {
+            notify = try await edit(engine)
+            return nil
+        } catch {
+            return SourcesModel.message(for: error)
+        }
+    }
+
+    /// Sends an example update
+    public func testWebhook(_ webhook: Webhook) async -> String? {
+        await testNotify { try await $0.testNotify(webhook: webhook) }
+    }
+
+    public func testCommand(_ command: NotifyCommand) async -> String? {
+        await testNotify { try await $0.testNotify(command: command) }
+    }
+
+    private func testNotify(_ send: (Engine) async throws -> Void) async -> String? {
+        guard let engine else { return String(localized: "Youpdated's engine isn't running.") }
+        do {
+            try await send(engine)
+            return nil
+        } catch let error as EngineError where error.code == .userAgentUnconfirmed {
+            await refreshStatus()
+            return error.message
+        } catch {
+            return SourcesModel.message(for: error)
+        }
     }
 
     public enum NotificationAction: String, Sendable {

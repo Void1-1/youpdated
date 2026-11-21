@@ -228,6 +228,33 @@ public sealed class EngineClient(IEngineChannel channel)
     public Task<PrivacyReply> PrivacySetAsync(PrivacyPatch patch, CancellationToken cancellationToken = default) =>
         channel.SendAsync("privacy.set", patch.ToJson(), ContractJson.Default.PrivacyReply, cancellationToken);
 
+    /// <summary>Only when <c>hello.ops</c> has <c>notify.get</c></summary>
+    public Task<NotifyReply> NotifyGetAsync(CancellationToken cancellationToken = default) =>
+        channel.SendAsync("notify.get", null, ContractJson.Default.NotifyReply, cancellationToken);
+
+    /// <summary>Replaces every webhook</summary>
+    public Task<NotifyReply> NotifySetWebhooksAsync(IReadOnlyList<Webhook> webhooks, CancellationToken cancellationToken = default) =>
+        channel.SendAsync("notify.set", new JsonObject
+        {
+            ["webhooks"] = new JsonArray([.. webhooks.Select(hook => (JsonNode?)NotifyJson.ToJson(hook))]),
+        }, ContractJson.Default.NotifyReply, cancellationToken);
+
+    /// <summary>Replaces the command, or removes it when null</summary>
+    public Task<NotifyReply> NotifySetCommandAsync(NotifyCommand? command, CancellationToken cancellationToken = default) =>
+        channel.SendAsync("notify.set", new JsonObject
+        {
+            ["command"] = command is null ? null : NotifyJson.ToJson(command),
+        }, ContractJson.Default.NotifyReply, cancellationToken);
+
+    /// <summary>Sends an example update with its rules. Failure is <c>notify_failed</c></summary>
+    public Task<EmptyReply> NotifyTestAsync(Webhook webhook, CancellationToken cancellationToken = default) =>
+        channel.SendAsync("notify.test", new JsonObject { ["webhook"] = NotifyJson.ToJson(webhook) },
+            ContractJson.Default.EmptyReply, cancellationToken);
+
+    public Task<EmptyReply> NotifyTestAsync(NotifyCommand command, CancellationToken cancellationToken = default) =>
+        channel.SendAsync("notify.test", new JsonObject { ["command"] = NotifyJson.ToJson(command) },
+            ContractJson.Default.EmptyReply, cancellationToken);
+
     public Task<PriorityReply> PrioritySetAsync(
         TargetKey target, Priority priority, CancellationToken cancellationToken = default) =>
         channel.SendAsync("priority.set", new JsonObject

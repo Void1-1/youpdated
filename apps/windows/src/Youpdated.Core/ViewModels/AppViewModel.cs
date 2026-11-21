@@ -540,6 +540,10 @@ public sealed partial class AppViewModel : ObservableObject, IAsyncDisposable
             return;
         }
         await Settings.LoadPrivacyAsync();
+        if (Settings.Notify is not null)
+        {
+            await Settings.LoadNotifyAsync();
+        }
         await RefreshAsync();
     }
 

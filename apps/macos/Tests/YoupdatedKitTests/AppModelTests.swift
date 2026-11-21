@@ -236,6 +236,42 @@ import Testing
         #expect(harness.model.appProblems.isEmpty)
     }
 
+    @Test func webhooksAreReadForSettingsAndSavedOrExplained() async {
+        let harness = Harness {
+            $0.script("notify.set", "notify.set/webhooks", "notify.set/bad_url", "notify.set/remove_command")
+            $0.script("notify.test", "notify.test/webhook", "notify.test/command_failed")
+        }
+        await harness.model.launch()
+        // only once Settings asks
+        #expect(harness.model.notify == nil)
+        await harness.model.loadNotify()
+        #expect(harness.model.notify?.webhooks.map(\.format) == ["ntfy", "discord"])
+
+        let hooks = [
+            Webhook(url: "https://ntfy.sh/my-private-topic"),
+            Webhook(url: "https://example.com/hook", format: "json",
+                    headers: [Header(name: "Authorization", value: "Bearer abc123")], priority: .high, digest: false),
+        ]
+        #expect(await harness.model.saveWebhooks(hooks) == nil)
+        #expect(harness.model.notify?.webhooks.last?.headers == [Header(name: "Authorization", value: "Bearer abc123")])
+        let sent = harness.engine.requests("notify.set").last
+        #expect(sent?["command"] == nil)
+        #expect((sent?["webhooks"] as? [[String: Any]])?.first?["format"] == nil)
+
+        let refused = await harness.model.saveWebhooks([Webhook(url: "ntfy.sh/topic")])
+        #expect(refused?.contains("http(s)") == true)
+        #expect(harness.model.notify?.webhooks.count == 2)
+
+        #expect(await harness.model.saveCommand(nil) == nil)
+        #expect(harness.engine.requests("notify.set").last?["command"] is NSNull)
+        #expect(harness.model.notify?.command == nil)
+
+        #expect(await harness.model.testWebhook(hooks[0]) == nil)
+        let failed = await harness.model.testCommand(NotifyCommand(run: #"notify-send "{label}" "{title}""#))
+        #expect(failed?.contains("exit 1") == true)
+        #expect(harness.model.appProblems.isEmpty)
+    }
+
     @Test func selfWatchOffer() async {
         let harness = Harness()
         harness.engine.answer("status", reply: statusReply(["self_watch": "absent"]))

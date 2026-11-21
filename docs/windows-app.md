@@ -24,6 +24,7 @@ Closing the window keeps Youpdated running. Look for the bell in the notificatio
 - Get a notification, and try its buttons.
 - Give targets different priorities, and set a daily digest in Settings.
 - Right-click something you follow and choose **Filters...** to see only some of its versions.
+- Add a webhook or command in **Settings → Notifications**, and use **Send test** before saving.
 - Turn on **Start Youpdated when you sign in**, then sign out and back in.
 - Right-click Youpdated on the taskbar for **Check now** and **Add**.
 - Open a `youpdated://add?url=<link>` link from your browser.
@@ -41,7 +42,7 @@ Youpdated's own entry follows only the Windows app's releases. To see the comman
 
 The app and the `youpdated` command share a config and history, so what you follow in one should appear in the other.
 
-Use version 0.5.0 or newer of the command-line tool (`youpdated --version` to check). It sends a webhook or command only the updates at its `priority:` and above, using the priorities you set in the app. It has no digest, so it ignores `digest:` and sends updates as it finds them. Older versions stop with an error if your config has either option under `notify:`. Everything the app writes itself is safe.
+Use version 0.5.0 or newer of the command-line tool (`youpdated --version` to check). It sends a webhook or command only the updates at its `priority:` and above, using the priorities you set in the app. It has no digest, so it ignores `digest:` and sends updates as it finds them. Older versions stop with an error if your config has either option under `notify:`, and the app writes them when a webhook or the command is set.
 
 ## Privacy
 

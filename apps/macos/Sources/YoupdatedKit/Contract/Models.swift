@@ -384,6 +384,74 @@ public struct PrivacyReply: Codable, Sendable {
     public var privacy: Privacy
 }
 
+/// `settings.notify.webhooks` formats
+public enum WebhookFormat: String, Codable, Sendable, CaseIterable {
+    case json, discord, slack, ntfy
+}
+
+public struct Header: Codable, Sendable, Hashable {
+    public var name: String
+    public var value: String
+
+    public init(name: String, value: String) {
+        self.name = name
+        self.value = value
+    }
+}
+
+/// A `settings.notify.webhooks` entry
+public struct Webhook: Codable, Sendable, Hashable {
+    public var url: String
+    /// A `WebhookFormat` as a string for formats newer than this app
+    public var format: String?
+    public var headers: [Header]
+    /// The lowest target priority it gets
+    public var priority: Priority
+    /// Holds normal items while a digest time is set
+    public var digest: Bool
+
+    public init(
+        url: String, format: String? = nil, headers: [Header] = [], priority: Priority = .normal, digest: Bool = true
+    ) {
+        self.url = url
+        self.format = format
+        self.headers = headers
+        self.priority = priority
+        self.digest = digest
+    }
+}
+
+/// `settings.notify.command`
+public struct NotifyCommand: Codable, Sendable, Hashable {
+    public var run: String
+    public var priority: Priority
+    public var digest: Bool
+
+    public init(run: String, priority: Priority = .normal, digest: Bool = true) {
+        self.run = run
+        self.priority = priority
+        self.digest = digest
+    }
+}
+
+/// `settings.notify`
+public struct Notify: Codable, Sendable, Hashable {
+    public var webhooks: [Webhook]
+    public var command: NotifyCommand?
+    /// Seconds a command may run
+    public var timeout: Double
+
+    public init(webhooks: [Webhook] = [], command: NotifyCommand? = nil, timeout: Double = 30) {
+        self.webhooks = webhooks
+        self.command = command
+        self.timeout = timeout
+    }
+}
+
+public struct NotifyReply: Codable, Sendable {
+    public var notify: Notify
+}
+
 public struct PriorityReply: Codable, Sendable {
     public var priority: Priority
 }
@@ -489,7 +557,7 @@ public struct EngineError: Error, Sendable, Hashable, Codable, LocalizedError {
     public enum Code: Sendable, Hashable {
         case badRequest, unknownOp, locked, wrongPassphrase, encryptionUnavailable, noConfig
         case configError, historyBusy, busy, ambiguous, unrecognized, badEntry, notFound
-        case ioError, proxyUnreachable, userAgentUnconfirmed, `internal`
+        case ioError, proxyUnreachable, userAgentUnconfirmed, notifyFailed, `internal`
         case other(String)
 
         static let wire: [String: Code] = [
@@ -499,7 +567,7 @@ public struct EngineError: Error, Sendable, Hashable, Codable, LocalizedError {
             "busy": .busy, "ambiguous": .ambiguous, "unrecognized": .unrecognized,
             "bad_entry": .badEntry, "not_found": .notFound, "io_error": .ioError,
             "proxy_unreachable": .proxyUnreachable, "user_agent_unconfirmed": .userAgentUnconfirmed,
-            "internal": .internal,
+            "notify_failed": .notifyFailed, "internal": .internal,
         ]
 
         public init(wire: String) {

@@ -138,6 +138,27 @@ public struct Engine: Sendable {
         return reply.privacy
     }
 
+    /// Only when `hello.ops` has `notify.get`
+    public func notify() async throws -> Notify {
+        let reply: NotifyReply = try await client.call("notify.get")
+        return reply.notify
+    }
+
+    public func setNotify(webhooks: [Webhook]? = nil, command: NotifyCommand?? = nil) async throws -> Notify {
+        let reply: NotifyReply = try await client.call(
+            "notify.set", Params.SetNotify(webhooks: webhooks, command: command))
+        return reply.notify
+    }
+
+    /// Sends an example update to an endpoint, with its rules
+    public func testNotify(webhook: Webhook) async throws {
+        let _: EmptyReply = try await client.call("notify.test", Params.TestNotify(webhook: webhook, command: nil))
+    }
+
+    public func testNotify(command: NotifyCommand) async throws {
+        let _: EmptyReply = try await client.call("notify.test", Params.TestNotify(webhook: nil, command: command))
+    }
+
     public func setPriority(_ priority: Priority, source: String, key: String) async throws -> Priority {
         let reply: PriorityReply = try await client.call(
             "priority.set", Params.SetPriority(source: source, key: key, priority: priority))
@@ -265,6 +286,22 @@ enum Params {
             try container.encodeIfPresent(fastMode, forKey: .fastMode)
             try container.encodeIfPresent(confirmUserAgent, forKey: .confirmUserAgent)
         }
+    }
+    struct SetNotify: Encodable, Sendable {
+        let webhooks: [Webhook]?
+        let command: NotifyCommand??
+
+        enum CodingKeys: String, CodingKey { case webhooks, command }
+
+        func encode(to encoder: Encoder) throws {
+            var container = encoder.container(keyedBy: CodingKeys.self)
+            try container.encodeIfPresent(webhooks, forKey: .webhooks)
+            if let command { try container.encode(command, forKey: .command) }
+        }
+    }
+    struct TestNotify: Encodable, Sendable {
+        let webhook: Webhook?
+        let command: NotifyCommand?
     }
     struct SetPriority: Encodable, Sendable {
         let source: String

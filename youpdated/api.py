@@ -9,6 +9,8 @@ import json
 import os
 import queue
 import re
+import shlex
+import subprocess
 import sys
 import tempfile
 import threading
@@ -27,16 +29,21 @@ from .config import (
     DEFAULT_EXPIRY,
     NAMED_UA_CONFIRMED,
     PRIORITIES,
+    Command,
     Config,
     ConfigError,
     PrivacyConfig,
+    Webhook,
     default_config_path,
     default_state_path,
     find_config,
+    guess_webhook_format,
     load_config,
     names_itself_privately,
+    parse_command,
     parse_config,
     parse_version_rules,
+    parse_webhook,
     read_config_text,
 )
 from .edit import (
@@ -46,6 +53,7 @@ from .edit import (
     remove_from_config,
     requested_urls,
     set_entry_rules,
+    set_notify,
     set_privacy,
     write_config,
 )
@@ -80,6 +88,9 @@ OPS = (
     "settings.set",
     "privacy.get",
     "privacy.set",
+    "notify.get",
+    "notify.set",
+    "notify.test",
     "priority.set",
     "filters.get",
     "filters.set",
@@ -184,6 +195,11 @@ _KINDS: dict[str, tuple[Callable[[Any], bool], str]] = {
     "str?": (lambda v: v is None or isinstance(v, str), "a string or null"),
     "int": (lambda v: isinstance(v, int) and not isinstance(v, bool), "a whole number"),
     "object": (lambda v: isinstance(v, dict), "an object"),
+    "object?": (lambda v: v is None or isinstance(v, dict), "an object or null"),
+    "objects": (
+        lambda v: isinstance(v, list) and all(isinstance(o, dict) for o in v),
+        "a list of objects",
+    ),
     "strings": (
         lambda v: isinstance(v, list) and all(isinstance(s, str) for s in v),
         "a list of strings",
@@ -1268,6 +1284,80 @@ class Engine:
                 state.cache_set(*NAMED_UA_CONFIRMED, datetime.now(timezone.utc).isoformat())
         return {"privacy": _privacy(config.privacy)}
 
+    def op_notify_get(self, p: _Params) -> dict[str, Any]:
+        p.done()
+        return {"notify": self._notify()}
+
+    def op_notify_set(self, p: _Params) -> dict[str, Any]:
+        changes: dict[str, Any] = {}
+        if "webhooks" in p:
+            raw = p.get("webhooks", "objects")
+            hooks = [_webhook_input(hook) for hook in raw]
+            changes["webhooks"] = [_webhook_yaml(hook) for hook in hooks] or None
+        if "command" in p:
+            raw = p.get("command", "object?")
+            changes["command"] = None if raw is None else _command_yaml(raw, _command_input(raw))
+        p.done()
+        if not changes:
+            raise _bad("give `webhooks` or `command`")
+        path, text = self._config_text()
+        edited = set_notify(text, changes)
+        parse_config(yaml.safe_load(edited), path, allow_empty=True)
+        if edited != text:
+            self._write_config(path, edited)
+        return {"notify": self._notify()}
+
+    def op_notify_test(self, p: _Params) -> dict[str, Any]:
+        hook = p.get("webhook", "object")
+        command = p.get("command", "object")
+        p.done()
+        if (hook is None) == (command is None):
+            raise _bad("give one of `webhook` or `command`")
+        config = self._config()
+        update, labels = _test_update()
+        if hook is not None:
+            webhook = _webhook_input(hook)
+            self._require_named_ua_confirmed(config)
+            with Client(config.privacy) as client:
+                error = notify.post_webhook(webhook, [update], labels, client)
+        else:
+            argv = _command_input(command).argv
+            error = notify.run_command(argv, [update], labels, config.notify.timeout)
+        if error is not None:
+            raise ApiError("notify_failed", f"{error.target}: {error.message}")
+        return {}
+
+    def _notify(self) -> dict[str, Any]:
+        """the config's `notify:` for apps"""
+        config = self._config()
+        command = None
+        if config.notify.commands:
+            _, text = self._config_text()
+            data = yaml.safe_load(text)
+            written = (data.get("settings") or {}).get("notify") or data.get("notify")
+            run = written.get("command")
+            run = run.get("run") if isinstance(run, dict) else run
+            first = config.notify.commands[0]
+            command = {
+                "run": run.strip() if isinstance(run, str) else _join_argv(first.argv),
+                "priority": first.priority,
+                "digest": first.digest,
+            }
+        return {
+            "webhooks": [
+                {
+                    "url": hook.url,
+                    "format": hook.format,
+                    "headers": [{"name": k, "value": v} for k, v in hook.headers.items()],
+                    "priority": hook.priority,
+                    "digest": hook.digest,
+                }
+                for hook in config.notify.webhooks
+            ],
+            "command": command,
+            "timeout": config.notify.timeout,
+        }
+
     def op_priority_set(self, p: _Params) -> dict[str, Any]:
         source = p.get("source", "str", required=True)
         key = p.get("key", "str", required=True)
@@ -1574,6 +1664,82 @@ def _privacy(privacy: PrivacyConfig) -> dict[str, Any]:
         "concurrency": privacy.concurrency,
         "timeout": privacy.timeout,
     }
+
+
+def _webhook_input(raw: dict[str, Any]) -> Webhook:
+    """contract WebhookInput, `headers` a list of name and value"""
+    raw = dict(raw)
+    headers = raw.pop("headers", None)
+    if headers is not None:
+        if not isinstance(headers, list) or not all(
+            isinstance(h, dict) and set(h) == {"name", "value"} for h in headers
+        ):
+            raise _bad("a webhook's `headers` must be a list of objects with `name` and `value`")
+        raw["headers"] = {}
+        for header in headers:
+            if not isinstance(header["name"], str) or not isinstance(header["value"], str):
+                raise _bad("a header's `name` and `value` must be strings")
+            if header["name"].lower() in (name.lower() for name in raw["headers"]):
+                raise _bad(f"header {header['name']} is given twice")
+            raw["headers"][header["name"]] = header["value"]
+    try:
+        return parse_webhook(raw, "")
+    except ConfigError as exc:
+        raise _bad(str(exc)) from exc
+
+
+def _command_input(raw: dict[str, Any]) -> Command:
+    if not isinstance(raw.get("run"), str):
+        raise _bad("a command's `run` must be a string")
+    try:
+        return parse_command(raw, "")
+    except ConfigError as exc:
+        raise _bad(str(exc)) from exc
+
+
+def _webhook_yaml(hook: Webhook) -> str | dict[str, Any]:
+    """how `notify.set` writes ``hook``"""
+    written: dict[str, Any] = {"url": hook.url}
+    if hook.format != guess_webhook_format(hook.url):
+        written["format"] = hook.format
+    if hook.headers:
+        written["headers"] = dict(hook.headers)
+    if hook.priority != "normal":
+        written["priority"] = hook.priority
+    if not hook.digest:
+        written["digest"] = False
+    return hook.url if len(written) == 1 else written
+
+
+def _command_yaml(raw: dict[str, Any], command: Command) -> str | dict[str, Any]:
+    """the command as typed"""
+    run = raw["run"].strip()
+    written: dict[str, Any] = {"run": run}
+    if command.priority != "normal":
+        written["priority"] = command.priority
+    if not command.digest:
+        written["digest"] = False
+    return run if len(written) == 1 else written
+
+
+def _join_argv(argv: list[str]) -> str:
+    return subprocess.list2cmdline(argv) if os.name == "nt" else shlex.join(argv)
+
+
+def _test_update() -> tuple[Update, dict[Key, str]]:
+    """for `notify.test`"""
+    update = Update(
+        source="youpdated",
+        target="test",
+        uid="test",
+        title="Test notification from Youpdated",
+        url="https://github.com/Void1-1/youpdated",
+        published=datetime.now(timezone.utc).replace(microsecond=0),
+        version=__version__,
+        body="New updates will display like this.",
+        tags=("test",),
+    )
+    return update, {("youpdated", "test"): "Youpdated"}
 
 
 def _ids(updates: list[Update]) -> list[str]:

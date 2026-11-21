@@ -1,0 +1,10 @@
+{
+  "description": "Nothing set up",
+  "request": { "id": 66, "op": "notify.get" },
+  "events": [],
+  "reply": {
+    "id": 66,
+    "ok": true,
+    "notify": { "webhooks": [], "command": null, "timeout": 30.0 }
+  }
+}

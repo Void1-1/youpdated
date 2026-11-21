@@ -99,19 +99,9 @@ def send(
         wanted = takes(hook, updates, priorities, digest)
         if not wanted:
             continue
-        url = _post_url(hook)
-        try:
-            for payload in webhook_payloads(hook, wanted, labels):
-                client.post(url, json=payload, headers=hook.headers)
-        except (FetchError, ValueError) as exc:
-            # The target already names the endpoint
-            message = str(exc).removeprefix(f"{redact_url(url)}: ")
-            errors.append(RunError(source="notify", target=redact_url(hook.url), message=message))
-        except Exception as exc:  # the run is already saved
-            # Only the type: other messages may quote the URL
-            errors.append(
-                RunError(source="notify", target=redact_url(hook.url), message=type(exc).__name__)
-            )
+        error = post_webhook(hook, wanted, labels, client)
+        if error is not None:
+            errors.append(error)
     for command in notify.commands:
         wanted = takes(command, updates, priorities, digest)
         if not wanted:
@@ -120,6 +110,23 @@ def send(
         if error is not None:
             errors.append(error)
     return errors
+
+
+def post_webhook(
+    hook: Webhook, updates: list[Update], labels: dict[tuple[str, str], str], client: Client
+) -> RunError | None:
+    """POST ``updates`` to ``hook``, with its rules"""
+    url = _post_url(hook)
+    try:
+        for payload in webhook_payloads(hook, updates, labels):
+            client.post(url, json=payload, headers=hook.headers)
+    except (FetchError, ValueError) as exc:
+        # The target names the endpoint
+        message = str(exc).removeprefix(f"{redact_url(url)}: ")
+        return RunError(source="notify", target=redact_url(hook.url), message=message)
+    except Exception as exc:  # the run is already saved
+        return RunError(source="notify", target=redact_url(hook.url), message=type(exc).__name__)
+    return None
 
 
 def _rules(endpoint: Endpoint) -> str:

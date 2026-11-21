@@ -1,0 +1,33 @@
+{
+  "description": "An ntfy topic, a Discord webhook for high priority only, and a command",
+  "request": { "id": 65, "op": "notify.get" },
+  "events": [],
+  "reply": {
+    "id": 65,
+    "ok": true,
+    "notify": {
+      "webhooks": [
+        {
+          "url": "https://ntfy.sh/my-private-topic",
+          "format": "ntfy",
+          "headers": [],
+          "priority": "normal",
+          "digest": true
+        },
+        {
+          "url": "https://discord.com/api/webhooks/1234/abcd",
+          "format": "discord",
+          "headers": [],
+          "priority": "high",
+          "digest": false
+        }
+      ],
+      "command": {
+        "run": "notify-send \"{label}\" \"{title}\"",
+        "priority": "normal",
+        "digest": true
+      },
+      "timeout": 30.0
+    }
+  }
+}

@@ -107,6 +107,43 @@ public class AppViewModelTests
     }
 
     [Fact]
+    public async Task WebhooksAreReadForSettingsAndSavedOrExplained()
+    {
+        var engine = new FakeEngine();
+        await using var test = new TestApp(engine);
+        await test.StartAsync();
+        var settings = test.App.Settings;
+        Assert.True(settings.CanEditNotify);
+        // only once Settings asks
+        Assert.Null(settings.Notify);
+        Assert.Empty(engine.RequestsFor("notify.get"));
+        await settings.LoadNotifyAsync(TestContext.Current.CancellationToken);
+        Assert.Equal(["ntfy", "discord"], settings.Notify!.Webhooks.Select(h => h.Format));
+
+        engine.Next("notify.set", "webhooks");
+        Assert.Null(await settings.SaveWebhookAsync(null, Webhook.New() with { Url = "https://example.com/hook" }));
+        var sent = engine.RequestsFor("notify.set").Last();
+        Assert.Equal(3, sent["webhooks"]!.AsArray().Count);
+        Assert.False(sent.ContainsKey("command"));
+        Assert.Equal("Bearer abc123", settings.Notify!.Webhooks[1].Headers.Single().Value);
+
+        engine.Next("notify.set", "bad_url");
+        var refused = await settings.SaveWebhookAsync(0, Webhook.New() with { Url = "ntfy.sh/topic" });
+        Assert.Contains("http(s)", refused);
+        Assert.Equal(2, settings.Notify!.Webhooks.Count);
+
+        engine.Next("notify.set", "remove_command");
+        await settings.RemoveCommandAsync();
+        Assert.Null(settings.NotifyError);
+        Assert.Null(settings.Notify!.Command);
+
+        engine.Next("notify.test", "command_failed");
+        var failed = await settings.TestCommandAsync(new NotifyCommand("notify-send", Priority.Normal, true));
+        Assert.Contains("exit 1", failed);
+        Assert.Null(await settings.TestWebhookAsync(Webhook.New() with { Url = "https://ntfy.sh/my-private-topic" }));
+    }
+
+    [Fact]
     public async Task ACustomProxyThatFailsKeepsWhatWasTyped()
     {
         var engine = new FakeEngine();

@@ -1237,3 +1237,145 @@ def test_the_named_agent_without_encryption_needs_no_confirmation(tmp_path, fake
     write_items(fake, {"alpha": [item("1.1")]})
     assert engine("status")["named_user_agent"] is None
     assert engine("check")["ok"]
+
+
+# notify endpoints
+
+
+def test_notify_get_reads_the_config(tmp_path, fake):
+    config = make_config(
+        tmp_path,
+        _hooks(
+            "  webhooks:\n"
+            "    - https://ntfy.sh/topic\n"
+            "    - {url: https://example.com/h, priority: high, digest: false, headers: {X-Token: t}}\n"
+            "  command: notify-send \"{label}\"  # mine\n"
+            "  timeout: 5\n"
+        ),
+    )
+    notify = Engine(config, tmp_path / "state.db")("notify.get")["notify"]
+    assert notify == {
+        "webhooks": [
+            {"url": "https://ntfy.sh/topic", "format": "ntfy", "headers": [], "priority": "normal", "digest": True},
+            {
+                "url": "https://example.com/h", "format": "json",
+                "headers": [{"name": "X-Token", "value": "t"}],
+                "priority": "high", "digest": False,
+            },
+        ],
+        "command": {"run": 'notify-send "{label}"', "priority": "normal", "digest": True},
+        "timeout": 5.0,
+    }
+
+
+def test_notify_get_joins_a_list_command(tmp_path, fake):
+    config = make_config(tmp_path, _hooks('  command:\n    run: [say, "two words"]\n    priority: low\n'))
+    command = Engine(config, tmp_path / "state.db")("notify.get")["notify"]["command"]
+    expected = 'say "two words"' if os.name == "nt" else "say 'two words'"
+    assert command == {"run": expected, "priority": "low", "digest": True}
+
+
+def test_notify_set_writes_only_what_it_is_given(tmp_path, fake):
+    config = make_config(tmp_path, _hooks("  command: echo hi  # keep\n"))
+    engine = Engine(config, tmp_path / "state.db")
+    reply = engine(
+        "notify.set",
+        webhooks=[
+            {"url": "https://ntfy.sh/topic", "format": None},
+            {"url": "https://example.com/h", "format": "slack", "priority": "high", "headers": []},
+        ],
+    )
+    assert [h["format"] for h in reply["notify"]["webhooks"]] == ["ntfy", "slack"]
+    assert reply["notify"]["command"]["run"] == "echo hi"
+    text = config.read_text(encoding="utf-8")
+    assert "  command: echo hi  # keep\n" in text
+    assert (
+        "    webhooks:\n"
+        "      - https://ntfy.sh/topic\n"
+        "      - url: https://example.com/h\n"
+        "        format: slack\n"
+        "        priority: high\n"
+    ) in text
+    assert engine("notify.get")["notify"] == reply["notify"]
+
+
+def test_notify_set_removes(tmp_path, fake):
+    config = make_config(tmp_path, _hooks("  webhooks: [https://ntfy.sh/topic]\n  command: echo hi\n"))
+    engine = Engine(config, tmp_path / "state.db")
+    reply = engine("notify.set", webhooks=[], command=None)
+    assert reply["notify"] == {"webhooks": [], "command": None, "timeout": 30.0}
+    assert "notify" not in config.read_text(encoding="utf-8")
+
+
+def test_notify_set_saves_a_command_as_typed(engine, tmp_path):
+    reply = engine("notify.set", command={"run": ' say "{title}" ', "digest": False})
+    assert reply["notify"]["command"] == {"run": 'say "{title}"', "priority": "normal", "digest": False}
+    assert load_config(tmp_path / "config.yaml").notify.commands[0].argv == ["say", "{title}"]
+
+
+@pytest.mark.parametrize(
+    "params, message",
+    [
+        ({}, "give `webhooks` or `command`"),
+        ({"webhooks": [{"url": "ntfy.sh/topic"}]}, "needs an http(s) `url`"),
+        ({"webhooks": [{"url": "https://ntfy.sh/"}]}, "ntfy URL needs a topic"),
+        ({"webhooks": [{"url": "https://a.example", "format": "teams"}]}, "format must be one of"),
+        ({"webhooks": [{"url": "https://a.example", "headers": [{"name": "X", "value": "a\nb"}]}]}, "line break"),
+        ({"webhooks": [{"url": "https://a.example", "headers": {"X": "a"}}]}, "list of objects with `name`"),
+        (
+            {"webhooks": [{"url": "https://a.example", "headers": [{"name": "X", "value": "1"}, {"name": "x", "value": "2"}]}]},
+            "given twice",
+        ),
+        ({"webhooks": [{"url": "https://a.example", "secret": "x"}]}, "unknown"),
+        ({"webhooks": "https://a.example"}, "a list of objects"),
+        ({"command": {"run": ""}}, "must be a command string"),
+        ({"command": {"run": ["echo"]}}, "`run` must be a string"),
+        ({"command": {"run": "echo", "priority": "urgent"}}, "`priority` must be one of"),
+        ({"timeout": 5}, "unknown param(s): timeout"),
+    ],
+)
+def test_notify_set_rejects_bad_params(engine, tmp_path, params, message):
+    before = (tmp_path / "config.yaml").read_text(encoding="utf-8")
+    reply = engine("notify.set", **params)
+    assert reply["error"]["code"] == "bad_request" and message in reply["error"]["message"]
+    assert (tmp_path / "config.yaml").read_text(encoding="utf-8") == before
+
+
+@respx.mock
+def test_notify_test_posts_a_sample_whatever_the_rules(engine):
+    hook = respx.post("https://example.com/hook").mock(return_value=httpx.Response(204))
+    reply = engine("notify.test", webhook={"url": "https://example.com/hook", "priority": "high"})
+    assert reply["ok"]
+    sent = json.loads(hook.calls.last.request.content)
+    assert [u["title"] for u in sent["updates"]] == ["Test notification from Youpdated"]
+
+
+@respx.mock
+def test_notify_test_reports_a_failed_webhook(engine):
+    respx.post("https://example.com/hook").mock(return_value=httpx.Response(404))
+    reply = engine("notify.test", webhook={"url": "https://example.com/hook"})
+    assert reply["error"]["code"] == "notify_failed"
+    # redacted, as a URL may hold a token
+    assert reply["error"]["message"] == "https://example.com/…: HTTP 404"
+
+
+def test_notify_test_runs_a_command(engine, tmp_path):
+    argv, out = _recorder(tmp_path)
+    run = " ".join(f'"{part}"' for part in argv)
+    assert engine("notify.test", command={"run": run})["ok"]
+    assert out.read_text().splitlines() == ['"test"']
+
+
+def test_notify_test_reports_a_failed_command(engine, tmp_path):
+    reply = engine("notify.test", command={"run": f'"{sys.executable}" -c "raise SystemExit(3)"'})
+    assert reply["error"]["code"] == "notify_failed" and "exit 3" in reply["error"]["message"]
+
+
+@pytest.mark.parametrize(
+    "params",
+    [{}, {"webhook": {"url": "https://a.example"}, "command": {"run": "echo"}}],
+    ids=["neither", "both"],
+)
+def test_notify_test_takes_one_endpoint(engine, params):
+    reply = engine("notify.test", **params)
+    assert reply["error"]["code"] == "bad_request" and "one of" in reply["error"]["message"]

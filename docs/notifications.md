@@ -17,6 +17,8 @@ settings:
     timeout: 30                                            # seconds per command
 ```
 
+The [Mac](macos-app.md) and [Windows](windows-app.md) apps edit this block in **Settings → Notifications**, keeping the rest of the file as written, and can send a test to a webhook or command before saving. Comments inside `webhooks:` or `command:` are lost when the app saves that option.
+
 Notifications are sent only for new updates, after the run is recorded. A baseline run or `--all` and `--no-save` don't send anything. Add `--notify` to override or `--no-notify` to skip.
 
 ## Webhooks

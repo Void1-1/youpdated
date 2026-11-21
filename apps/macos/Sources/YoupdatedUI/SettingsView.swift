@@ -173,6 +173,7 @@ struct NotificationSettings: View {
                     NSWorkspace.shared.open(url)
                 }
             }
+            NotifySections()
         }
         .formStyle(.grouped)
     }

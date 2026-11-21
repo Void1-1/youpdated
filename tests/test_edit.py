@@ -17,6 +17,7 @@ from youpdated.edit import (
     guess_source,
     move_to_settings,
     remove_from_config,
+    set_notify,
     set_privacy,
     yaml_scalar,
 )
@@ -799,3 +800,96 @@ def test_set_privacy_quotes_a_proxy_that_needs_it():
 def test_set_privacy_refuses_what_it_cannot_edit_safely(text):
     with pytest.raises(ConfigError, match="by hand: proxy: socks5"):
         set_privacy(text, {"proxy": TOR})
+
+
+# notify endpoints, from the app Settings
+
+HOOK = "https://ntfy.sh/topic"
+
+
+def notify_of(text: str):
+    return parse_config(yaml.safe_load(text), allow_empty=True).notify
+
+
+def test_set_notify_adds_webhooks_to_the_example_config():
+    text = set_notify(EXAMPLE_CONFIG, {"webhooks": [HOOK, {"url": "https://example.com/h", "priority": "high"}]})
+    hooks = notify_of(text).webhooks
+    assert [(h.url, h.format, h.priority) for h in hooks] == [
+        (HOOK, "ntfy", "normal"), ("https://example.com/h", "json", "high")
+    ]
+    assert f"      - {HOOK}\n" in text
+    comments = [line for line in EXAMPLE_CONFIG.splitlines() if line.strip().startswith("#")]
+    assert [line for line in text.splitlines() if line.strip().startswith("#")] == comments
+
+
+def test_set_notify_replaces_one_option_and_keeps_the_others():
+    text = (
+        "settings:\n"
+        "  notify:\n"
+        "    # mine\n"
+        "    webhooks:\n"
+        "      - https://old.example/a  # old\n"
+        "      - https://old.example/b\n"
+        "    command: echo hi  # keep\n"
+        "    timeout: 5\n"
+        "sources: {}\n"
+    )
+    edited = set_notify(text, {"webhooks": [HOOK]})
+    assert edited == text.replace(
+        "      - https://old.example/a  # old\n      - https://old.example/b\n", f"      - {HOOK}\n"
+    )
+
+
+def test_set_notify_adds_settings_above_sources():
+    command = {"run": "say {title}", "digest": False}
+    text = set_notify("sources: {}\n", {"command": command})
+    assert text == "settings:\n  notify:\n    command:\n      run: say {title}\n      digest: false\n\nsources: {}\n"
+    assert notify_of(text).commands[0].argv == ["say", "{title}"]
+
+
+def test_set_notify_removing_the_last_option_removes_notify():
+    text = "settings:\n  notify:\n    command: echo hi\n  expiry: 1y\nsources: {}\n"
+    assert set_notify(text, {"command": None}) == "settings:\n  expiry: 1y\nsources: {}\n"
+    assert set_notify(text, {"webhooks": None}) == text
+
+
+def test_set_notify_edits_a_top_level_notify_where_it_is():
+    text = "notify:\n  command: echo hi\nsources: {}\n"
+    assert set_notify(text, {"webhooks": [HOOK]}) == (
+        f"notify:\n  command: echo hi\n  webhooks:\n    - {HOOK}\nsources: {{}}\n"
+    )
+
+
+@pytest.mark.parametrize(
+    "text",
+    ["settings:\n  notify:\nsources: {}\n", "settings:\nsources: {}\n", "", "# just this\n"],
+    ids=["empty notify", "empty settings", "empty file", "only comments"],
+)
+def test_set_notify_adds_what_is_missing(text):
+    edited = set_notify(text, {"webhooks": [HOOK]})
+    assert [h.url for h in notify_of(edited).webhooks] == [HOOK]
+
+
+def test_set_notify_keeps_crlf_line_ends():
+    text = "settings:\r\n  notify:\r\n    command: echo hi\r\nsources: {}\r\n"
+    assert set_notify(text, {"command": "echo bye"}) == text.replace("hi", "bye")
+
+
+def test_set_notify_quotes_what_needs_it():
+    command = 'notify-send "{label}" "{title}" # not a comment'
+    text = set_notify("sources: {}\n", {"command": command, "webhooks": [{"url": HOOK, "headers": {"X-Yes": "yes"}}]})
+    data = yaml.safe_load(text)["settings"]["notify"]
+    assert data["command"] == command and data["webhooks"][0]["headers"] == {"X-Yes": "yes"}
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "settings: {notify: {command: echo hi}}\nsources: {}\n",
+        "settings:\n  notify: {command: echo hi}\nsources: {}\n",
+    ],
+    ids=["flow settings", "flow notify"],
+)
+def test_set_notify_refuses_what_it_cannot_edit_safely(text):
+    with pytest.raises(ConfigError, match="by hand"):
+        set_notify(text, {"webhooks": [HOOK]})
