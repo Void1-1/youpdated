@@ -50,6 +50,11 @@ youpdated check --all --notify         # notify even with --all or --no-save
 youpdated check -v                     # show each request, its status, and item summaries
 youpdated check --state ./test.db      # use a throwaway history file
 youpdated sources                      # list available sources
+youpdated list                         # what you watch and its latest known version, without fetching
+youpdated list neovim                  # only targets with names containing this string
+youpdated list -s git --sort name      # one source, by name
+youpdated list --sort newest           # most recent release first, across sources
+youpdated list --json                  # machine-readable output
 youpdated add git neovim/neovim        # start watching something (several at once is fine)
 youpdated add https://pypi.org/project/rich/ # the source can be left out when the link includes the information
 youpdated add --test steam 440         # show the change to the config without writing it
@@ -69,6 +74,8 @@ youpdated uninstall --test             # list all tool files and the package
 Running `youpdated` without arguments assumes `youpdated check`.
 
 A check records what it found only once its report is out, so if the report or the `--rss` file can't be written, the same updates are reported again next time. `--since` narrows the report: a new item older than the window is left unrecorded, and a check without `--since` still reports. `--test` sends nothing, and lists the config's problems, such as an entry no source can read, in the `problems` panel, which counts for `--fail-on-error`. One run at a time uses a history file; another waits up to a minute for it, then exits `1`.
+
+`list` shows all watched targets, grouped by source and with some check info (latest version, stale-ness). Nothing is fetched externally, and it doesn't wait for a running check to finish. An item without a version shows it's title. A target with a `versions: {bump: ...}` rule shows the highest release. A target is flagged `⚠ failing` when its last check failed and it hasn't fetched cleanly for 12 hours. A skipped target is never flagged.
 
 `add` and `rm` (or `remove`) edit the config in place and keep comments and layout. `rm` removes entries watching what you name, including options and comments.
 
@@ -98,6 +105,12 @@ youpdated check --json | jq '.updates[] | select(.target | startswith("github.co
 ```
 
 Exit codes: `0` success, `1` config, encryption, history file, or proxy error, `2` with `--fail-on-error` when a source or notification failed, `130` on interrupt. `uninstall` exits `1` when it leaves a file in place. The JSON has a `warnings` list for config that does nothing, such as an `ignore:` or `versions:` key on a nonexisting source.
+
+`list --json` writes `{"targets": [...], "last_run": ..., "last_run_by": "cli" | "app" | null}`. Each target has the fields of the app's [`targets.list`](../apps/contract/v1/README.md), with `last_error` from the last check that tried it, if the app or the CLI ran it. It also has `stale` and `highest`: the item behind a `bump:` target's highest release, `{version, title, published}`, or `null`.
+
+```sh
+youpdated list --json | jq -r '.targets[] | select(.stale) | .display'
+```
 
 ### `youpdated api`
 

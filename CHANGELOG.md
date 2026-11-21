@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ## [Unreleased]
 
+### Added
+
+- **`youpdated list` command** (#82). Lists watched targets with the latest known version from history, not fetches. An item without a version shows a title, and a `bump:` target shows its highest release. `TEXT` and `-s` to specify, `--sort name|newest` to order, and `--json` output gives the fields of the app's `targets.list` with `stale` and `highest`. A target is flagged `⚠ failing` when its last check failed and it hasn't fetched cleanly in 12 hours. See [the command reference](docs/usage.md#command-reference).
+
+### Changed
+
+- **Checks remember more (for `list`).** Each check now records which targets failed, the item behind a `bump:` target's highest release, and the CLI now keeps the names sources resolve.
+
 ## [0.6.0] — 2026-11-14
 
 ### Added

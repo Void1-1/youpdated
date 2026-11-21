@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import difflib
+import json
 import os
 import shutil
 import signal
@@ -63,10 +64,11 @@ from .edit import (
 )
 from .http import Client, ProxyUnavailable, probe_proxy
 from .importers import READERS, Found, read_file
-from .registry import all_aliases, all_sources, get_source
+from .registry import all_aliases, all_sources, canonical_name, get_source
 from .render import json_out, rss_out, terminal
+from .render import targets as targets_out
 from .runner import build_targets, parse_since, record, rule_warnings, run
-from .state import State, StateError, state_lock
+from .state import State, StateError, stamp, state_lock
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -120,6 +122,26 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     sub.add_parser("sources", help="list available sources")
+
+    listing = sub.add_parser(
+        "list",
+        help="list watched targets and their latest known version, without fetching",
+    )
+    listing.add_argument(
+        "text", nargs="?", metavar="TEXT",
+        help="targets names containing TEXT",
+    )
+    listing.add_argument(
+        "-s", "--source", action="append", dest="sources",
+        help="only list this source",
+    )
+    listing.add_argument(
+        "--sort", choices=targets_out.SORTS,
+        help="name, newest",
+    )
+    listing.add_argument("--json", action="store_true", help="emit JSON to stdout")
+    listing.add_argument("-c", "--config", help="path to a config file")
+    listing.add_argument("--state", help="path to the state database")
 
     for name, aliases, help_text, verb, extra in (
         ("add", [], "start watching something", "watch", ""),
@@ -221,6 +243,83 @@ def cmd_sources(console: Console) -> int:
             console.print(f"  [dim]{alias:<10} same as `{name}`[/]")
     console.print(
         "\n[dim]Add with `youpdated add SOURCE ENTRY`, or under `sources:` in your config.[/]"
+    )
+    return 0
+
+
+def _unknown_sources(names: list[str] | None) -> None:
+    unknown = set(names or []) - set(all_sources()) - set(all_aliases())
+    if unknown:
+        raise ConfigError(
+            f"unknown source(s): {', '.join(sorted(unknown))}. "
+            "Run `youpdated sources` to see all."
+        )
+
+
+def cmd_list(args: argparse.Namespace, console: Console) -> int:
+    from .api import target_rows
+
+    _unknown_sources(args.sources)
+    state_path = Path(args.state).expanduser() if args.state else default_state_path()
+    passphrase = None
+    if _setup_is_encrypted(find_config(args.config), state_path):
+        passphrase = crypto.prompt_passphrase()
+        crypto.derive_ahead(state_path, passphrase)
+    config = load_config(args.config, passphrase=passphrase, allow_empty=True)
+    targets, _ = build_targets(config)
+
+    # Doesn't wait for the file lock! Reads the last saved history
+    with State(state_path, passphrase=passphrase, read_only=True) as state:
+        rows = target_rows(targets, state)
+        failing = state.failing()
+        # only while a `bump:` rule applies
+        bumped = {(t.source, t.key) for t in targets if t.versions.bump}
+        highest = {key: item for key, item in state.latest("top").items() if key in bumped}
+        last_run = state.last_run()
+        last_run_by = state.cache_get("app", "last_run_by")
+
+    now = datetime.now(timezone.utc)
+    for row in rows:
+        key = (row["source"], row["key"])
+        failure = failing.get(key)
+        row["last_error"] = failure["message"] if failure else None
+        row["stale"] = targets_out.is_stale(row["last_checked"], failure is not None, now)
+        row["highest"] = highest.get(key)
+
+    total = len(rows)
+    if args.sources:
+        wanted = {canonical_name(name) for name in args.sources}
+        rows = [row for row in rows if row["source"] in wanted]
+    if args.text:
+        needle = args.text.casefold()
+        rows = [
+            row for row in rows
+            if needle in row["display"].casefold() or needle in row["key"].casefold()
+        ]
+    rows = targets_out.sort_rows(rows, args.sort)
+    by = last_run_by if last_run_by in ("app", "cli") else None
+
+    if args.json:
+        payload = {
+            "targets": rows,
+            "last_run": stamp(last_run) if last_run else None,
+            "last_run_by": by,
+        }
+        print(json.dumps(payload, indent=2, ensure_ascii=False))
+        return 0
+    if not total:
+        console.print(
+            "[dim]Not watching anything yet. Start with `youpdated add`, "
+            "or `youpdated import` for a dependency file.[/]"
+        )
+        return 0
+    targets_out.render(
+        rows,
+        console,
+        flat=args.sort == "newest",
+        total=total,
+        last_run=last_run,
+        last_run_by=by,
     )
     return 0
 
@@ -1038,12 +1137,7 @@ def cmd_check(args: argparse.Namespace, console: Console) -> int:
         and (args.notify or not (args.all or args.no_save))
     )
 
-    unknown = set(args.sources or []) - set(all_sources()) - set(all_aliases())
-    if unknown:
-        raise ConfigError(
-            f"unknown source(s): {', '.join(sorted(unknown))}. "
-            "Run `youpdated sources` to see the list."
-        )
+    _unknown_sources(args.sources)
 
     if config.privacy.proxy:
         try:
@@ -1170,6 +1264,8 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if args.command == "sources":
             return cmd_sources(console)
+        if args.command == "list":
+            return cmd_list(args, console)
         if args.command in ("add", "remove", "rm"):
             return cmd_edit(args, console)
         if args.command == "import":

@@ -18,6 +18,9 @@ from . import crypto
 from .config import PRIORITIES
 from .models import Update
 
+# ``(source, key)`` of a target
+Key = tuple[str, str]
+
 if sys.platform == "win32":
     import msvcrt
 
@@ -138,6 +141,15 @@ def _ago(age: timedelta) -> str:
     return (datetime.now(timezone.utc) - age).isoformat()
 
 
+def _failed_at(value: str) -> str:
+    """When a ``failing`` record was written"""
+    try:
+        at = json.loads(value).get("at")
+    except (ValueError, AttributeError):
+        return ""
+    return at if isinstance(at, str) else ""
+
+
 def _rules_value(rules: Iterable[frozenset[str]]) -> str:
     return "|".join(sorted({",".join(sorted(ignore)) for ignore in rules}))
 
@@ -213,18 +225,21 @@ class State:
         *,
         expiry: timedelta | None = None,
         lock_timeout: float = LOCK_TIMEOUT,
+        read_only: bool = False,
     ):
+        """``read_only`` reads the last saved history without waiting for the file lock"""
         self.path = Path(path) if path is not None else None
         self.passphrase = passphrase
         # Seen items absent from every fetch this long are pruned. ``None`` keeps
         self.expiry = expiry
         self.encrypted = passphrase is not None and self.path is not None
+        self.read_only = read_only
         self._closed = False
         self._dirty = False
         # Salt the file was read or first written with
         self._salt: bytes | None = None
         self._file_lock: _FileLock | None = None
-        if self.path is not None:
+        if self.path is not None and not read_only:
             self.path.parent.mkdir(parents=True, exist_ok=True)
             lock = _FileLock(lock_path(self.path), lock_timeout)
             lock.acquire()
@@ -240,6 +255,15 @@ class State:
         restore = self._read_encrypted() if self.encrypted else None
         target = ":memory:" if (self.path is None or self.encrypted) else str(self.path)
         self._lock = threading.Lock()
+        if self.read_only and target != ":memory:":
+            assert self.path is not None
+            if self.path.exists():
+                uri = self.path.resolve().as_uri() + "?mode=ro"
+                self._conn = sqlite3.connect(uri, uri=True, check_same_thread=False)
+                self._conn.row_factory = sqlite3.Row
+                return
+            # No history yet
+            target = ":memory:"
         self._conn = sqlite3.connect(target, check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
         with self._lock:
@@ -321,7 +345,7 @@ class State:
 
     def flush(self) -> None:
         """Write the in-memory database back out, encrypted."""
-        if not self.encrypted or self._closed or not self._dirty:
+        if not self.encrypted or self.read_only or self._closed or not self._dirty:
             return
         assert self.path is not None and self.passphrase is not None
         with self._lock:
@@ -482,6 +506,17 @@ class State:
                 "DELETE FROM kv WHERE namespace IN ('ignore', 'version') AND key NOT IN "
                 "(SELECT key FROM kv WHERE namespace='baseline')"
             ).rowcount
+            stale_failures = [
+                (key,)
+                for key, value in self._conn.execute(
+                    "SELECT key, value FROM kv WHERE namespace='failing'"
+                )
+                if _failed_at(value) < stamp(datetime.now(timezone.utc) - self.expiry)
+            ]
+            self._conn.executemany(
+                "DELETE FROM kv WHERE namespace='failing' AND key=?", stale_failures
+            )
+            removed_rules += len(stale_failures)
             # URL links, and a link to a URL without a validator
             removed_links = self._conn.execute(
                 "DELETE FROM http_cache_targets WHERE source || ':' || target NOT IN "
@@ -535,7 +570,10 @@ class State:
                 ).rowcount
                 self._conn.executemany(
                     "DELETE FROM kv WHERE namespace=? AND key=?",
-                    [(ns, f"{source}:{target}") for ns in ("baseline", "ignore", "version")]
+                    [
+                        (ns, f"{source}:{target}")
+                        for ns in ("baseline", "ignore", "version", "failing")
+                    ]
                     + [(ns, target) for ns in caches],
                 )
                 candidates.update(
@@ -652,6 +690,41 @@ class State:
             self._conn.commit()
             self._dirty = True
 
+    # targets whose last fetch failed, so a partial check doesn't make the rest look stale
+
+    def mark_failing(self, failed: Iterable[tuple[str, str, str]], fixed: Iterable[Key]) -> None:
+        """Record ``(source, target, message)`` of failing targets, and forget for ``fixed``"""
+        now = stamp()
+        rows = [
+            ("failing", f"{source}:{target}", json.dumps({"at": now, "message": message}))
+            for source, target, message in failed
+        ]
+        cleared = [("failing", f"{source}:{target}") for source, target in fixed]
+        if not rows and not cleared:
+            return
+        with self._lock:
+            self._conn.executemany("DELETE FROM kv WHERE namespace=? AND key=?", cleared)
+            self._conn.executemany(
+                "INSERT INTO kv (namespace, key, value) VALUES (?,?,?) "
+                "ON CONFLICT(namespace, key) DO UPDATE SET value=excluded.value",
+                rows,
+            )
+            self._conn.commit()
+            self._dirty = True
+
+    def failing(self) -> dict[Key, dict[str, str]]:
+        """``{at, message}`` of each target whose last fetch failed, by ``(source, key)``"""
+        found = {}
+        for name, value in self.cache_items("failing").items():
+            source, _, key = name.partition(":")
+            try:
+                record = json.loads(value)
+            except ValueError:
+                continue
+            if isinstance(record, dict) and isinstance(record.get("at"), str):
+                found[(source, key)] = {"at": record["at"], "message": str(record.get("message", ""))}
+        return found
+
     # upkeeping
 
     def last_run(self) -> datetime | None:
@@ -689,11 +762,12 @@ class State:
 
     # each target's newest item, kept apart from the inbox, which is pruned
 
-    def mark_latest(self, updates: Iterable[Update]) -> None:
+    def mark_latest(self, updates: Iterable[Update], kind: str = "latest") -> None:
+        """``kind`` is ``latest``, or ``top`` for the item behind a `bump:` target's highest"""
         rows = [
             (
                 "app",
-                f"latest:{u.source}:{u.target}",
+                f"{kind}:{u.source}:{u.target}",
                 json.dumps({
                     "version": u.version,
                     "title": u.title,
@@ -713,10 +787,10 @@ class State:
             self._conn.commit()
             self._dirty = True
 
-    def latest(self) -> dict[tuple[str, str], dict[str, Any]]:
+    def latest(self, kind: str = "latest") -> dict[tuple[str, str], dict[str, Any]]:
         """``{version, title, published}`` of each target's newest item, by ``(source, key)``"""
         found = {}
-        for name, value in self.cache_items("app", "latest:").items():
+        for name, value in self.cache_items("app", f"{kind}:").items():
             source, _, key = name.partition(":")
             try:
                 found[(source, key)] = json.loads(value)
@@ -956,7 +1030,7 @@ class State:
                 [
                     (f"{kind}:{source}:{t}",)
                     for t in targets
-                    for kind in ("priority", "label", "latest")
+                    for kind in ("priority", "label", "latest", "top")
                 ],
             )
             self._drop_orphans()
