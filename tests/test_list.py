@@ -235,6 +235,8 @@ def test_list_reads_while_another_thread_writes(setup, fake):
         with State(setup[1]) as state:
             while not done.is_set():
                 state.cache_set("meta", "poke", str(time.monotonic()))
+                # Every commit takes SQLite's exclusive lock
+                time.sleep(0.005)
 
     writer = threading.Thread(target=busy)
     writer.start()
