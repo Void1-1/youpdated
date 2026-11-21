@@ -18,22 +18,11 @@ struct NotifySections: View {
                     Text(LocalizedStringKey(String(localized: "This engine can't change webhooks or commands. Edit `settings.notify` manually.")))
                         .foregroundStyle(.secondary)
                 }
-            }
-        }
-        .task { await model.loadNotify() }
-        .sheet(item: $editingWebhook) { draft in
-            WebhookEditor(draft: draft) { saved in
-                var list = model.notify?.webhooks ?? []
-                if let index = draft.index, list.indices.contains(index) {
-                    list[index] = saved
-                } else {
-                    list.append(saved)
+            } else {
+                Section {
+                    ProgressView().controlSize(.small).frame(maxWidth: .infinity)
                 }
-                return await model.saveWebhooks(list)
             }
-        }
-        .sheet(item: $editingCommand) { draft in
-            CommandEditor(draft: draft) { await model.saveCommand($0) }
         }
     }
 
@@ -60,7 +49,7 @@ struct NotifySections: View {
             }
             Button(String(localized: "Add Webhook…")) { editingWebhook = WebhookDraft(index: nil, webhook: Webhook(url: "")) }
             if let error {
-                Text(error).font(.caption).foregroundStyle(.red).textSelection(.enabled)
+                ErrorLine(message: error)
             }
         } header: {
             Text(String(localized: "Webhooks"))
@@ -68,6 +57,17 @@ struct NotifySections: View {
             Text(String(localized: "Each check posts new updates to these addresses."))
                 .font(.caption)
                 .foregroundStyle(.secondary)
+        }
+        .sheet(item: $editingWebhook) { draft in
+            WebhookEditor(draft: draft) { saved in
+                var list = model.notify?.webhooks ?? []
+                if let index = draft.index, list.indices.contains(index) {
+                    list[index] = saved
+                } else {
+                    list.append(saved)
+                }
+                return await model.saveWebhooks(list)
+            }
         }
     }
 
@@ -101,6 +101,9 @@ struct NotifySections: View {
             Text(String(localized: "Runs once for each new update."))
                 .font(.caption)
                 .foregroundStyle(.secondary)
+        }
+        .sheet(item: $editingCommand) { draft in
+            CommandEditor(draft: draft) { await model.saveCommand($0) }
         }
     }
 
@@ -150,8 +153,14 @@ enum NotifyText {
         return digest ? sends : String(localized: "\(sends), ignores the digest")
     }
 
+    /// A saved webhook's format, with what Automatic resolved to
+    static func format(of hook: Webhook) -> String {
+        guard hook.format == nil, let sendsAs = hook.sendsAs else { return format(hook.format) }
+        return String(localized: "Automatic (\(format(sendsAs)))")
+    }
+
     static func summary(_ hook: Webhook) -> String {
-        "\(format(hook.format)) · \(rules(priority: hook.priority, digest: hook.digest))"
+        "\(format(of: hook)) · \(rules(priority: hook.priority, digest: hook.digest))"
     }
 
     /// Just the host: the rest of a webhook's URL is often its secret
@@ -174,10 +183,9 @@ private struct EndpointRules: View {
     }
 }
 
-/// Send Test's progress and outcome
+/// Send Test's progress; a failure goes to the editor's one `ErrorLine`
 private enum TestState: Equatable {
     case idle, sending, sent
-    case failed(String)
 }
 
 private struct TestResult: View {
@@ -192,9 +200,27 @@ private struct TestResult: View {
         case .sent:
             Label(String(localized: "Sent"), systemImage: "checkmark.circle.fill")
                 .foregroundStyle(.green)
-        case .failed(let message):
-            Text(message).font(.caption).foregroundStyle(.red).textSelection(.enabled).lineLimit(3)
         }
+    }
+}
+
+/// A save or test failure
+struct ErrorLine: View {
+    let message: String
+
+    var body: some View {
+        Label {
+            Text((try? AttributedString(
+                markdown: message, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)))
+                ?? AttributedString(message))
+                .fixedSize(horizontal: false, vertical: true)
+                .textSelection(.enabled)
+        } icon: {
+            Image(systemName: "exclamationmark.triangle.fill")
+        }
+        .font(.callout)
+        .foregroundStyle(.red)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
@@ -225,6 +251,15 @@ struct WebhookEditor: View {
         return hook
     }
 
+    private var urlIsValid: Bool { Webhook.isValidURL(trimmed.url) }
+
+    /// Explains a bad URL
+    private var urlHint: String? {
+        let url = trimmed.url.lowercased()
+        if url.isEmpty || urlIsValid || "https://".hasPrefix(url) || "http://".hasPrefix(url) { return nil }
+        return String(localized: "Enter the full address, with https://")
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text(isNew ? String(localized: "Add Webhook") : String(localized: "Edit Webhook")).font(.headline)
@@ -232,9 +267,7 @@ struct WebhookEditor: View {
                 TextField(String(localized: "URL"), text: $hook.url, prompt: Text(verbatim: "https://ntfy.sh/my-topic"))
                     .autocorrectionDisabled()
                 Picker(String(localized: "Format"), selection: $hook.format) {
-                    if isNew || hook.format == nil {
-                        Text(String(localized: "Automatic")).tag(String?.none)
-                    }
+                    Text(String(localized: "Automatic")).tag(String?.none)
                     ForEach(WebhookFormat.allCases, id: \.self) { Text(NotifyText.format($0.rawValue)).tag(Optional($0.rawValue)) }
                 }
                 EndpointRules(priority: $hook.priority, digest: $hook.digest)
@@ -264,18 +297,19 @@ struct WebhookEditor: View {
             Text(String(localized: "A URL or a header token is saved in the config."))
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            if let error {
-                Text(error).font(.caption).foregroundStyle(.red).textSelection(.enabled)
+            if let message = urlHint ?? error {
+                ErrorLine(message: message)
             }
             HStack {
                 Button(String(localized: "Send Test")) {
                     test = .sending
+                    error = nil
                     Task {
-                        let problem = await model.testWebhook(trimmed)
-                        test = problem.map(TestState.failed) ?? .sent
+                        error = await model.testWebhook(trimmed)
+                        test = error == nil ? .sent : .idle
                     }
                 }
-                .disabled(trimmed.url.isEmpty || test == .sending)
+                .disabled(!urlIsValid || test == .sending)
                 TestResult(state: test)
                 Spacer()
                 Button(String(localized: "Cancel"), role: .cancel) { dismiss() }
@@ -289,13 +323,14 @@ struct WebhookEditor: View {
                     }
                 }
                 .keyboardShortcut(.defaultAction)
-                .disabled(trimmed.url.isEmpty || saving)
+                .disabled(!urlIsValid || saving)
             }
         }
         .padding(20)
         .frame(width: 480)
-        .onChange(of: hook) { test = .idle }
-        .onChange(of: headers) { test = .idle }
+        // an edit makes the last test or save outcome stale
+        .onChange(of: hook) { test = .idle; error = nil }
+        .onChange(of: headers) { test = .idle; error = nil }
     }
 }
 
@@ -345,14 +380,15 @@ struct CommandEditor: View {
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             if let error {
-                Text(error).font(.caption).foregroundStyle(.red).textSelection(.enabled)
+                ErrorLine(message: error)
             }
             HStack {
                 Button(String(localized: "Send Test")) {
                     test = .sending
+                    error = nil
                     Task {
-                        let problem = await model.testCommand(trimmed)
-                        test = problem.map(TestState.failed) ?? .sent
+                        error = await model.testCommand(trimmed)
+                        test = error == nil ? .sent : .idle
                     }
                 }
                 .disabled(trimmed.run.isEmpty || test == .sending)
@@ -374,6 +410,6 @@ struct CommandEditor: View {
         }
         .padding(20)
         .frame(width: 480)
-        .onChange(of: command) { test = .idle }
+        .onChange(of: command) { test = .idle; error = nil }
     }
 }

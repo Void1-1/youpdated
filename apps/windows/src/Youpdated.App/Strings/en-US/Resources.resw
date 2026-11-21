@@ -122,6 +122,12 @@
   <data name="StartMenuAdd.Content" xml:space="preserve">
     <value>Add to Start</value>
   </data>
+  <data name="EngineFailedTitle.Text" xml:space="preserve">
+    <value>Youpdated can't check</value>
+  </data>
+  <data name="EngineFailedRetry.Content" xml:space="preserve">
+    <value>Try again</value>
+  </data>
   <data name="LockedTitle.Text" xml:space="preserve">
     <value>Youpdated is locked</value>
   </data>
@@ -893,6 +899,9 @@
   <data name="WebhookFormatAuto" xml:space="preserve">
     <value>Automatic</value>
   </data>
+  <data name="WebhookFormatAutoAs" xml:space="preserve">
+    <value>Automatic ({0})</value>
+  </data>
   <data name="WebhookFormatJson" xml:space="preserve">
     <value>JSON</value>
   </data>
@@ -911,8 +920,8 @@
   <data name="WebhookSecretNote" xml:space="preserve">
     <value>A URL or a header token is saved in the config.</value>
   </data>
-  <data name="WebhookNeedsUrl" xml:space="preserve">
-    <value>Enter the webhook's URL.</value>
+  <data name="WebhookUrlHint" xml:space="preserve">
+    <value>Enter the full address, with https://</value>
   </data>
   <data name="CommandSetTitle" xml:space="preserve">
     <value>Set command</value>
@@ -925,9 +934,6 @@
   </data>
   <data name="CommandPlaceholders" xml:space="preserve">
     <value>{title}, {label}, {url}, {version}, {source}, {target}, {published}, {tags}, and {body} are filled in</value>
-  </data>
-  <data name="CommandNeedsRun" xml:space="preserve">
-    <value>Enter a command.</value>
   </data>
   <data name="NotifySend" xml:space="preserve">
     <value>Send</value>

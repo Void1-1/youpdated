@@ -28,7 +28,11 @@ internal static class NotifyText
     public static string Rules(Priority priority, bool digest) =>
         digest ? Sends(priority) : Text.Format("NotifyIgnoresDigest", Sends(priority));
 
-    public static string Summary(Webhook hook) => $"{Format(hook.Format)} · {Rules(hook.Priority, hook.Digest)}";
+    /// <summary>A saved webhook's format, with Automatic's guess</summary>
+    public static string FormatOf(Webhook hook) =>
+        hook is { Format: null, SendsAs: { } sendsAs } ? Text.Format("WebhookFormatAutoAs", Format(sendsAs)) : Format(hook.Format);
+
+    public static string Summary(Webhook hook) => $"{FormatOf(hook)} · {Rules(hook.Priority, hook.Digest)}";
 
     /// <summary>Just the host</summary>
     public static string Host(string url) =>
@@ -50,10 +54,7 @@ internal static class NotifyEditors
             IsSpellCheckEnabled = false,
         };
         var format = new ComboBox { Header = Text.Get("WebhookFormat"), MinWidth = 220 };
-        if (isNew || current.Format is null)
-        {
-            format.Items.Add(new ComboBoxItem { Content = NotifyText.Format(null), Tag = null });
-        }
+        format.Items.Add(new ComboBoxItem { Content = NotifyText.Format(null), Tag = null });
         foreach (var name in WebhookFormats.All)
         {
             format.Items.Add(new ComboBoxItem { Content = NotifyText.Format(name), Tag = name });
@@ -64,6 +65,7 @@ internal static class NotifyEditors
         var digest = DigestBox(current.Digest);
 
         var headers = new StackPanel { Spacing = 6 };
+        Action? edited = null;
         void AddHeader(string name, string value)
         {
             var row = new Grid { ColumnSpacing = 6 };
@@ -74,7 +76,13 @@ internal static class NotifyEditors
             var valueBox = new TextBox { Text = value, PlaceholderText = Text.Get("WebhookHeaderValue"), IsSpellCheckEnabled = false };
             var remove = new Button { Content = new FontIcon { Glyph = "", FontSize = 12 } };
             ToolTipService.SetToolTip(remove, Text.Get("WebhookRemoveHeader"));
-            remove.Click += (_, _) => headers.Children.Remove(row);
+            remove.Click += (_, _) =>
+            {
+                headers.Children.Remove(row);
+                edited?.Invoke();
+            };
+            nameBox.TextChanged += (_, _) => edited?.Invoke();
+            valueBox.TextChanged += (_, _) => edited?.Invoke();
             Grid.SetColumn(valueBox, 1);
             Grid.SetColumn(remove, 2);
             row.Children.Add(nameBox);
@@ -100,7 +108,7 @@ internal static class NotifyEditors
             digest.IsChecked == true);
 
         var error = Error();
-        var (test, result) = TestRow(() => settings.TestWebhookAsync(Read()), () => Read().Url.Length > 0);
+        var (test, result) = TestRow(() => settings.TestWebhookAsync(Read()), error);
         var dialog = new ContentDialog
         {
             XamlRoot = root,
@@ -127,16 +135,39 @@ internal static class NotifyEditors
             CloseButtonText = Text.Get("Cancel"),
             DefaultButton = ContentDialogButton.Primary,
         };
+
+        void Validate()
+        {
+            var text = url.Text.Trim();
+            var valid = Webhook.IsValidUrl(text);
+            dialog.IsPrimaryButtonEnabled = valid;
+            test.IsEnabled = valid;
+            var typing = text.Length == 0
+                || "https://".StartsWith(text, StringComparison.OrdinalIgnoreCase)
+                || "http://".StartsWith(text, StringComparison.OrdinalIgnoreCase);
+            ErrorBar.Show(error, valid || typing ? null : Text.Get("WebhookUrlHint"));
+        }
+        void Edited()
+        {
+            result.Text = "";
+            Validate();
+        }
+        url.TextChanged += (_, _) => Edited();
+        format.SelectionChanged += (_, _) => Edited();
+        priority.SelectionChanged += (_, _) => Edited();
+        digest.Click += (_, _) => Edited();
+        edited = Edited;
+        Validate();
+
         dialog.PrimaryButtonClick += async (_, args) =>
         {
             var deferral = args.GetDeferral();
-            var hook = Read();
-            var problem = hook.Url.Length == 0 ? Text.Get("WebhookNeedsUrl") : await settings.SaveWebhookAsync(index, hook);
+            var problem = await settings.SaveWebhookAsync(index, Read());
             if (problem is not null)
             {
                 args.Cancel = true;
-                error.Message = problem;
-                error.IsOpen = true;
+                result.Text = "";
+                ErrorBar.Show(error, problem);
             }
             deferral.Complete();
         };
@@ -159,7 +190,7 @@ internal static class NotifyEditors
         NotifyCommand Read() => new(run.Text.Trim(), (Priority)((ComboBoxItem)priority.SelectedItem).Tag, digest.IsChecked == true);
 
         var error = Error();
-        var (test, result) = TestRow(() => settings.TestCommandAsync(Read()), () => Read().Run.Length > 0);
+        var (test, result) = TestRow(() => settings.TestCommandAsync(Read()), error);
         var dialog = new ContentDialog
         {
             XamlRoot = root,
@@ -181,16 +212,28 @@ internal static class NotifyEditors
             CloseButtonText = Text.Get("Cancel"),
             DefaultButton = ContentDialogButton.Primary,
         };
+        void Edited()
+        {
+            var ready = Read().Run.Length > 0;
+            dialog.IsPrimaryButtonEnabled = ready;
+            test.IsEnabled = ready;
+            result.Text = "";
+            ErrorBar.Show(error, null);
+        }
+        run.TextChanged += (_, _) => Edited();
+        priority.SelectionChanged += (_, _) => Edited();
+        digest.Click += (_, _) => Edited();
+        Edited();
+
         dialog.PrimaryButtonClick += async (_, args) =>
         {
             var deferral = args.GetDeferral();
-            var command = Read();
-            var problem = command.Run.Length == 0 ? Text.Get("CommandNeedsRun") : await settings.SaveCommandAsync(command);
+            var problem = await settings.SaveCommandAsync(Read());
             if (problem is not null)
             {
                 args.Cancel = true;
-                error.Message = problem;
-                error.IsOpen = true;
+                result.Text = "";
+                ErrorBar.Show(error, problem);
             }
             deferral.Complete();
         };
@@ -224,23 +267,47 @@ internal static class NotifyEditors
         return block;
     }
 
-    /// <summary>Send test, and what came of it</summary>
-    private static (Button Test, TextBlock Result) TestRow(Func<Task<string?>> send, Func<bool> ready)
+    /// <summary>Send test and its progress. A failure goes to the dialog's one error bar</summary>
+    private static (Button Test, TextBlock Result) TestRow(Func<Task<string?>> send, InfoBar error)
     {
-        var result = new TextBlock { TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center, MaxWidth = 300, IsTextSelectionEnabled = true };
+        var result = new TextBlock { VerticalAlignment = VerticalAlignment.Center };
         var test = new Button { Content = Text.Get("NotifyTest") };
         test.Click += async (_, _) =>
         {
-            if (!ready())
-            {
-                return;
-            }
             test.IsEnabled = false;
+            ErrorBar.Show(error, null);
             result.Text = Text.Get("NotifyTesting");
             var problem = await send();
-            result.Text = problem ?? Text.Get("NotifyTestSent");
+            result.Text = problem is null ? Text.Get("NotifyTestSent") : "";
+            ErrorBar.Show(error, problem);
             test.IsEnabled = true;
         };
         return (test, result);
+    }
+}
+
+/// <summary>Save or test failure</summary>
+internal static class ErrorBar
+{
+    public static void Show(InfoBar bar, string? message)
+    {
+        if (message is null)
+        {
+            bar.IsOpen = false;
+            return;
+        }
+        var text = new TextBlock { TextWrapping = TextWrapping.Wrap, IsTextSelectionEnabled = true, Margin = new Thickness(0, 0, 0, 12) };
+        foreach (var (part, code) in CodeSpans.Split(message))
+        {
+            var run = new Microsoft.UI.Xaml.Documents.Run { Text = part };
+            if (code)
+            {
+                run.FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Cascadia Mono, Consolas");
+            }
+            text.Inlines.Add(run);
+        }
+        bar.Message = "";
+        bar.Content = text;
+        bar.IsOpen = true;
     }
 }

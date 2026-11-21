@@ -9,7 +9,7 @@ import Testing
         await harness.model.launch()
         let model = harness.model
         #expect(model.engineState == .ready)
-        #expect(harness.engine.ops == ["hello", "status", "settings.get", "privacy.get", "problems.list", "inbox.list", "targets.list"])
+        #expect(harness.engine.ops == ["hello", "status", "settings.get", "privacy.get", "notify.get", "problems.list", "inbox.list", "targets.list"])
         #expect(model.engineVersion == "1.0.0")
         #expect(model.inbox.items.count == 6)
         #expect(model.unread == 4)
@@ -242,10 +242,9 @@ import Testing
             $0.script("notify.test", "notify.test/webhook", "notify.test/command_failed")
         }
         await harness.model.launch()
-        // only once Settings asks
-        #expect(harness.model.notify == nil)
-        await harness.model.loadNotify()
-        #expect(harness.model.notify?.webhooks.map(\.format) == ["ntfy", "discord"])
+        // at launch
+        #expect(harness.model.notify?.webhooks.map(\.format) == [nil, "discord"])
+        #expect(harness.model.notify?.webhooks.map(\.sendsAs) == ["ntfy", "discord"])
 
         let hooks = [
             Webhook(url: "https://ntfy.sh/my-private-topic"),

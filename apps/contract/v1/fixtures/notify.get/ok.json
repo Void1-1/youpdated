@@ -1,5 +1,5 @@
 {
-  "description": "An ntfy topic, a Discord webhook for high priority only, and a command",
+  "description": "An ntfy topic left on Automatic, a Discord webhook for high priority only, and a command",
   "request": { "id": 65, "op": "notify.get" },
   "events": [],
   "reply": {
@@ -9,7 +9,8 @@
       "webhooks": [
         {
           "url": "https://ntfy.sh/my-private-topic",
-          "format": "ntfy",
+          "format": null,
+          "sends_as": "ntfy",
           "headers": [],
           "priority": "normal",
           "digest": true
@@ -17,6 +18,7 @@
         {
           "url": "https://discord.com/api/webhooks/1234/abcd",
           "format": "discord",
+          "sends_as": "discord",
           "headers": [],
           "priority": "high",
           "digest": false

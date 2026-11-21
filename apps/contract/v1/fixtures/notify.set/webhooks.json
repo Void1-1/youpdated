@@ -1,5 +1,5 @@
 {
-  "description": "Every webhook is sent, the first is guessed. The command is left alone",
+  "description": "Every webhook is sent. The first is Automatic; the second names JSON, which stays chosen though it matches the guess. The command is left alone",
   "request": {
     "id": 67,
     "op": "notify.set",
@@ -22,7 +22,8 @@
       "webhooks": [
         {
           "url": "https://ntfy.sh/my-private-topic",
-          "format": "ntfy",
+          "format": null,
+          "sends_as": "ntfy",
           "headers": [],
           "priority": "normal",
           "digest": true
@@ -30,6 +31,7 @@
         {
           "url": "https://example.com/hook",
           "format": "json",
+          "sends_as": "json",
           "headers": [{ "name": "Authorization", "value": "Bearer abc123" }],
           "priority": "high",
           "digest": false

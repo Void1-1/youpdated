@@ -1014,6 +1014,17 @@ def test_serve_answers_while_a_check_runs(served):
     assert engine.order.index(listed) < engine.order.index(check)
 
 
+def test_serve_answers_while_a_notify_test_runs(served):
+    engine = served()
+
+    slow = engine.send("notify.test", command={"run": f'"{sys.executable}" -c "import time; time.sleep(1.5)"'})
+    status = engine.send("status")
+
+    assert engine.reply(status)["ok"]
+    assert engine.reply(slow)["ok"]
+    assert engine.order.index(status) < engine.order.index(slow)
+
+
 def test_serve_survives_bad_lines_and_stops_when_stdin_closes(served):
     engine = served()
     engine.write(b"not json\n")
@@ -1249,6 +1260,7 @@ def test_notify_get_reads_the_config(tmp_path, fake):
             "  webhooks:\n"
             "    - https://ntfy.sh/topic\n"
             "    - {url: https://example.com/h, priority: high, digest: false, headers: {X-Token: t}}\n"
+            "    - {url: https://example.com/j, format: json}\n"
             "  command: notify-send \"{label}\"  # mine\n"
             "  timeout: 5\n"
         ),
@@ -1256,11 +1268,19 @@ def test_notify_get_reads_the_config(tmp_path, fake):
     notify = Engine(config, tmp_path / "state.db")("notify.get")["notify"]
     assert notify == {
         "webhooks": [
-            {"url": "https://ntfy.sh/topic", "format": "ntfy", "headers": [], "priority": "normal", "digest": True},
             {
-                "url": "https://example.com/h", "format": "json",
+                "url": "https://ntfy.sh/topic", "format": None, "sends_as": "ntfy",
+                "headers": [], "priority": "normal", "digest": True,
+            },
+            {
+                "url": "https://example.com/h", "format": None, "sends_as": "json",
                 "headers": [{"name": "X-Token", "value": "t"}],
                 "priority": "high", "digest": False,
+            },
+            # named, so not Automatic
+            {
+                "url": "https://example.com/j", "format": "json", "sends_as": "json",
+                "headers": [], "priority": "normal", "digest": True,
             },
         ],
         "command": {"run": 'notify-send "{label}"', "priority": "normal", "digest": True},
@@ -1285,7 +1305,8 @@ def test_notify_set_writes_only_what_it_is_given(tmp_path, fake):
             {"url": "https://example.com/h", "format": "slack", "priority": "high", "headers": []},
         ],
     )
-    assert [h["format"] for h in reply["notify"]["webhooks"]] == ["ntfy", "slack"]
+    assert [h["format"] for h in reply["notify"]["webhooks"]] == [None, "slack"]
+    assert [h["sends_as"] for h in reply["notify"]["webhooks"]] == ["ntfy", "slack"]
     assert reply["notify"]["command"]["run"] == "echo hi"
     text = config.read_text(encoding="utf-8")
     assert "  command: echo hi  # keep\n" in text
@@ -1297,6 +1318,17 @@ def test_notify_set_writes_only_what_it_is_given(tmp_path, fake):
         "        priority: high\n"
     ) in text
     assert engine("notify.get")["notify"] == reply["notify"]
+
+
+def test_notify_set_keeps_a_chosen_format_that_matches_the_guess(tmp_path, fake):
+    config = make_config(tmp_path, _hooks("  command: echo hi\n"))
+    engine = Engine(config, tmp_path / "state.db")
+    hook = engine("notify.set", webhooks=[{"url": "https://example.com/h", "format": "json"}])["notify"]["webhooks"][0]
+    assert (hook["format"], hook["sends_as"]) == ("json", "json")
+    assert "      - url: https://example.com/h\n        format: json\n" in config.read_text(encoding="utf-8")
+
+    moved = engine("notify.set", webhooks=[{"url": "https://ntfy.sh/topic", "format": "json"}])
+    assert moved["notify"]["webhooks"][0]["sends_as"] == "json"
 
 
 def test_notify_set_removes(tmp_path, fake):

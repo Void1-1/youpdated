@@ -14,7 +14,7 @@ Used for the desktop apps and `youpdated api serve` to communicate. [contract.sc
 
 ## Order and concurrency
 
-- Replies can arrive out of order. `check` runs in the background, and other ops are answered while it runs, so the inbox stays usable during a long check.
+- Replies can arrive out of order. `check` runs in the background, and other ops are answered while it runs, so the inbox stays usable during a long check. `notify.test` runs in the background too, since a slow server or command can take its whole timeout.
 - One check at a time. A second `check` while one runs is `busy`. After a check replies it may still be fetching icons. A new `check` then waits for the current icon to be stored, stops the rest, and starts. If that takes over 30 seconds, it's `busy`.
 - While a check runs, other ops share the history it has open. Otherwise the engine takes the history lock per op, so a `youpdated add` from a terminal doesn't wait for the app. When the CLI holds it for longer than the engine waits, the op fails with `history_busy`; the app can retry later.
 - The engine re-reads the config on every op.

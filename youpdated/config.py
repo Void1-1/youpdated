@@ -57,6 +57,8 @@ class Webhook:
     priority: str = "normal"
     # follow app's digest if set
     digest: bool = True
+    # the config names `format:`
+    format_given: bool = False
 
 
 @dataclass
@@ -563,6 +565,7 @@ def parse_webhook(raw: Any, where: str) -> Webhook:
         raise ConfigError(f"{where}`settings.notify.webhooks` entry needs an http(s) `url`")
 
     fmt = fields.get("format")
+    format_given = fmt is not None
     if fmt is None:
         fmt = guess_webhook_format(url)
     elif not isinstance(fmt, str) or fmt.strip().lower() not in WEBHOOK_FORMATS:
@@ -595,6 +598,7 @@ def parse_webhook(raw: Any, where: str) -> Webhook:
         headers={k: str(v) for k, v in headers.items()},
         priority=priority,
         digest=digest,
+        format_given=format_given,
     )
 
 

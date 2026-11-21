@@ -80,11 +80,12 @@ public sealed class FakeDataRemover : IDataRemover
 /// <summary>An <see cref="AppViewModel"/> over a <see cref="FakeEngine"/> and fake platform services</summary>
 public sealed class TestApp : IAsyncDisposable
 {
-    public TestApp(FakeEngine? engine = null)
+    /// <param name="launch">Instead of handing out <paramref name="engine"/>, like one that can't start</param>
+    public TestApp(FakeEngine? engine = null, Func<IEngineTransport>? launch = null)
     {
         Engine = engine ?? new FakeEngine();
         Time.SetLocalTimeZone(TimeZoneInfo.Utc);
-        var host = new EngineHost(() => Engine, new ClientInfo("Youpdated", "1.0.0", "windows"), Time);
+        var host = new EngineHost(launch ?? (() => Engine), new ClientInfo("Youpdated", "1.0.0", "windows"), Time);
         Services = new AppServices(
             new ImmediateDispatcher(), Time, Credentials, Startup, UrlScheme, Notifications, Shell, LocalState,
             DataRemover, new HttpClient(), new Version(1, 0, 0));

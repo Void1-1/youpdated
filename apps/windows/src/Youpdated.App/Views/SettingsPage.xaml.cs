@@ -72,6 +72,7 @@ public sealed partial class SettingsPage : Page
         _filling = false;
         SyncPrivacy();
         SyncNotify();
+        ErrorBar.Show(NotifyErrorBar, Settings.NotifyError);
         LoadNotify();
     }
 
@@ -93,6 +94,10 @@ public sealed partial class SettingsPage : Page
         if (e.PropertyName is nameof(SettingsViewModel.Notify))
         {
             SyncNotify();
+        }
+        if (e.PropertyName is nameof(SettingsViewModel.NotifyError))
+        {
+            ErrorBar.Show(NotifyErrorBar, Settings.NotifyError);
         }
     }
 
@@ -119,6 +124,9 @@ public sealed partial class SettingsPage : Page
                 Content = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { edit, remove } },
             });
         }
+        var any = WebhooksExpander.Items.Count > 0;
+        WebhooksCard.Visibility = any ? Visibility.Collapsed : Visibility.Visible;
+        WebhooksExpander.Visibility = any ? Visibility.Visible : Visibility.Collapsed;
         var command = notify?.Command;
         CommandCard.Description = command is null
             ? Text.Get("SettingsCommandNone")
@@ -131,7 +139,13 @@ public sealed partial class SettingsPage : Page
     {
         if (XamlRoot is { } root)
         {
+            var before = Settings.Notify?.Webhooks.Count ?? 0;
             await NotifyEditors.EditWebhookAsync(root, Settings, null, Webhook.New());
+            // Collapsed by default, but show the one just added
+            if ((Settings.Notify?.Webhooks.Count ?? 0) > before)
+            {
+                WebhooksExpander.IsExpanded = true;
+            }
         }
     }
 

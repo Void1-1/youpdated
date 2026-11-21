@@ -176,6 +176,7 @@ struct NotificationSettings: View {
             NotifySections()
         }
         .formStyle(.grouped)
+        .task { await model.loadNotify() }
     }
 
     static func date(for time: String) -> Date {

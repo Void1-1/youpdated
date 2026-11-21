@@ -233,6 +233,7 @@ public final class AppModel {
         }
         offersSelfWatchNow = self.status?.selfWatch == .absent && !settings.selfWatchDeclined
         await loadPrivacy()
+        await loadNotify()
         noteCLIRuns()
         if let reply = try? await engine.problems() {
             problems = reply.problems
@@ -465,7 +466,7 @@ public final class AppModel {
         await refreshStatus()
         await sources.reload()
         await loadPrivacy()
-        if notify != nil { await loadNotify() }
+        await loadNotify()
     }
 
     /// The engine reads and writes the config's privacy options

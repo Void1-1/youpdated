@@ -37,7 +37,6 @@ from .config import (
     default_config_path,
     default_state_path,
     find_config,
-    guess_webhook_format,
     load_config,
     names_itself_privately,
     parse_command,
@@ -1347,7 +1346,8 @@ class Engine:
             "webhooks": [
                 {
                     "url": hook.url,
-                    "format": hook.format,
+                    "format": hook.format if hook.format_given else None,
+                    "sends_as": hook.format,
                     "headers": [{"name": k, "value": v} for k, v in hook.headers.items()],
                     "priority": hook.priority,
                     "digest": hook.digest,
@@ -1700,7 +1700,8 @@ def _command_input(raw: dict[str, Any]) -> Command:
 def _webhook_yaml(hook: Webhook) -> str | dict[str, Any]:
     """how `notify.set` writes ``hook``"""
     written: dict[str, Any] = {"url": hook.url}
-    if hook.format != guess_webhook_format(hook.url):
+    # only a chosen format; Automatic keeps following the URL
+    if hook.format_given:
         written["format"] = hook.format
     if hook.headers:
         written["headers"] = dict(hook.headers)
@@ -1824,6 +1825,12 @@ def serve(engine: Engine, stdin: IO[bytes], stdout: IO[bytes]) -> int:
 
             check = threading.Thread(target=answer, name="youpdated-api-check", daemon=True)
             check.start()
+            continue
+        if request.get("op") == "notify.test":
+            def answer_test(request: dict[str, Any] = request, rid: int = rid) -> None:
+                write({"id": rid, **engine.call(request)})
+
+            threading.Thread(target=answer_test, name="youpdated-api-notify-test", daemon=True).start()
             continue
         reply = engine.call(request)
         write({"id": rid, **reply})

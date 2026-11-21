@@ -3,6 +3,7 @@ using System.Text.Json.Nodes;
 using System.Text.Json.Serialization.Metadata;
 using Youpdated.Core.Contract;
 using Youpdated.Core.Engine;
+using Youpdated.Core.ViewModels;
 
 namespace Youpdated.Core.Tests;
 
@@ -245,6 +246,38 @@ public class ContractTests
         var hook = Webhook.New() with { Url = "https://example.com", Headers = [new Header("X-Api_Key", "a")] };
         var header = NotifyJson.ToJson(hook)["headers"]![0]!.AsObject();
         Assert.Equal("X-Api_Key", header["name"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public void SendsAsIsNotSentBack()
+    {
+        // the engine refuses unknown keys in a WebhookInput
+        var json = NotifyJson.ToJson(Webhook.New() with { Url = "https://ntfy.sh/topic", SendsAs = "ntfy" });
+        Assert.False(json.ContainsKey("sends_as"));
+        Assert.False(json.ContainsKey("format"));
+    }
+
+    /// <summary>Same as the engine's <c>settings.notify.webhooks</c> check</summary>
+    [Theory]
+    [InlineData("https://ntfy.sh/topic", true)]
+    [InlineData("http://127.0.0.1:8787/x", true)]
+    [InlineData(" HTTPS://example.com ", true)]
+    [InlineData("", false)]
+    [InlineData("fff", false)]
+    [InlineData("ntfy.sh/topic", false)]
+    [InlineData("https://", false)]
+    [InlineData("ftp://example.com", false)]
+    [InlineData("mailto:a@b.c", false)]
+    public void WebhookUrlsNeedHttpAndAHost(string url, bool valid) => Assert.Equal(valid, Webhook.IsValidUrl(url));
+
+    [Fact]
+    public void EngineMessagesSplitIntoCodeSpans()
+    {
+        Assert.Equal(
+            [("settings.notify.webhooks", true), (" entry needs an http(s) ", false), ("url", true)],
+            CodeSpans.Split("`settings.notify.webhooks` entry needs an http(s) `url`"));
+        Assert.Equal([("plain", false)], CodeSpans.Split("plain"));
+        Assert.Equal([("a ", false), ("b", true), (" `c", false)], CodeSpans.Split("a `b` `c"));
     }
 
     private static JsonNode Normalize(JsonObject request)

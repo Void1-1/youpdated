@@ -176,4 +176,14 @@ import Testing
         let empty = try ContractCoding.encoder().encode(RequestEnvelope(id: 1, op: "status", params: NoParams()))
         #expect(String(decoding: empty, as: UTF8.self) == #"{"id":1,"op":"status"}"#)
     }
+
+    /// Same as the engine's `settings.notify.webhooks` check
+    @Test func webhookURLsNeedHTTPAndAHost() {
+        for url in ["https://ntfy.sh/topic", "http://127.0.0.1:8787/x", " HTTPS://example.com "] {
+            #expect(Webhook.isValidURL(url), "\(url)")
+        }
+        for url in ["", "fff", "ntfy.sh/topic", "https://", "ftp://example.com", "mailto:a@b.c"] {
+            #expect(!Webhook.isValidURL(url), "\(url)")
+        }
+    }
 }

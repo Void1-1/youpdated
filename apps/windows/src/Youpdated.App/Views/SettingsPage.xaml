@@ -94,7 +94,15 @@
 
                 <!-- settings.notify -->
                 <StackPanel Visibility="{x:Bind Settings.CanEditNotify, Mode=OneWay}" Spacing="4">
-                    <controls:SettingsExpander x:Name="WebhooksExpander" x:Uid="SettingsWebhooks" IsExpanded="True"
+                    <!-- A card until there's a webhook to list, so nothing expands to an empty area -->
+                    <controls:SettingsCard x:Name="WebhooksCard" x:Uid="SettingsWebhooks"
+                                           IsEnabled="{x:Bind local:Bind.NotNull(Settings.Notify), Mode=OneWay}">
+                        <controls:SettingsCard.HeaderIcon>
+                            <FontIcon Glyph="&#xE71B;" />
+                        </controls:SettingsCard.HeaderIcon>
+                        <Button x:Uid="SettingsAddWebhook" Click="OnAddWebhook" />
+                    </controls:SettingsCard>
+                    <controls:SettingsExpander x:Name="WebhooksExpander" x:Uid="SettingsWebhooks" IsExpanded="False" Visibility="Collapsed"
                                                IsEnabled="{x:Bind local:Bind.NotNull(Settings.Notify), Mode=OneWay}">
                         <controls:SettingsExpander.HeaderIcon>
                             <FontIcon Glyph="&#xE71B;" />
@@ -111,9 +119,8 @@
                             <Button x:Name="CommandRemoveButton" x:Uid="SettingsRemoveCommand" Click="OnRemoveCommand" />
                         </StackPanel>
                     </controls:SettingsCard>
-                    <InfoBar Severity="Error" IsClosable="False"
-                             Message="{x:Bind Settings.NotifyError, Mode=OneWay}"
-                             IsOpen="{x:Bind local:Bind.NotNull(Settings.NotifyError), Mode=OneWay}" />
+                    <!-- filled by ErrorBar.Show, for the code spans -->
+                    <InfoBar x:Name="NotifyErrorBar" Severity="Error" IsClosable="False" />
                 </StackPanel>
 
                 <!-- The config's settings.privacy -->

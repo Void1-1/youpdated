@@ -680,11 +680,15 @@
     "Webhook": {
       "description": "A `settings.notify.webhooks` entry",
       "type": "object",
-      "required": ["url", "format", "headers", "priority", "digest"],
+      "required": ["url", "format", "sends_as", "headers", "priority", "digest"],
       "additionalProperties": false,
       "properties": {
         "url": { "type": "string", "description": "http(s) URL. May hold a token" },
-        "format": { "$ref": "#/$defs/WebhookFormat" },
+        "format": {
+          "description": "As the config names it. null is Automatic: guessed from the URL",
+          "oneOf": [{ "$ref": "#/$defs/WebhookFormat" }, { "type": "null" }]
+        },
+        "sends_as": { "$ref": "#/$defs/WebhookFormat", "description": "The format used: `format`, or the guess" },
         "headers": {
           "description": "Sent with each request, in config order. May hold a token",
           "type": "array",
