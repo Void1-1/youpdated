@@ -21,6 +21,7 @@
   <a href="#sources">Sources</a> ·
   <a href="https://github.com/Void1-1/youpdated/blob/main/docs/macos-app.md">Youpdated MacOS App (beta)</a> ·
   <a href="https://github.com/Void1-1/youpdated/blob/main/docs/windows-app.md">Youpdated Windows App (beta)</a> ·
+  <a href="https://github.com/Void1-1/youpdated/blob/main/CHANGELOG.md">Changelog</a> ·
   <a href="#learn-more">Docs</a>
 </p>
 
