@@ -12,7 +12,7 @@ import pytest
 
 from youpdated import crypto
 from youpdated.cli import main
-from youpdated.config import EXAMPLE_CONFIG, ConfigError, load_config
+from youpdated.config import EXAMPLE_CONFIG, INIT_CONFIG, ConfigError, load_config
 from youpdated.models import Update
 from youpdated.state import State
 
@@ -449,8 +449,8 @@ def test_init_encrypt_never_writes_plaintext(tmp_path, monkeypatch):
         assert stat.S_IMODE(config.stat().st_mode) == 0o600
     assert b"sources" not in config.read_bytes()
 
-    # And it is a real config once unlocked.
-    assert "git" in load_config(config, passphrase=PASSPHRASE).sources
+    # And it is the starter config once unlocked.
+    assert crypto.decrypt(config.read_bytes(), PASSPHRASE).decode("utf-8") == INIT_CONFIG
 
 
 def test_init_encrypt_respects_force(tmp_path, monkeypatch, capsys):
@@ -477,7 +477,7 @@ def test_init_encrypt_without_the_backend_writes_nothing(tmp_path, monkeypatch, 
 def test_plain_init_is_unchanged(tmp_path):
     config = tmp_path / "youpdated.yaml"
     assert main(["init", "-c", str(config)]) == 0
-    assert config.read_text(encoding="utf-8") == EXAMPLE_CONFIG
+    assert config.read_text(encoding="utf-8") == INIT_CONFIG
 
 
 def test_missing_backend_reports_the_install_hint(tmp_path, monkeypatch, capsys):

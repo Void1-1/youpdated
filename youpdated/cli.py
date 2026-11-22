@@ -11,11 +11,11 @@ import sys
 import tempfile
 import threading
 import time
-from contextlib import ExitStack
+from contextlib import ExitStack, nullcontext
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Callable, Iterable
+from typing import Any, Callable, Iterable
 
 from rich.console import Console, ConsoleOptions, RenderableType, RenderResult
 from rich.control import Control
@@ -34,8 +34,9 @@ from rich.table import Column
 
 from . import __version__, crypto, notify, preview
 from .cleanup import Trace, find_package, find_traces, remove_package, remove_traces
+from .configs import CONFIG_ENV, Selected, check_name, chosen, named, select
 from .config import (
-    EXAMPLE_CONFIG,
+    INIT_CONFIG,
     FAST_MODE_WARNING,
     NAMED_UA_CONFIRMED,
     NAMED_UA_UNCONFIRMED,
@@ -43,9 +44,15 @@ from .config import (
     Command,
     Config,
     ConfigError,
+    DEFAULT_NAME,
     default_config_path,
     default_state_path,
     find_config,
+    ignored_legacy_config,
+    legacy_config_path,
+    legacy_state_path,
+    named_config_path,
+    named_state_path,
     load_config,
     names_itself_privately,
     parse_config_text,
@@ -74,7 +81,13 @@ from .render import json_out, rss_out, terminal
 from .render import targets as targets_out
 from .runner import build_targets, parse_since, record, rule_warnings, run
 from .sources.base import ConfigEntryError
-from .state import State, StateError, stamp, state_lock
+from .state import State, StateError, lock_path, stamp, state_lock
+
+
+CONFIG_HELP = (
+    "a config's name (see `youpdated configs`) or a path to a config file. "
+    f"Default: ${CONFIG_ENV}, else the default config"
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -86,7 +99,7 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command")
 
     check = sub.add_parser("check", help="fetch sources and report what's new (default)")
-    check.add_argument("-c", "--config", help="path to a config file")
+    check.add_argument("-c", "--config", metavar="CONFIG", help=CONFIG_HELP)
     check.add_argument(
         "-s", "--source", action="append", dest="sources",
         help="only check this source (repeatable)",
@@ -109,6 +122,10 @@ def build_parser() -> argparse.ArgumentParser:
         "(see settings.privacy.fast_mode)",
     )
     check.add_argument("--state", help="path to the state database")
+    check.add_argument(
+        "--all-configs", action="store_true",
+        help="check the default config, then every named config, each with its own history",
+    )
     check.add_argument("-v", "--verbose", action="store_true", help="show request detail and bodies")
     check.add_argument(
         "--fail-on-error", action="store_true",
@@ -146,7 +163,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="name, newest",
     )
     listing.add_argument("--json", action="store_true", help="emit JSON to stdout")
-    listing.add_argument("-c", "--config", help="path to a config file")
+    listing.add_argument("-c", "--config", metavar="CONFIG", help=CONFIG_HELP)
     listing.add_argument("--state", help="path to the state database")
 
     for name, aliases, help_text, verb, extra in (
@@ -163,7 +180,7 @@ def build_parser() -> argparse.ArgumentParser:
             help=f"what to {verb}, ex: python/cpython or URL. Put the source first "
             "(git, npm, steam, ...) when the entry doesn't include it",
         )
-        edit.add_argument("-c", "--config", help="path to a config file")
+        edit.add_argument("-c", "--config", metavar="CONFIG", help=CONFIG_HELP)
         edit.add_argument("--test", action="store_true", help="show changes without writing")
         if name == "add":
             edit.add_argument(
@@ -193,15 +210,19 @@ def build_parser() -> argparse.ArgumentParser:
         "--format", choices=list(READERS),
         help="read each FILE as this when not named",
     )
-    imports.add_argument("-c", "--config", help="path to a config file")
+    imports.add_argument("-c", "--config", metavar="CONFIG", help=CONFIG_HELP)
     imports.add_argument("--test", action="store_true", help="show changes without writing")
 
     editor = sub.add_parser("edit", help="open the config in your editor")
-    editor.add_argument("-c", "--config", help="path to a config file")
+    editor.add_argument("-c", "--config", metavar="CONFIG", help=CONFIG_HELP)
     editor.add_argument("--state", help="path to the state database")
 
-    init = sub.add_parser("init", help="write a starter config file")
-    init.add_argument("-c", "--config", help="where to write it")
+    init = sub.add_parser("init", help="write a starter config file, or a new named config")
+    init.add_argument(
+        "name", nargs="?", metavar="NAME",
+        help="create a named config, separate from the others with its own history",
+    )
+    init.add_argument("-c", "--config", help="where to write it: a config's name, or a path")
     init.add_argument("-f", "--force", action="store_true", help="overwrite an existing file")
     init.add_argument(
         "-e", "--encrypt", action="store_true",
@@ -213,8 +234,30 @@ def build_parser() -> argparse.ArgumentParser:
         ("decrypt", ["set-decrypted"], "convert an encrypted setup back to plain files"),
     ):
         crypt = sub.add_parser(name, aliases=aliases, help=help_text)
-        crypt.add_argument("-c", "--config", help="path to a config file")
+        crypt.add_argument("-c", "--config", metavar="CONFIG", help=CONFIG_HELP)
         crypt.add_argument("--state", help="path to the state database")
+
+    configs = sub.add_parser(
+        "configs",
+        help="list, remove, or migrate configs",
+        description="With no action, list every config. Pick one on any command with -c NAME.",
+    )
+    configs.add_argument("--json", action="store_true", help="emit JSON to stdout")
+    actions = configs.add_subparsers(dest="action", metavar="ACTION")
+    remove_config = actions.add_parser(
+        "remove", aliases=["rm"], help="delete a named config and its history",
+    )
+    remove_config.add_argument("name", metavar="NAME", help="the config to delete")
+    remove_config.add_argument("-y", "--yes", action="store_true", help="skip confirmation")
+    remove_config.add_argument(
+        "--test", action="store_true", help="list what would be deleted without deleting"
+    )
+    migrate = actions.add_parser(
+        "migrate",
+        help="move the default config and history from before named configs into configs/ and history/",
+    )
+    migrate.add_argument("-y", "--yes", action="store_true", help="skip confirmation")
+    migrate.add_argument("--test", action="store_true", help="list moves without moving")
 
     uninstall = sub.add_parser(
         "uninstall",
@@ -275,10 +318,10 @@ def cmd_list(args: argparse.Namespace, console: Console) -> int:
     from .api import target_rows
 
     _unknown_sources(args.sources)
-    state_path = Path(args.state).expanduser() if args.state else default_state_path()
+    state_path = args.state
     passphrase = None
     if _setup_is_encrypted(find_config(args.config), state_path):
-        passphrase = crypto.prompt_passphrase()
+        passphrase = crypto.prompt_passphrase(name=args.config_name)
         crypto.derive_ahead(state_path, passphrase)
     config = load_config(args.config, passphrase=passphrase, allow_empty=True)
     targets, _ = build_targets(config)
@@ -387,7 +430,7 @@ def cmd_add(args: argparse.Namespace, console: Console) -> int:
             return None
         if fetching:
             choosing = interactive and not (args.yes or args.test)
-            found = _looked_up(console, checked, text, path, passphrase, choosing)
+            found = _looked_up(console, checked, text, path, args.state, passphrase, choosing)
         else:
             found = _as_given(console, checked)
             # Only videos, none of them added
@@ -538,13 +581,13 @@ def _looked_up(
     items: list[_AddItem],
     text: str,
     path: Path,
+    state_path: Path,
     passphrase: str | None,
     choosing: bool,
 ) -> list[tuple[str, str]] | None:
     """``(source, entry)`` to add"""
     config = parse_config_text(text, path)
     if names_itself_privately(config, passphrase is not None):
-        state_path = default_state_path()
         if _named_ua_confirmed_at(state_path, passphrase):
             console.print(f"[yellow]warning:[/] {escape(NAMED_UA_WARNING)}")
         elif not sys.stdin.isatty():
@@ -653,10 +696,12 @@ def cmd_edit(
     if plan is None and pick is None:
         plan = _edit_plan(args.command, args.words)
     path = require_config(args.config)
-    state_path = Path(args.state).expanduser() if wipe and args.state else default_state_path()
+    state_path = args.state
     config_locked = crypto.is_encrypted_file(path)
     state_locked = wipe and state_path.is_file() and crypto.is_encrypted_file(state_path)
-    passphrase = crypto.prompt_passphrase() if config_locked or state_locked else None
+    passphrase = (
+        crypto.prompt_passphrase(name=args.config_name) if config_locked or state_locked else None
+    )
 
     text = edited = read_config_text(path, passphrase)
     if pick is not None:
@@ -842,7 +887,7 @@ def _after_problems(can_save: bool) -> str:
 
 def _draft_problems(text: str, path: Path) -> tuple[list[str], list[str]]:
     try:
-        config = parse_config_text(text, path)
+        config = parse_config_text(text, path, allow_empty=True)
     except ConfigError as exc:
         return [str(exc)], []
     _, errors = build_targets(config)
@@ -851,7 +896,7 @@ def _draft_problems(text: str, path: Path) -> tuple[list[str], list[str]]:
 
 def _loads(text: str, path: Path) -> Config | None:
     try:
-        return parse_config_text(text, path)
+        return parse_config_text(text, path, allow_empty=True)
     except ConfigError:
         return None
 
@@ -891,9 +936,9 @@ def _record_named_ua(state_path: Path, passphrase: str | None, console: Console)
 def cmd_editor(args: argparse.Namespace, console: Console) -> int:
     """`edit`: the config through a copy, checked, then written back"""
     path = require_config(args.config)
-    state_path = Path(args.state).expanduser() if args.state else default_state_path()
+    state_path = args.state
     locked = crypto.is_encrypted_file(path)
-    passphrase = crypto.prompt_passphrase() if locked else None
+    passphrase = crypto.prompt_passphrase(name=args.config_name) if locked else None
     before = path.read_bytes()
     named_confirmed = False
     original = read_config_text(path, passphrase)
@@ -1031,16 +1076,30 @@ def cmd_editor(args: argparse.Namespace, console: Console) -> int:
 
 
 def cmd_init(args: argparse.Namespace, console: Console) -> int:
-    path = Path(args.config).expanduser() if args.config else default_config_path()
+    if args.name and args.config:
+        raise ConfigError("name the config or give -c, not both")
+    # NAME is only ever a name, where -c can be a path
+    selected = select(check_name(args.name) if args.name else args.config, create=True)
+    path = selected.config or default_config_path()
     if path.exists() and not args.force:
         console.print(f"[yellow]{escape(str(path))} already exists.[/] Use --force to overwrite.")
         return 1
+    # `-c NAME` on the next steps, unless it's the default
+    flag = f" -c {selected.name}" if selected.name not in (None, DEFAULT_NAME) else ""
+    if flag:
+        console.print(
+            f"[dim]`{escape(selected.name or '')}` has its own sources, settings, and history. "
+            f"Use it with -c {escape(selected.name or '')} or ${CONFIG_ENV}.[/]"
+        )
 
     if not args.encrypt:
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(EXAMPLE_CONFIG, encoding="utf-8")
+        path.write_text(INIT_CONFIG, encoding="utf-8")
         console.print(f"Wrote starter config to [bold]{escape(str(path))}[/]")
-        console.print("[dim]Change it with `youpdated edit` or `youpdated add`, then run `youpdated check`.[/]")
+        console.print(
+            f"[dim]Change it with `youpdated edit{flag}` or `youpdated add{flag}`, "
+            f"then run `youpdated check{flag}`.[/]"
+        )
         return 0
 
     # Encrypted from the first byte:
@@ -1050,26 +1109,31 @@ def cmd_init(args: argparse.Namespace, console: Console) -> int:
         "[red]There is no recovery if you forget this passphrase.[/] "
         "The config and history will be the only copy.\n"
     )
-    passphrase = crypto.prompt_passphrase("New passphrase: ", confirm=True)
-    crypto.write_private(path, crypto.encrypt(EXAMPLE_CONFIG.encode("utf-8"), passphrase))
+    passphrase = crypto.prompt_passphrase("New passphrase: ", confirm=True, name=selected.name)
+    crypto.write_private(path, crypto.encrypt(INIT_CONFIG.encode("utf-8"), passphrase))
 
     console.print(f"Wrote encrypted starter config to [bold]{escape(str(path))}[/]")
     console.print(
-        "[dim]Use `youpdated add` and `youpdated rm` to change what it watches, and "
-        "`youpdated edit` for anything else.[/]"
+        f"[dim]Use `youpdated add{flag}` and `youpdated rm{flag}` to change what it watches, and "
+        f"`youpdated edit{flag}` for anything else.[/]"
     )
     console.print(
-        f"[dim]Every command now asks for the passphrase. Set ${crypto.PASSPHRASE_ENV} "
+        f"[dim]Every command now asks for the passphrase. Set ${_passphrase_variable(selected.name)} "
         "for unattended runs.[/]"
     )
     return 0
 
 
+def _passphrase_variable(name: str | None) -> str:
+    """The variable to suggest for unattended runs: a named config's own, else the shared one"""
+    if name in (None, DEFAULT_NAME):
+        return crypto.PASSPHRASE_ENV
+    return crypto.passphrase_env(name)
+
+
 def _crypt_paths(args: argparse.Namespace) -> tuple[Path | None, Path]:
     """The config and state files used"""
-    config_path = find_config(args.config)
-    state_path = Path(args.state).expanduser() if args.state else default_state_path()
-    return config_path, state_path
+    return find_config(args.config), args.state
 
 
 def _setup_is_encrypted(config_path: Path | None, state_path: Path) -> bool:
@@ -1115,7 +1179,9 @@ def cmd_encrypt(args: argparse.Namespace, console: Console) -> int:
         console.print("[dim]Enter the passphrase the rest of the setup already uses.[/]")
     console.print()
 
-    passphrase = crypto.prompt_passphrase("New passphrase: ", confirm=not locked)
+    passphrase = crypto.prompt_passphrase(
+        "New passphrase: ", confirm=not locked, name=args.config_name
+    )
 
     for path in locked:
         crypto.decrypt(path.read_bytes(), passphrase)
@@ -1128,7 +1194,7 @@ def cmd_encrypt(args: argparse.Namespace, console: Console) -> int:
 
     console.print(
         "\n[dim]Every command now asks for the passphrase. "
-        f"Set ${crypto.PASSPHRASE_ENV} for unattended runs.[/]"
+        f"Set ${_passphrase_variable(args.config_name)} for unattended runs.[/]"
     )
     console.print(
         "[dim]The previous plaintext contents may still be recoverable from free "
@@ -1153,7 +1219,7 @@ def cmd_decrypt(args: argparse.Namespace, console: Console) -> int:
         console.print(f"  [yellow]{escape(str(path))}[/]")
     console.print()
 
-    passphrase = crypto.prompt_passphrase()
+    passphrase = crypto.prompt_passphrase(name=args.config_name)
     with state_lock(state_path):
         # Decrypt everything before writing
         plain = [(path, crypto.decrypt(path.read_bytes(), passphrase)) for path in todo]
@@ -1161,6 +1227,247 @@ def cmd_decrypt(args: argparse.Namespace, console: Console) -> int:
             crypto.write_private(path, payload)
             console.print(f"[green]decrypted[/] {escape(str(path))}")
     return 0
+
+
+def _config_row(name: str, path: Path | None, state_path: Path, selected: str | None) -> dict[str, Any]:
+    """One config for `youpdated configs`. An encrypted config is counted only once unlocked"""
+    exists = path is not None and path.is_file()
+    encrypted = exists and crypto.is_encrypted_file(path)
+    targets = error = None
+    if exists and not encrypted:
+        try:
+            targets = len(build_targets(load_config(path, allow_empty=True))[0])
+        except ConfigError as exc:
+            error = str(exc)
+    return {
+        "name": name,
+        "config": str(path) if path is not None else None,
+        "history": str(state_path),
+        "exists": exists,
+        "encrypted": encrypted,
+        "targets": targets,
+        "error": error,
+        "selected": name == selected,
+    }
+
+
+def _selected_name() -> tuple[str | None, str | None]:
+    """The config $YOUPDATED_CONFIG picks"""
+    value = chosen()
+    if value is None:
+        return DEFAULT_NAME, None
+    try:
+        return select(value).name, None
+    except ConfigError as exc:
+        return None, str(exc)
+
+
+def cmd_configs(args: argparse.Namespace, console: Console) -> int:
+    if args.action in ("remove", "rm"):
+        return cmd_configs_remove(args, console)
+    if args.action == "migrate":
+        return cmd_configs_migrate(args, console)
+
+    selected, unusable = _selected_name()
+    rows = [_config_row(DEFAULT_NAME, find_config() or default_config_path(), default_state_path(), selected)]
+    rows += [
+        _config_row(name, named_config_path(name), named_state_path(name), selected)
+        for name in named()
+    ]
+    ignored = ignored_legacy_config()
+    legacy = legacy_config_path() if default_config_path() == legacy_config_path() else None
+    if args.json:
+        payload = {
+            "configs": rows,
+            "ignored_legacy_config": str(ignored) if ignored else None,
+            "legacy_default": legacy is not None,
+        }
+        print(json.dumps(payload, indent=2, ensure_ascii=False))
+        return 0
+
+    width = max(len(row["name"]) for row in rows)
+    for row in rows:
+        mark = "[green]*[/]" if row["selected"] else " "
+        if not row["exists"]:
+            detail = "[dim]not created[/]"
+        elif row["encrypted"]:
+            detail = "[yellow]encrypted[/]"
+        elif row["error"] is not None:
+            detail = "[red]does not load[/]"
+        else:
+            detail = f"{row['targets']} target{'s' if row['targets'] != 1 else ''}"
+        name = escape(row["name"].ljust(width))
+        console.print(f"{mark} [cyan]{name}[/]  {detail}")
+        console.print(f"    [dim]{escape(row['config'] or '')}[/]")
+        if row["error"] is not None:
+            console.print(f"    [red]{escape(row['error'])}[/]")
+    console.print()
+    if ignored is not None:
+        console.print(
+            f"[yellow]warning:[/] {escape(str(ignored))} is ignored: "
+            f"{escape(str(named_config_path(DEFAULT_NAME)))} is the default config now."
+        )
+    elif legacy is not None:
+        console.print(
+            "[dim]The default config is located from before named configs. "
+            "`youpdated configs migrate` moves it into configs/.[/]"
+        )
+    if unusable is not None:
+        console.print(f"[yellow]warning:[/] ${CONFIG_ENV}: {escape(unusable)}")
+    console.print(
+        f"[dim]Use one with -c NAME, or set ${CONFIG_ENV}. "
+        "Create one with `youpdated init NAME`.[/]"
+    )
+    return 0
+
+
+def _confirmed(console: Console, args: argparse.Namespace, prompt: str) -> bool:
+    """``args.yes``, or the user's answer"""
+    if args.yes:
+        return True
+    if not sys.stdin.isatty():
+        raise ConfigError("there is no terminal to confirm on; pass --yes")
+    if _ask(prompt) in ("y", "yes"):
+        return True
+    console.print("[dim]Canceled.[/]")
+    return False
+
+
+def cmd_configs_remove(args: argparse.Namespace, console: Console) -> int:
+    name = check_name(args.name)
+    if name == DEFAULT_NAME:
+        raise ConfigError(
+            "the default config is not removed here. Use `youpdated uninstall` to remove everything"
+        )
+    path = named_config_path(name)
+    if not path.is_file():
+        raise ConfigError(f"no config named `{name}`. See `youpdated configs`")
+    state_path = named_state_path(name)
+    traces = [
+        Trace(path, "config", "config file"),
+        Trace(state_path, "state", "history database"),
+        Trace(lock_path(state_path), "state", "history database lock"),
+    ]
+    traces = [trace for trace in traces if trace.exists]
+    console.print(f"[bold]This deletes config `{escape(name)}`:[/]\n")
+    for trace in traces:
+        console.print(f"  [yellow]{escape(str(trace.path))}[/] [dim]{trace.note}[/]")
+    console.print()
+    if args.test:
+        console.print("[dim]--test: nothing was deleted.[/]")
+        return 0
+    if not _confirmed(console, args, f"Delete `{name}` and its history? [y/N] "):
+        return 1
+
+    lock = lock_path(state_path)
+    # A running check would write its history back
+    with state_lock(state_path) if state_path.is_file() else nullcontext():
+        _, failed = remove_traces([t for t in traces if t.path != lock])
+    # Once released: the lock is taken again as it's deleted
+    _, failed_lock = remove_traces([Trace(lock, "state", "history database lock")])
+    failed += failed_lock
+    for trace, why in failed:
+        console.print(f"[red]could not delete[/] {escape(str(trace.path))}: {escape(why)}")
+    if failed:
+        return 1
+    console.print(f"[green]Deleted[/] config `{escape(name)}` and its history.")
+    return 0
+
+
+def cmd_configs_migrate(args: argparse.Namespace, console: Console) -> int:
+    moves = [
+        (legacy_config_path(), named_config_path(DEFAULT_NAME)),
+        (legacy_state_path(), named_state_path(DEFAULT_NAME)),
+    ]
+    moves = [(old, new) for old, new in moves if old.is_file()]
+    if not moves:
+        console.print("[dim]Nothing to migrate: the default config already lives in configs/.[/]")
+        return 0
+    taken = [(old, new) for old, new in moves if new.exists()]
+    if taken:
+        for old, new in taken:
+            console.print(
+                f"[red]{escape(str(new))} already exists[/], so {escape(str(old))} can't move "
+                "there. Remove or merge one of them first."
+            )
+        return 1
+
+    console.print("[bold]This moves:[/]\n")
+    for old, new in moves:
+        console.print(f"  {escape(str(old))}\n  [dim]->[/] {escape(str(new))}")
+    console.print(
+        "\n[yellow]The desktop apps use the old config location until updated.[/] "
+        "Wait for an app release with this version of youpdated before migrating."
+    )
+    console.print()
+    if args.test:
+        console.print("[dim]--test: nothing was moved.[/]")
+        return 0
+    if not _confirmed(console, args, "Move them? [y/N] "):
+        return 1
+
+    old_state = legacy_state_path()
+    with state_lock(old_state) if old_state.is_file() else nullcontext():
+        for old, new in moves:
+            new.parent.mkdir(parents=True, exist_ok=True)
+            os.replace(old, new)
+            console.print(f"[green]moved[/] {escape(str(new))}")
+    lock_path(old_state).unlink(missing_ok=True)
+    return 0
+
+
+def _error_line(exc: Exception) -> str | None:
+    """How a command's failure is shown, or None if it isn't expected"""
+    kinds = (
+        (ConfigError, "Config error"),
+        (crypto.EncryptionError, "Encryption error"),
+        (StateError, "History error"),
+        (ProxyUnavailable, "Proxy error"),
+    )
+    for kind, label in kinds:
+        if isinstance(exc, kind):
+            return f"[red]{label}:[/] {escape(str(exc))}"
+    return None
+
+
+def cmd_check_all(args: argparse.Namespace, console: Console) -> int:
+    """`check --all-configs`: each config in order"""
+    for flag, given in (
+        ("-c", args.config), ("--state", args.state), ("--json", args.json), ("--rss", args.rss)
+    ):
+        if given:
+            raise ConfigError(
+                f"--all-configs can't take {flag}: it runs every config in turn. "
+                "Pick one with -c NAME for that"
+            )
+    runs: list[Selected] = []
+    if find_config() is not None:
+        runs.append(Selected(None, default_state_path(), DEFAULT_NAME))
+    runs += [select(name) for name in named()]
+    if not runs:
+        raise ConfigError(
+            "no config file found. Run `youpdated init` to create one at "
+            f"{default_config_path()}"
+        )
+
+    code = 0
+    for selected in runs:
+        console.rule(f"[bold]{escape(selected.name or '')}[/]", align="left", style="dim")
+        each = argparse.Namespace(**{
+            **vars(args),
+            "config": selected.config,
+            "state": selected.state,
+            "config_name": selected.name,
+        })
+        try:
+            code = max(code, cmd_check(each, console))
+        except Exception as exc:
+            line = _error_line(exc)
+            if line is None:
+                raise
+            console.print(line)
+            code = max(code, 1)
+    return code
 
 
 def cmd_uninstall(args: argparse.Namespace, console: Console) -> int:
@@ -1414,10 +1721,10 @@ def cmd_check(args: argparse.Namespace, console: Console) -> int:
     # JSON goes to stdout, status chatter to stderr.
     status = Console(stderr=True, highlight=False) if args.json else console
 
-    state_path = Path(args.state).expanduser() if args.state else default_state_path()
+    state_path = args.state
     passphrase = None
     if _setup_is_encrypted(find_config(args.config), state_path):
-        passphrase = crypto.prompt_passphrase()
+        passphrase = crypto.prompt_passphrase(name=args.config_name)
         # derived while the config is decrypted
         crypto.derive_ahead(state_path, passphrase)
 
@@ -1555,6 +1862,13 @@ def cmd_check(args: argparse.Namespace, console: Console) -> int:
     return 0
 
 
+# Commands that take -c NAME / $YOUPDATED_CONFIG, with that config's own history
+_SELECTING = frozenset({
+    "check", "list", "add", "remove", "rm", "import", "edit",
+    "encrypt", "set-encrypted", "decrypt", "set-decrypted",
+})
+
+
 def main(argv: list[str] | None = None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
     parser = build_parser()
@@ -1574,6 +1888,10 @@ def main(argv: list[str] | None = None) -> int:
 
     console = Console(highlight=False)
     try:
+        if args.command in _SELECTING and not getattr(args, "all_configs", False):
+            selected = select(args.config, getattr(args, "state", None))
+            args.config, args.state = selected.config, selected.state
+            args.config_name = selected.name
         if args.command == "sources":
             return cmd_sources(console)
         if args.command == "list":
@@ -1594,19 +1912,13 @@ def main(argv: list[str] | None = None) -> int:
             return cmd_encrypt(args, console)
         if args.command in ("decrypt", "set-decrypted"):
             return cmd_decrypt(args, console)
+        if args.command == "configs":
+            return cmd_configs(args, console)
+        if getattr(args, "all_configs", False):
+            return cmd_check_all(args, console)
         return cmd_check(args, console)
-    except ConfigError as exc:
-        # escape(): messages carry paths and `pip install youpdated[extra]` hints
-        console.print(f"[red]Config error:[/] {escape(str(exc))}")
-        return 1
-    except crypto.EncryptionError as exc:
-        console.print(f"[red]Encryption error:[/] {escape(str(exc))}")
-        return 1
-    except StateError as exc:
-        console.print(f"[red]History error:[/] {escape(str(exc))}")
-        return 1
-    except ProxyUnavailable as exc:
-        console.print(f"[red]Proxy error:[/] {escape(str(exc))}")
+    except (ConfigError, crypto.EncryptionError, StateError, ProxyUnavailable) as exc:
+        console.print(_error_line(exc))
         return 1
     except KeyboardInterrupt:
         console.print("\n[dim]interrupted[/]")

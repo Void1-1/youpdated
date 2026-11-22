@@ -12,17 +12,22 @@ from importlib import metadata
 from pathlib import Path
 
 from .config import (
-    DEFAULT_CONFIG_NAME,
     config_dir,
+    configs_dir,
     data_dir,
     default_config_path,
     default_state_path,
+    history_dir,
+    legacy_config_path,
+    legacy_state_path,
     project_config_paths,
     tool_dir,
 )
 from .state import lock_path
 
 APP_DIR_NAME = "youpdated"
+# Folders inside the app folder that hold configs and history files
+SUB_DIR_NAMES = ("configs", "history")
 DIST_NAME = "youpdated"
 
 
@@ -63,18 +68,41 @@ def find_traces(
         for path in project_config_paths():
             add(path, "config", "project config file")
         add(default_config_path(), "config", "config file")
+        add(legacy_config_path(), "config", "config file (before named configs)")
+        for path in _sorted_glob(configs_dir(), "*.yaml"):
+            add(path, "config", f"config file `{path.stem}`")
 
-    add(state_override, "state", "history database (--state)")
-    add(default_state_path(), "state", "history database")
-    for state in (state_override, default_state_path()):
+    states = [
+        (state_override, "history database (--state)"),
+        (default_state_path(), "history database"),
+        (legacy_state_path(), "history database (before named configs)"),
+        *(
+            (path, f"history database `{path.name.removesuffix('-state.sqlite3')}`")
+            for path in _sorted_glob(history_dir(), "*-state.sqlite3")
+        ),
+    ]
+    for state, note in states:
+        add(state, "state", note)
+    for state, _ in states:
         if state is not None:
             add(lock_path(Path(state).expanduser()), "state", "history database lock")
 
-    # Dirs last
-    for directory in (config_dir(), data_dir()):
+    # Dirs last, the folders inside before the app folders holding them
+    for directory in (configs_dir(), history_dir(), config_dir(), data_dir()):
         add(directory, "directory", "application directory (only if empty)")
 
     return traces
+
+
+def _sorted_glob(directory: Path, pattern: str) -> list[Path]:
+    return sorted(directory.glob(pattern)) if directory.is_dir() else []
+
+
+def _is_app_dir(path: Path) -> bool:
+    """An app folder, or the `configs`/`history` folder inside one"""
+    if path.name == APP_DIR_NAME:
+        return True
+    return path.name in SUB_DIR_NAMES and path.parent.name == APP_DIR_NAME
 
 
 def remove_traces(traces: list[Trace]) -> tuple[list[Trace], list[tuple[Trace, str]]]:
@@ -99,7 +127,7 @@ def remove_traces(traces: list[Trace]) -> tuple[list[Trace], list[tuple[Trace, s
     for trace in directories:
         path = trace.path
         # it must be a youpdated directory and empty.
-        if path.name != APP_DIR_NAME:
+        if not _is_app_dir(path):
             failed.append((trace, "not a youpdated directory, aborted"))
             continue
         try:
@@ -221,6 +249,3 @@ def _remove_after_exit(command: list[str], env: dict[str, str]) -> str | None:
     _waiting.append(helper)
     return None
 
-
-def config_filename() -> str:
-    return DEFAULT_CONFIG_NAME

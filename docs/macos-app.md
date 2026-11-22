@@ -65,7 +65,7 @@ The app has no accounts or analytics, and sends requests only to the sites your 
 
 That leaves your data, which the command-line tool also uses. To remove that:
 
-- **Your follows and history:** delete `~/Library/Application Support/youpdated/`. This also removes the command-line tool's config and history.
+- **Your follows and history:** delete `~/Library/Application Support/youpdated/`. This also removes the command-line tool's config and history, named configs included.
 - **The app's display settings:** run `defaults delete io.github.void1-1.Youpdated`.
 - **A diagnostic log:** delete `~/Library/Logs/Youpdated/`.
 - **A passphrase:** delete the `Youpdated` item in the Passwords section of Keychain Access.

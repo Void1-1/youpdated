@@ -14,8 +14,13 @@ All notable changes to this project are documented here. The format follows [Kee
 
 - **SteamDB pages** (`steamdb.info/app/413150`) is added as its Steam app id.
 
+- **Multiple configs** (#84). `youpdated init NAME` creates a named config with its own sources, settings, history, and, optionally, its own passphrase, kept entirely separated from the others. Pick one with `-c NAME` on `check`, `list`, `add`, `rm`, `import`, `edit`, `encrypt`, and `decrypt`, or with `$YOUPDATED_CONFIG`. `youpdated configs` lists them, `configs rm NAME` deletes one and its history, and `check --all-configs` checks the default and then every named config in order. An encrypted named config reads `$YOUPDATED_PASSPHRASE_<NAME>` before `$YOUPDATED_PASSPHRASE`. The desktop apps only use the default config. See [Multiple configs](docs/configuration.md#multiple-configs).
+
 ### Changed
 
+- **New setups store the config in `configs/default.yaml` and history in `history/default-state.sqlite3`**, beside every named config. An existing `config.yaml` and `state.sqlite3` keep working in the old location, and nothing moves on its own. `youpdated configs migrate` moves them to the updated location. If you use the apps, wait for an app release with this version first.
+- **`youpdated init` writes a shorter config** instead of the full example. Now only each section's header, the basic privacy settings at their defaults, and an example commented-out GitHub entry for Youpdated. It watches nothing until you `add` something. A `sources:` section holding only comments now counts as empty rather than missing, and `edit` saves a config that watches nothing without confirmation.
+- **`-c` accepts a config's name as well as a path.** A value with no `/`, `\`, or `.` is a name. An extensionless file passed as `-c myconf` still works when no config has that name.
 - **`youpdated add` now confirms the source of a single word or number.** `440` shows `source detected: steam` and asks `Add it? [Y/n]`, so a number another source also uses for ids can't land under the wrong one. A word several sources read (`express`) lists them to pick from instead of being refused. `-y`, `--no-check`, and runs without a terminal take the only source detected without asking, and refuse a word several sources read.
 - **Addresses with nothing to watch are refused with alternatives**, by `add` and the apps' preview (`bad_entry`): an account or organization page on GitHub, GitLab, or Codeberg, and Reddit, which tends to refuse automated readers. `youpdated add feed` still adds a Reddit feed when named.
 - **A `steam` entry must be a whole app id or an `app/<id>` link.**

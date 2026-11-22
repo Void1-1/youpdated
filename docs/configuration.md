@@ -1,8 +1,9 @@
 # Configuration
 
-Everything Youpdated watches, and how, is in a YAML file. `youpdated init` writes a commented starter. For what to put under each source, see [Where to find identifiers](../README.md#where-to-find-identifiers).
+Everything Youpdated watches, and how, is in a YAML file. `youpdated init` writes a short starter: each section's header, the basic privacy settings at their defaults, and a commented-out example to uncomment. [Full example](#full-example) shows the rest. For what to put under each source, see [Where to find identifiers](../README.md#where-to-find-identifiers).
 
 - [Where the config is](#where-is-the-config)
+- [Multiple configs](#multiple-configs)
 - [Identifier details](#identifier-details)
 - [Full example](#full-example)
 - [Git forges](#git-forges)
@@ -20,18 +21,42 @@ Everything Youpdated watches, and how, is in a YAML file. `youpdated init` write
 
 | OS | Config file | History database |
 | --- | --- | --- |
-| macOS | `~/Library/Application Support/youpdated/config.yaml` | `~/Library/Application Support/youpdated/state.sqlite3` |
-| Linux | `~/.config/youpdated/config.yaml` | `~/.local/share/youpdated/state.sqlite3` |
-| Windows | `%LOCALAPPDATA%\youpdated\config.yaml` | `%LOCALAPPDATA%\youpdated\state.sqlite3` |
+| macOS | `~/Library/Application Support/youpdated/configs/default.yaml` | `~/Library/Application Support/youpdated/history/default-state.sqlite3` |
+| Linux | `~/.config/youpdated/configs/default.yaml` | `~/.local/share/youpdated/history/default-state.sqlite3` |
+| Windows | `%LOCALAPPDATA%\youpdated\configs\default.yaml` | `%LOCALAPPDATA%\youpdated\history\default-state.sqlite3` |
+
+A setup made before named configs keeps its `config.yaml` and `state.sqlite3` directly in the `youpdated` folder, and they keep working there. Nothing is moved on its own. `youpdated configs migrate` moves both into `configs/` and `history/`: if you use the apps, update your app version first. A `configs/default.yaml` always wins over an old `config.yaml`, and `check` warns that the old one is ignored.
 
 Four locations are checked when running, in the following order, and the first one found is used:
 
-1. `--config PATH`, if you pass it
+1. `--config PATH` (or a config's name, see [below](#multiple-configs)), if you pass it
 2. `./youpdated.yaml` or `./youpdated.yml` in the current directory
 3. `youpdated.yaml` or `youpdated.yml` beside the tool: the root of a checkout you run from source, so its config works from any directory
 4. the per-user path in the table above
 
 Use `youpdated init -c ./youpdated.yaml` if you'd rather keep the config in a project folder. Add `--force` to overwrite an existing file.
+
+## Multiple configs
+
+A named config is a separate setup: its own sources, `settings:` (proxy, notifications, privacy), history, and, if set, its own passphrase. Use them to keep groups of sources apart, like work dependencies checked through a different proxy or notifying a different webhook.
+
+```sh
+youpdated init work                 # configs/work.yaml, with its history in history/work-state.sqlite3
+youpdated add -c work npm react     # -c NAME works on check, list, add, rm, import, edit, encrypt, and decrypt
+youpdated check -c work
+YOUPDATED_CONFIG=work youpdated check # or pick it for a shell or a scheduled job
+youpdated configs                   # list them
+youpdated check --all-configs       # the default, then every named config, in turn
+youpdated configs rm work           # delete it and its history
+```
+
+Names are up to 32 lowercase letters, digits, `-`, and `_`. `-c` takes a name when the value has no `/`, `\`, or `.`, and a path otherwise. A name with no config of that name falls back to a file of that name. `-c` wins over `$YOUPDATED_CONFIG`, and `-c default` picks the default config, found as described above, even when the variable is set.
+
+A config given by path (`-c ./other.yaml`) uses the default history. Pass `--state` to give it its own.
+
+`check --all-configs` runs the default config, if there is one, and then each named config, each with its own settings and history. A config that fails to load or unlock is reported, and the rest still run. It can't be combined with `-c`, `--state`, `--json`, or `--rss`. To unlock several encrypted configs without a terminal, see [Encryption](encryption.md).
+
+The desktop apps use only the default config for now.
 
 `youpdated edit` opens whichever one is used in your editor, so you don't need its path. See [`edit`](usage.md). To choose the editor, set `settings.editor` to a command (`code`, `vim -n`), a program's path, or (on macOS) an app's name or path (`TextEdit`, `/Applications/Zed.app`). It's used over `$VISUAL` and `$EDITOR`.
 

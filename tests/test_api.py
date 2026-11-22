@@ -748,7 +748,8 @@ def test_the_cli_still_says_an_empty_config_checks_nothing(tmp_path, capsys):
     config = tmp_path / "config.yaml"
     config.write_text("sources: {}\n", encoding="utf-8")
     assert main(["check", "-c", str(config), "--state", str(tmp_path / "state.db")]) == 1
-    assert "Nothing to check" in capsys.readouterr().out
+    # Rich wraps the long tmp path at the console width, splitting the words
+    assert "Nothing to check" in " ".join(capsys.readouterr().out.split())
 
 
 def _recorder(tmp_path: Path) -> tuple[list[str], Path]:

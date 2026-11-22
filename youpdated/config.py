@@ -24,7 +24,11 @@ from .versions import ANY_BUMP, BUMPS, release
 # AppData\Local\youpdated\youpdated. macOS and Linux are unaffected.
 _DIRS = PlatformDirs("youpdated", appauthor=False)
 
-DEFAULT_CONFIG_NAME = "config.yaml"
+# The config used when none is named
+DEFAULT_NAME = "default"
+# Before named configs the default lived beside the app folders under these names
+LEGACY_CONFIG_NAME = "config.yaml"
+LEGACY_STATE_NAME = "state.sqlite3"
 
 
 class ConfigError(Exception):
@@ -148,12 +152,59 @@ def data_dir() -> Path:
     return Path(_DIRS.user_data_dir)
 
 
+def configs_dir() -> Path:
+    """Every config, the default included: ``configs/<name>.yaml``"""
+    return config_dir() / "configs"
+
+
+def history_dir() -> Path:
+    """Every config's history: ``history/<name>-state.sqlite3``"""
+    return data_dir() / "history"
+
+
+def named_config_path(name: str) -> Path:
+    return configs_dir() / f"{name}.yaml"
+
+
+def named_state_path(name: str) -> Path:
+    return history_dir() / f"{name}-state.sqlite3"
+
+
+def legacy_config_path() -> Path:
+    """Where the default config used to be located. `youpdated configs migrate` moves it"""
+    return config_dir() / LEGACY_CONFIG_NAME
+
+
+def legacy_state_path() -> Path:
+    return data_dir() / LEGACY_STATE_NAME
+
+
 def default_config_path() -> Path:
-    return config_dir() / DEFAULT_CONFIG_NAME
+    """The default config, or where `init` writes one"""
+    path = named_config_path(DEFAULT_NAME)
+    legacy = legacy_config_path()
+    if not path.is_file() and legacy.is_file():
+        return legacy
+    return path
 
 
 def default_state_path() -> Path:
-    return data_dir() / "state.sqlite3"
+    """The default config's history, with the same legacy fallback as :func:`default_config_path`"""
+    path = named_state_path(DEFAULT_NAME)
+    if path.is_file():
+        return path
+    legacy = legacy_state_path()
+    if legacy.is_file() or default_config_path() == legacy_config_path():
+        return legacy
+    return path
+
+
+def ignored_legacy_config() -> Path | None:
+    """The legacy config, when a new default config shadows it"""
+    legacy = legacy_config_path()
+    if legacy.is_file() and named_config_path(DEFAULT_NAME).is_file():
+        return legacy
+    return None
 
 
 def tool_dir() -> Path:
@@ -202,7 +253,14 @@ def load_config(
     allow_empty: bool = False,
 ) -> Config:
     path = require_config(explicit)
-    return parse_config_text(read_config_text(path, passphrase), path, allow_empty=allow_empty)
+    config = parse_config_text(read_config_text(path, passphrase), path, allow_empty=allow_empty)
+    ignored = ignored_legacy_config() if path == named_config_path(DEFAULT_NAME) else None
+    if ignored is not None:
+        config.warnings.append(
+            f"{ignored} is ignored: {path} is the default config now. Move anything you still "
+            "want from it, then delete it"
+        )
+    return config
 
 
 def parse_config_text(
@@ -245,7 +303,8 @@ def parse_config(raw: Any, path: Path | None = None, *, allow_empty: bool = Fals
     privacy = _parse_privacy(settings.get("privacy") or {}, where)
 
     sources_raw = raw.get("sources")
-    if sources_raw is None and allow_empty:
+    # `sources:` holding only comments, as `init` writes it, is empty rather than missing
+    if sources_raw is None and ("sources" in raw or allow_empty):
         sources_raw = {}
     if sources_raw is None:
         raise ConfigError(f"{where}missing required `sources:` section")
@@ -262,7 +321,9 @@ def parse_config(raw: Any, path: Path | None = None, *, allow_empty: bool = Fals
             sources[str(name)] = entries
 
     if not sources and not allow_empty:
-        raise ConfigError(f"{where}`sources` has no entries. Nothing to check")
+        raise ConfigError(
+            f"{where}`sources` has no entries. Nothing to check: start with `youpdated add`"
+        )
 
     return Config(
         privacy=privacy,
@@ -717,6 +778,34 @@ def names_itself_privately(config: Config, encrypted: bool) -> bool:
     return encrypted and bool(config.privacy.proxy) and config.privacy.user_agent == "youpdated"
 
 
+# What `youpdated init` writes. Everything else is in docs/configuration.md.
+INIT_CONFIG = """\
+# youpdated config. Add to it with `youpdated add`, or edit it with `youpdated edit`.
+# Every option: https://github.com/Void1-1/youpdated/blob/main/docs/configuration.md
+
+settings:
+  privacy:
+    # proxy: socks5://127.0.0.1:9050   # route every request through a proxy, like Tor
+    user_agent: rotate     # 'rotate', 'youpdated', or a fixed UA string
+    jitter: [0.5, 3.0]     # random delay, in seconds, between hits on one site
+    concurrency: 4         # requests in flight at once
+    timeout: 20            # seconds before a request is given up on
+
+  # Push each run's new updates to webhooks or commands
+  # notify:
+
+# Update types to drop, like prereleases
+# ignore:
+
+# Versions to report, like only major bumps
+# versions:
+
+sources:
+  # git:
+  #   - Void1-1/youpdated
+"""
+
+# A full config, every source and most options for tests and as a reference
 EXAMPLE_CONFIG = """\
 # youpdated config: every source entry is a bare value or a mapping.
 

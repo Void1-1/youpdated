@@ -28,17 +28,74 @@ def app_dir(tmp_path, monkeypatch):
     # find_traces() also scans the working directory and the tool's folder for a project config, so move off the checkout
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(config, "tool_dir", lambda: tmp_path)
-    monkeypatch.setattr(cleanup, "config_dir", lambda: directory)
-    monkeypatch.setattr(cleanup, "data_dir", lambda: directory)
-    monkeypatch.setattr(cleanup, "default_config_path", lambda: directory / "config.yaml")
-    monkeypatch.setattr(cleanup, "default_state_path", lambda: directory / "state.sqlite3")
+    # Every config and history path is built from these, the named ones included
+    for module in (config, cleanup):
+        monkeypatch.setattr(module, "config_dir", lambda: directory)
+        monkeypatch.setattr(module, "data_dir", lambda: directory)
     return directory
 
 
 def _populate(directory):
+    """A setup from before named configs"""
     directory.mkdir(parents=True, exist_ok=True)
     (directory / "config.yaml").write_text("sources:\n  npm: [express]\n", encoding="utf-8")
     (directory / "state.sqlite3").write_bytes(b"sqlite")
+
+
+def _populate_named(directory, *names):
+    """The default config and ``names``, each with its history and lock, in configs/ and history/"""
+    for name in ("default", *names):
+        config_path = directory / "configs" / f"{name}.yaml"
+        config_path.parent.mkdir(parents=True, exist_ok=True)
+        config_path.write_text("sources:\n  npm: [express]\n", encoding="utf-8")
+        state_path = directory / "history" / f"{name}-state.sqlite3"
+        state_path.parent.mkdir(parents=True, exist_ok=True)
+        state_path.write_bytes(b"sqlite")
+        (directory / "history" / f"{name}-state.sqlite3.lock").write_bytes(b"")
+
+
+def test_finds_named_configs_their_history_and_folders(app_dir):
+    _populate_named(app_dir, "work")
+    paths = [t.path for t in find_traces()]
+
+    for path in (
+        app_dir / "configs" / "default.yaml",
+        app_dir / "configs" / "work.yaml",
+        app_dir / "history" / "default-state.sqlite3",
+        app_dir / "history" / "work-state.sqlite3",
+        app_dir / "history" / "work-state.sqlite3.lock",
+    ):
+        assert path in paths
+    # inner folders go before the app folder holding them
+    assert paths.index(app_dir / "configs") < paths.index(app_dir)
+    assert paths.index(app_dir / "history") < paths.index(app_dir)
+
+
+def test_keep_config_keeps_every_named_config(app_dir):
+    _populate_named(app_dir, "work")
+    traces = find_traces(keep_config=True)
+
+    assert not any(t.kind == "config" for t in traces)
+    assert app_dir / "history" / "work-state.sqlite3" in [t.path for t in traces]
+
+
+def test_removes_named_configs_and_their_folders(app_dir):
+    _populate_named(app_dir, "work")
+    _populate(app_dir)
+    removed, failed = remove_traces(find_traces())
+
+    assert not failed
+    assert not app_dir.exists()
+
+
+def test_a_configs_folder_outside_an_app_folder_is_not_removed(tmp_path):
+    stranger = tmp_path / "Documents" / "configs"
+    stranger.mkdir(parents=True)
+
+    _, failed = remove_traces([Trace(stranger, "directory", "test")])
+
+    assert stranger.exists()
+    assert any("not a youpdated directory" in reason for _, reason in failed)
 
 
 def test_finds_config_state_and_directory(app_dir):
