@@ -1,0 +1,4 @@
+# What make-release.sh builds the .dmg with. Update with `pip freeze` in its venv.
+dmgbuild==2.0.0
+ds_store==1.3.4
+mac_alias==2.2.4
