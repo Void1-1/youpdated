@@ -511,5 +511,25 @@ def test_each_config_can_have_its_own_passphrase(app, fake, monkeypatch):
     assert (app / "history" / "work-state.sqlite3").is_file()
 
 
+@encryption
+@pytest.mark.parametrize(
+    "argv, variable",
+    [
+        (["encrypt", "-c", "work"], "YOUPDATED_PASSPHRASE_WORK"),
+        (["encrypt"], "YOUPDATED_PASSPHRASE "),
+        (["init", "home", "--encrypt"], "YOUPDATED_PASSPHRASE_HOME"),
+    ],
+)
+def test_encrypting_names_the_configs_own_variable(app, monkeypatch, argv, variable):
+    named_config(app, "work")
+    named_config(app, "default")
+    monkeypatch.setattr("sys.stdin", io.StringIO())
+    monkeypatch.setenv("YOUPDATED_PASSPHRASE", "pw")
+
+    code, out = run(*argv)
+    assert code == 0
+    assert f"Set ${variable}" in " ".join(out.split()) + " "
+
+
 def test_the_passphrase_variable_for_a_name():
     assert crypto.passphrase_env("work-stuff") == "YOUPDATED_PASSPHRASE_WORK_STUFF"

@@ -1117,12 +1117,18 @@ def cmd_init(args: argparse.Namespace, console: Console) -> int:
         f"[dim]Use `youpdated add{flag}` and `youpdated rm{flag}` to change what it watches, and "
         f"`youpdated edit{flag}` for anything else.[/]"
     )
-    variable = crypto.passphrase_env(selected.name) if flag else crypto.PASSPHRASE_ENV
     console.print(
-        f"[dim]Every command now asks for the passphrase. Set ${variable} "
+        f"[dim]Every command now asks for the passphrase. Set ${_passphrase_variable(selected.name)} "
         "for unattended runs.[/]"
     )
     return 0
+
+
+def _passphrase_variable(name: str | None) -> str:
+    """The variable to suggest for unattended runs: a named config's own, else the shared one"""
+    if name in (None, DEFAULT_NAME):
+        return crypto.PASSPHRASE_ENV
+    return crypto.passphrase_env(name)
 
 
 def _crypt_paths(args: argparse.Namespace) -> tuple[Path | None, Path]:
@@ -1188,7 +1194,7 @@ def cmd_encrypt(args: argparse.Namespace, console: Console) -> int:
 
     console.print(
         "\n[dim]Every command now asks for the passphrase. "
-        f"Set ${crypto.PASSPHRASE_ENV} for unattended runs.[/]"
+        f"Set ${_passphrase_variable(args.config_name)} for unattended runs.[/]"
     )
     console.print(
         "[dim]The previous plaintext contents may still be recoverable from free "
