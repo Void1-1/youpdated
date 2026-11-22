@@ -38,7 +38,7 @@ Used for the desktop apps and `youpdated api serve` to communicate. [contract.sc
 | `busy` | A check is already running |
 | `ambiguous` | A `targets.preview` value more than one source claims, or none claim; `choices` lists the sources that read it, then preview again with `source` |
 | `unrecognized` | No source claims the value |
-| `bad_entry` | The source rejects the entry |
+| `bad_entry` | The source rejects the entry, or the value names nothing to watch (a GitHub account's page, a Reddit address), or `targets.preview` couldn't look up a video's channel |
 | `not_found` | Nothing matches the request |
 | `io_error` | A file couldn't be read or written |
 | `proxy_unreachable` | `privacy.set` couldn't connect to the proxy; nothing was saved |
@@ -54,6 +54,7 @@ Used for the desktop apps and `youpdated api serve` to communicate. [contract.sc
 
 ## Other notes
 
+- **`targets.preview` can answer with another source and entry than the value suggests:** a web page that names no version but links a feed comes back as that `feed`, and a YouTube video as its channel's `@handle` under `youtube`. Add the reply's `source` and `entry`, not the value.
 - **Timestamps:** UTC and whole seconds (`2026-10-29T08:00:06Z`)
 - **Item ids** are opaque and stable for as long as the item is in the inbox.
 - **Baselines.** A target's first check records what exists without notification (as normal in cli). Its newest item goes into the inbox with `read: true` and `baseline: true`. After `targets.add`, the app checks the new `targets` with `check {"targets": [...]}`.

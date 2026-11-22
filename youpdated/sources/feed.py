@@ -17,6 +17,8 @@ from ..models import Update
 from .base import url_parts
 
 BODY_LIMIT = 400
+# Any untitled entry's title is the beginning of the text
+UNTITLED_LIMIT = 80
 _UNDATED = datetime(1970, 1, 1, tzinfo=timezone.utc)
 _FEED_SUFFIXES = (".xml", ".rss", ".atom", ".rdf")
 _FEED_NAMES = {"feed", "rss", "atom"}
@@ -126,6 +128,12 @@ def parse_entries(
         link = entry.get("link") or ""
         title = (entry.get("title") or "").strip() or "(untitled)"
         uid = entry.get("id") or link or f"{title}|{entry.get('published', '')}"
+        body = entry_body(entry)
+        if title == "(untitled)" and body:
+            line = body.split("\n", 1)[0].strip()
+            if len(line) > UNTITLED_LIMIT:
+                line = line[: UNTITLED_LIMIT - 1].rstrip() + "…"
+            title = line or title
         updates.append(
             Update(
                 source=source,
@@ -135,7 +143,7 @@ def parse_entries(
                 url=link,
                 published=entry_datetime(entry),
                 version=version_of(entry) if version_of else None,
-                body=entry_body(entry),
+                body=body,
                 tags=tags,
             )
         )

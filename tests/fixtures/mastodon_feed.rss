@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:webfeeds="http://webfeeds.org/rss/1.0" xmlns:media="http://search.yahoo.com/mrss/">
+  <channel>
+    <title>Eugen Rochko</title>
+    <description>Public posts from @Gargron@mastodon.social</description>
+    <link>https://mastodon.social/@Gargron</link>
+    <image>
+      <url>https://files.mastodon.social/accounts/avatars/000/000/001/original/6b2384b33799a0dd.png</url>
+      <title>Eugen Rochko</title>
+      <link>https://mastodon.social/@Gargron</link>
+    </image>
+    <lastBuildDate>Sat, 21 Nov 2026 18:33:06 +0000</lastBuildDate>
+    <webfeeds:icon>https://files.mastodon.social/accounts/avatars/000/000/001/original/6b2384b33799a0dd.png</webfeeds:icon>
+    <generator>Mastodon v5.0.0-nightly.2026-11-20</generator>
+    <item>
+      <guid isPermaLink="true">https://mastodon.social/@Gargron/117655862440888668</guid>
+      <link>https://mastodon.social/@Gargron/117655862440888668</link>
+      <pubDate>Sat, 21 Nov 2026 18:33:06 +0000</pubDate>
+      <description>&lt;p&gt;Cute.&lt;/p&gt;&lt;p&gt;📷️️️️️️️️ Pentax KX&lt;br /&gt;🎞️ Kodak Portra 400&lt;br /&gt;🔭 Pentax M 50mm/1.7&lt;br /&gt;👤 &lt;span class="h-card" translate="no"&gt;&lt;a href="https://mastodon.social/@Ameboid" class="u-url mention"&gt;@&lt;span&gt;Ameboid&lt;/span&gt;&lt;/a&gt;&lt;/span&gt; &lt;br /&gt;⚗️ Come Through Lab&lt;/p&gt;&lt;p&gt;&lt;a href="https://mastodon.social/tags/BelieveInFilm" class="mention hashtag" rel="tag"&gt;#&lt;span&gt;BelieveInFilm&lt;/span&gt;&lt;/a&gt; &lt;a href="https://mastodon.social/tags/FilmPhotography" class="mention hashtag" rel="tag"&gt;#&lt;span&gt;FilmPhotography&lt;/span&gt;&lt;/a&gt; &lt;a href="https://mastodon.social/tags/AnalogPhotography" class="mention hashtag" rel="tag"&gt;#&lt;span&gt;AnalogPhotography&lt;/span&gt;&lt;/a&gt; &lt;a href="https://mastodon.social/tags/35mm" class="mention hashtag" rel="tag"&gt;#&lt;span&gt;35mm&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;</description>
+      <media:content url="https://files.mastodon.social/media_attachments/files/117/655/849/787/291/736/original/56cc4586807e9612.jpg" type="image/jpeg" fileSize="1347906" medium="image">
+        <media:rating scheme="urn:simple">nonadult</media:rating>
+        <media:description type="plain">A beautiful woman with dark hair and a braid, wearing a green wool coat, green tartan wool skirt, a blue button-up sweater, stockings, and a belt featuring a brass bee, sitting on a mossy cliffside under a large tree.</media:description>
+        <media:thumbnail url="https://files.mastodon.social/media_attachments/files/117/655/849/787/291/736/small/56cc4586807e9612.jpg"/>
+      </media:content>
+      <category>believeinfilm</category>
+      <category>filmphotography</category>
+      <category>analogphotography</category>
+      <category>35mm</category>
+    </item>
+    <item>
+      <guid isPermaLink="true">https://mastodon.social/@Gargron/117652186062185513</guid>
+      <link>https://mastodon.social/@Gargron/117652186062185513</link>
+      <pubDate>Sat, 21 Nov 2026 02:58:09 +0000</pubDate>
+      <description>&lt;p&gt;Vine was so good. It inspired so much creativity. It&amp;#39;s kind of hard to believe now but Vine was still around when I started working on Mastodon, although Twitter did shut it down later that year.&lt;/p&gt;&lt;p&gt;&lt;a href="https://www.youtube.com/watch?v=ot4ZkMcMBVA" target="_blank" rel="nofollow noopener" translate="no"&gt;&lt;span class="invisible"&gt;https://www.&lt;/span&gt;&lt;span class=""&gt;youtube.com/watch?v=ot4ZkMcMBVA&lt;/span&gt;&lt;span class="invisible"&gt;&lt;/span&gt;&lt;/a&gt;&lt;/p&gt;</description>
+    </item>
+  </channel>
+</rss>

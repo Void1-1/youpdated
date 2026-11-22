@@ -515,8 +515,33 @@ class WebpageSource:
     fallback: ClassVar[bool] = True
 
     def claim(self, value: str) -> str | None:
-        """Any http(s) URL"""
-        return accepted(self, value) if url_parts(value) else None
+        """Any http(s) URL but Reddit's"""
+        url = url_parts(value)
+        if url is None:
+            return None
+        host, path = url
+        if host in ("reddit.com", "redd.it") or host.endswith(".reddit.com"):
+            raise ConfigEntryError(
+                "Reddit refuses automated readers, "
+                f"`{value}` can't be watched reliably. To try its feed anyway: "
+                f"youpdated add feed https://www.reddit.com{path.rstrip('/')}/.rss"
+            )
+        return accepted(self, value)
+
+    def instead(self, target: Target, client: Client) -> list[tuple[str, str, str]]:
+        """``(source, entry, why)`` another source reads in the page's place: a feed it links,
+        or the feed the address turned out to be. Fetches the page, which `fetch` then reuses"""
+        fetched = client.get(target.key)
+        if fetched is None:
+            return []
+        kind = _not_a_page(fetched.content, fetched.headers)
+        if kind == "feed":
+            return [("feed", target.key, "the address is a feed")]
+        if kind is not None:
+            return []
+        feeds = read_page(fetched.text, fetched.url).feeds
+        # The first is the site's main feed, the rest are often per tag or per section
+        return [("feed", feeds[0], "the feed the page links")] if feeds else []
 
     def targets(self, entries: list[Any]) -> list[Target]:
         targets = []

@@ -24,7 +24,7 @@ from typing import IO, Any, Callable, Iterator
 
 import yaml
 
-from . import __version__, crypto, icons, notify
+from . import __version__, crypto, icons, notify, preview
 from .config import (
     DEFAULT_EXPIRY,
     NAMED_UA_CONFIRMED,
@@ -49,6 +49,7 @@ from .edit import (
     Watching,
     add_to_config,
     claims,
+    readers,
     remove_from_config,
     requested_urls,
     set_entry_rules,
@@ -62,7 +63,7 @@ from .importers import READERS, Found, read_file
 from .models import RunError, Target, Update
 from .registry import all_aliases, all_sources, canonical_name, get_source
 from .runner import RunResult, _split_entry_rules, build_targets, record, run
-from .sources.base import ConfigEntryError, Source, parse_iso
+from .sources.base import ConfigEntryError, parse_iso
 from .state import State, StateBusy, StateError, inbox_id, stamp
 from .versions import ANY_BUMP, BUMPS, VersionRules, format_release, suggest_patterns
 
@@ -274,14 +275,6 @@ class _Progress:
 
 def _ref(target: Target) -> dict[str, str]:
     return {"source": target.source, "key": target.key, "display": target.display}
-
-
-def _reads(source: Source, value: str) -> bool:
-    """If ``source`` takes ``value`` as an entry"""
-    try:
-        return bool(source.targets([value]))
-    except Exception:  # a plugin may raise anything
-        return False
 
 
 def _starred(source: str, key: str) -> bool:
@@ -1007,75 +1000,85 @@ class Engine:
         p.done()
         if not value:
             raise _bad("`value` must not be empty")
-        if picked is not None:
-            handler = get_source(picked)
-            if handler is None:
-                raise _bad(f"unknown source `{picked}`")
-            name = canonical_name(picked)
-            claim = getattr(handler, "claim", None)
+        if picked is not None and get_source(picked) is None:
+            raise _bad(f"unknown source `{picked}`")
+        resolving = preview.resolver(value, picked)
+        name, entry = (resolving, value) if resolving else self._placed(value, picked)
+        if resolving is None:
             try:
-                entry = (claim(value) if claim is not None else None) or value
-            except Exception:  # a plugin's broken claim
-                entry = value
-        else:
-            found = claims(value)
-            claimed = bool(found)
-            if not claimed and _NAME_RE.match(value):
-                # A bare name: whichever sources read it, for the user to pick
-                found = {n: value for n, s in sorted(all_sources().items()) if _reads(s, value)}
-            if not found:
-                raise ApiError(
-                    "unrecognized", f"source type could not be determined for `{value}`"
-                )
-            if len(found) > 1 or not claimed:
-                raise ApiError(
-                    "ambiguous", f"`{value}` could be {' or '.join(found)}", choices=list(found)
-                )
-            name, entry = next(iter(found.items()))
-            handler = all_sources()[name]
-        try:
-            built = handler.targets([entry])
-        except Exception as exc:
-            raise ApiError("bad_entry", str(exc)) from exc
-        if not built:
-            raise ApiError("bad_entry", f"`{value}` names nothing to watch")
-        target = built[0]
+                preview.target(name, entry)
+            except Exception as exc:
+                raise ApiError("bad_entry", str(exc)) from exc
 
         # a bad config might name a proxy
         config = self._config() if self.config_path().is_file() else None
-        watching = False
-        if config is not None:
-            target.track_latest = config.track_latest
-            configured, _ = build_targets(config)
-            watching = any((t.source, t.key) == (name, target.key) for t in configured)
         if config is not None:
             self._require_named_ua_confirmed(config)
-        newest, fetch_error = None, None
         with Client(config.privacy if config else PrivacyConfig()) as client:
+            why = None
+            if resolving is not None:
+                try:
+                    entry, why = preview.resolve(resolving, value, client)
+                except Exception as exc:
+                    raise ApiError("bad_entry", f"couldn't look up `{value}`: {exc}") from exc
             try:
-                items = list(handler.fetch(target, client))
+                found = preview.options(
+                    name,
+                    entry,
+                    client,
+                    why=why,
+                    track_latest=config.track_latest if config is not None else False,
+                )
             except Exception as exc:
-                fetch_error = f"{type(exc).__name__}: {exc}"
-            else:
-                items = [u for u in items if not target.ignores(u.tags)] or items
-                # the newest by date, else the first the source listed
-                top = max(items, key=lambda u: u.published or _EPOCH, default=None)
-                if top is not None:
-                    newest = {
-                        "title": top.title,
-                        "url": top.url,
-                        "version": top.version,
-                        "published": stamp(top.published) if top.published else None,
-                    }
+                raise ApiError("bad_entry", str(exc)) from exc
+        best = found[0]
+        watching = False
+        if config is not None:
+            configured, _ = build_targets(config)
+            watching = any((t.source, t.key) == (best.source, best.target.key) for t in configured)
+        top = best.newest
+        newest = None
+        if top is not None:
+            newest = {
+                "title": top.title,
+                "url": top.url,
+                "version": top.version,
+                "published": stamp(top.published) if top.published else None,
+            }
         return {
-            "source": name,
-            "entry": str(entry),
-            "key": target.key,
-            "display": target.display,
+            "source": best.source,
+            "entry": str(best.entry),
+            "key": best.target.key,
+            "display": best.target.display,
             "already_watching": watching,
             "newest": newest,
-            "fetch_error": fetch_error,
+            "fetch_error": best.error,
         }
+
+    def _placed(self, value: str, picked: str | None) -> tuple[str, str]:
+        """``(source, entry)`` for ``value``, as ``picked`` or else the only source it can be"""
+        if picked is not None:
+            claim = getattr(get_source(picked), "claim", None)
+            try:
+                entry = (claim(value) if claim is not None else None) or value
+            except Exception:  # a plugin's broken claim, or one refusing what was picked
+                entry = value
+            return canonical_name(picked), entry
+        try:
+            found = claims(value)
+        except ConfigError as exc:  # a GitHub account's page, a Reddit address
+            raise ApiError("bad_entry", str(exc)) from exc
+        claimed = bool(found)
+        if not claimed and _NAME_RE.match(value):
+            # A bare name: whichever sources read it, for the user to pick
+            found = readers(value)
+        if not found:
+            raise ApiError("unrecognized", f"source type could not be determined for `{value}`")
+        if len(found) > 1 or not claimed:
+            raise ApiError(
+                "ambiguous", f"`{value}` could be {' or '.join(found)}", choices=list(found)
+            )
+        return next(iter(found.items()))
 
     def op_targets_add(self, p: _Params) -> dict[str, Any]:
         source = p.get("source", "str", required=True)

@@ -94,7 +94,7 @@ youpdated add npm react
 youpdated add youtube @NASA
 ```
 
-A link or handle that can only work with one source doesn't need to be named: `youpdated add https://github.com/neovim/neovim`. An address ending `.json`, `.yml`, or `.yaml` goes under `json`, and any other web address under `webpage`.
+A link or handle that can only work with one source doesn't need to be named: `youpdated add https://github.com/neovim/neovim`. An address ending `.json`, `.yml`, or `.yaml` goes under `json`. Any other web address can be fetched first, once confirmed: a page that links a feed offers it, and a YouTube video adds its channel. See [usage](docs/usage.md#command-reference).
 
 To watch all dependencies of a project, import its `package.json`, `requirements.txt`, `pyproject.toml`, or `Brewfile`: `youpdated import package.json`.
 

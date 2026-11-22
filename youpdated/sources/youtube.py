@@ -34,6 +34,14 @@ EXTERNAL_ID_RE = re.compile(r'"externalId"\s*:\s*"(UC[A-Za-z0-9_-]{22})"')
 # A channel picture's size, in its URL: `=s900-c-k-…`
 PICTURE_SIZE_RE = re.compile(r"=s\d+(?=-|$)")
 VIDEO_ID_RE = re.compile(r"^[A-Za-z0-9_-]{11}$")
+# On a video's page: the channel's address, in the `author` microdata, then its id
+OWNER_HANDLE_RE = re.compile(
+    r'<link itemprop="url" href="https?://(?:www\.)?youtube\.com/(@[A-Za-z0-9._-]+)"'
+)
+OWNER_ID_RE = re.compile(
+    r'"externalChannelId"\s*:\s*"(UC[A-Za-z0-9_-]{22})"'
+    r'|<meta itemprop="channelId" content="(UC[A-Za-z0-9_-]{22})"'
+)
 
 CHANNEL_CACHE = "youtube_channel_ids"
 # The path that last answered for a target, and when: "feed|<time>"
@@ -67,6 +75,11 @@ class YouTubeSource:
 
     def claim(self, value: str) -> str | None:
         """@handle, channel id, channel's URL, or playlist URL"""
+        if _video_url_id(value) is not None:
+            # `resolve` finds the channel when it can fetch
+            raise ConfigEntryError(
+                f"`{value}` is a video, not a channel: name a channel's URL or @handle"
+            )
         url = url_parts(value)
         if (
             (value.startswith("@") and "/" not in value)
@@ -75,6 +88,25 @@ class YouTubeSource:
         ):
             return accepted(self, value)
         return None
+
+    def resolves(self, value: str) -> bool:
+        """A video's address, its channel is on its page"""
+        return _video_url_id(value) is not None
+
+    def resolve(self, value: str, client: Client) -> tuple[str, str]:
+        """``(entry, why)``: the channel that posted a video, by @handle, else id"""
+        page = f"https://www.youtube.com/watch?v={_video_url_id(value)}"
+        fetched = client.get(page, soft_statuses=(404,))
+        if fetched is None or fetched.status != 200:
+            status = fetched.status if fetched is not None else "none"
+            raise FetchError(f"couldn't open the video's page {page} (HTTP {status})")
+        handle = OWNER_HANDLE_RE.search(fetched.text)
+        if handle:
+            return handle.group(1), "the video's channel"
+        channel = OWNER_ID_RE.search(fetched.text)
+        if channel:
+            return channel.group(1) or channel.group(2), "the video's channel"
+        raise FetchError(f"the video's page {page} doesn't name its channel")
 
     def targets(self, entries: list[Any]) -> list[Target]:
         targets = []
@@ -547,6 +579,27 @@ def _title(value: Any) -> str | None:
 def _video_id(url: str) -> str | None:
     # Shorts are linked as /shorts/<id> rather than watch?v=<id>
     match = re.search(r"(?:[?&]v=|/shorts/)([A-Za-z0-9_-]{11})", url or "")
+    return match.group(1) if match else None
+
+
+def _video_url_id(value: str) -> str | None:
+    """The video an address opens: `watch?v=`, `youtu.be/`, `/shorts/`, or `/live/`"""
+    try:
+        parts = urlsplit(value.strip())
+    except ValueError:
+        return None
+    host = (parts.hostname or "").removeprefix("www.")
+    if parts.scheme not in ("http", "https"):
+        return None
+    if host == "youtu.be":
+        match = re.fullmatch(r"/([A-Za-z0-9_-]{11})/?", parts.path)
+    elif host in ("youtube.com", "m.youtube.com", "music.youtube.com"):
+        if parts.path.rstrip("/") == "/watch":
+            match = re.search(r"(?:^|&)v=([A-Za-z0-9_-]{11})(?:&|$)", parts.query)
+        else:
+            match = re.fullmatch(r"/(?:shorts|live)/([A-Za-z0-9_-]{11})/?", parts.path)
+    else:
+        return None
     return match.group(1) if match else None
 
 

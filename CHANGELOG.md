@@ -10,8 +10,17 @@ All notable changes to this project are documented here. The format follows [Kee
 
 - **Webhook and command edit support in the apps** (#83). **Settings → Notifications** on Mac and Windows can add, edit, and remove `settings.notify` webhooks (URL, format, headers, priorities, and if it waits for the digest) and commands. **Send test** sends an example update before it is saved. The config is edited in place: only the changed option is rewritten, and a webhook with default options is written as its bare URL. A webhook on **Automatic** keeps following its URL, and a chosen format stays chosen even when it matches the guess. New engine ops `notify.get`, `notify.set`, and `notify.test`, and error code `notify_failed`.
 
+- **`youpdated add` can now look up further information to find a source.** For a web page or YouTube video it asks before fetching, then shows what it found with the newest item. A page that links a feed offers it, so a blog, Mastodon profile, or Bluesky profile becomes a `feed`, and a page naming a version lists both to pick from. A YouTube video, `youtu.be`, Shorts, or live link adds the channel's `@handle`. Refusing the fetch adds the page as given. Everything else is added as normal, with nothing sent. `-y`/`--yes` fetches without asking and takes the best match, and `--no-check` adds a page as given without asking. Without a terminal, nothing is fetched unless `-y` is passed. The apps' preview (`targets.preview`) does the same lookups and returns the best match's `source` and `entry`. See [the command reference](docs/usage.md#command-reference).
+
+- **SteamDB pages** (`steamdb.info/app/413150`) is added as its Steam app id.
+
 ### Changed
 
+- **`youpdated add` now confirms the source of a single word or number.** `440` shows `source detected: steam` and asks `Add it? [Y/n]`, so a number another source also uses for ids can't land under the wrong one. A word several sources read (`express`) lists them to pick from instead of being refused. `-y`, `--no-check`, and runs without a terminal take the only source detected without asking, and refuse a word several sources read.
+- **Addresses with nothing to watch are refused with alternatives**, by `add` and the apps' preview (`bad_entry`): an account or organization page on GitHub, GitLab, or Codeberg, and Reddit, which tends to refuse automated readers. `youpdated add feed` still adds a Reddit feed when named.
+- **A `steam` entry must be a whole app id or an `app/<id>` link.**
+- **Untitled feed items are titled by their text**, up to 80 characters, instead of "(untitled)". Items already seen aren't reported again.
+- **`github.com/neovim` is no longer read as repo `neovim` with owner `github.com`**, and an address on a file or site host with a forge in its name (`raw.githubusercontent.com`, `*.github.io`, `*.gitlab.io`, `gist.github.com`) isn't considered a repo anymore. A `.json` file on `raw.githubusercontent.com` goes under `json`.
 - **Checks remember more (for `list`).** Each check now records which targets failed, the item behind a `bump:` target's highest release, and the CLI now keeps the names sources resolve.
 
 ## [0.6.0] — 2026-11-14
