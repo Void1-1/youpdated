@@ -226,7 +226,7 @@ def test_add_and_check_work_on_a_fresh_init(app, fake):
 
     # Nothing watched yet: says how to start
     code, out = run("check", "--no-notify")
-    assert code == 1 and "youpdated add" in out
+    assert code == 1 and "youpdated add" in " ".join(out.split())
 
     assert main(["add", "fake", "alpha"]) == 0
     text = (app / "configs" / "default.yaml").read_text(encoding="utf-8")

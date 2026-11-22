@@ -48,6 +48,8 @@ jobs:
           youpdated --version
           youpdated sources
           youpdated init
+          # `init` watches nothing, and `check` refuses an empty config
+          youpdated add git Void1-1/youpdated
           youpdated check --test -v
           youpdated uninstall --yes
 
