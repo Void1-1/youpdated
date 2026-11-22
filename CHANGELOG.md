@@ -12,6 +12,8 @@ All notable changes to this project are documented here. The format follows [Kee
 
 ### Changed
 
+- **A clearer Mac installer.** The Mac app's `.dmg` now opens to a proper window (unlike the old Apple default one) with the steps for opening it the first time because it isn't notarized.
+
 - **Checks remember more (for `list`).** Each check now records which targets failed, the item behind a `bump:` target's highest release, and the CLI now keeps the names sources resolve.
 
 ## [0.6.0] — 2026-11-14
