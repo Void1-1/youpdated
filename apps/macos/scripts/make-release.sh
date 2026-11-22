@@ -20,6 +20,7 @@ fi
 app=$derived/Build/Products/Release/Youpdated.app
 staging=$(mktemp -d)
 cleanup() {
+  hdiutil detach -quiet $staging/mounted 2>/dev/null || true
   rm -rf $staging
   # Xcode registers what it builds, which would list this copy in the Services menu too
   /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -u $app 2>/dev/null || true
@@ -52,9 +53,16 @@ fi
 
 python3 $repo/apps/engine/smoke.py $app/Contents/Resources/youpdated-engine/youpdated-engine --offline
 
-ditto $app $staging/Youpdated.app
-ln -s /Applications $staging/Applications
+# The .dmg opens to a window that shows where to drag the app, and the first launch steps
+python3 -m venv $work/dmg-venv
+$work/dmg-venv/bin/python -m pip --quiet --disable-pip-version-check install -r $macos/scripts/dmg-requirements.txt
+swift $macos/scripts/dmg-background.swift $staging
 rm -f $dmg
-hdiutil create -quiet -volname Youpdated -srcfolder $staging -format UDZO $dmg
+$work/dmg-venv/bin/dmgbuild -s $macos/scripts/dmg-settings.py -D app=$app -D background=$staging/background.png Youpdated $dmg
+
+# What people actually install is the copy in the .dmg
+hdiutil attach -quiet -nobrowse -readonly -mountpoint $staging/mounted $dmg
+codesign --verify --deep --strict $staging/mounted/Youpdated.app
+hdiutil detach -quiet $staging/mounted
 
 print "\n$dmg ($(du -h $dmg | cut -f1))"

@@ -21,6 +21,8 @@ All notable changes to this project are documented here. The format follows [Kee
 - **A `steam` entry must be a whole app id or an `app/<id>` link.**
 - **Untitled feed items are titled by their text**, up to 80 characters, instead of "(untitled)". Items already seen aren't reported again.
 - **`github.com/neovim` is no longer read as repo `neovim` with owner `github.com`**, and an address on a file or site host with a forge in its name (`raw.githubusercontent.com`, `*.github.io`, `*.gitlab.io`, `gist.github.com`) isn't considered a repo anymore. A `.json` file on `raw.githubusercontent.com` goes under `json`.
+- **A clearer Mac installer.** The Mac app's `.dmg` now opens to a proper window (unlike the old Apple default one) with the steps for opening it the first time because it isn't notarized.
+
 - **Checks remember more (for `list`).** Each check now records which targets failed, the item behind a `bump:` target's highest release, and the CLI now keeps the names sources resolve.
 
 ## [0.6.0] — 2026-11-14
