@@ -330,19 +330,33 @@ def write_private(path: str | Path, blob: bytes) -> None:
         raise EncryptionError(f"cannot write {path}: {exc}") from exc
 
 
-def prompt_passphrase(prompt: str = "Passphrase: ", *, confirm: bool = False) -> str:
-    """Read a passphrase from $YOUPDATED_PASSPHRASE, else from the terminal.
+def passphrase_env(name: str) -> str:
+    """The variable holding a named config's passphrase: ``work-stuff`` -> YOUPDATED_PASSPHRASE_WORK_STUFF"""
+    return f"{PASSPHRASE_ENV}_{name.upper().replace('-', '_')}"
 
-    The environment variable allows cron jobs and scripts
+
+def prompt_passphrase(
+    prompt: str = "Passphrase: ", *, confirm: bool = False, name: str | None = None
+) -> str:
+    """Read a passphrase from the environment, else from the terminal.
+
+    The environment allows cron jobs and scripts. For a named config its own variable comes first,
+    so `check --all-configs` can unlock configs with different passphrases.
     """
-    from_env = os.environ.get(PASSPHRASE_ENV)
-    if from_env:
-        return from_env
+    if name == "default":
+        name = None
+    names = ([passphrase_env(name)] if name else []) + [PASSPHRASE_ENV]
+    for variable in names:
+        from_env = os.environ.get(variable)
+        if from_env:
+            return from_env
+    if name:
+        prompt = f"{prompt.removesuffix(': ')} for `{name}`: "
 
     if not sys.stdin.isatty():
         raise EncryptionError(
             "a passphrase is required but there is no terminal to ask on. "
-            f"Set ${PASSPHRASE_ENV} instead."
+            f"Set ${names[0]} instead."
         )
 
     try:

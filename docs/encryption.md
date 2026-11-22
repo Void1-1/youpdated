@@ -38,6 +38,12 @@ For cron and other unattended runs there is no terminal, so pass the passphrase 
 0 9 * * * YOUPDATED_PASSPHRASE='...' /path/to/.venv/bin/youpdated check >> ~/youpdated.log 2>&1
 ```
 
+Each [named config](configuration.md#multiple-configs) is encrypted separately (`youpdated encrypt -c work`, or `init work --encrypt`) and can have its own passphrase. Its own variable is read first, uppercased with `-` as `_`: `YOUPDATED_PASSPHRASE_WORK` for `work`, `YOUPDATED_PASSPHRASE_WORK_STUFF` for `work-stuff`, then `YOUPDATED_PASSPHRASE`. So a `check --all-configs` can unlock configs with different passphrases:
+
+```cron
+0 9 * * * YOUPDATED_PASSPHRASE='...' YOUPDATED_PASSPHRASE_WORK='...' /path/to/.venv/bin/youpdated check --all-configs
+```
+
 That exchanges the passphrase's secrecy for the crontab's. Ensure it is more protected than your config was. Reading it from a file your shell sources or from a keychain helper is stronger.
 
 ## What this does and does not protect
@@ -47,8 +53,8 @@ Files are encrypted whole with AES-256-GCM under a key derived from the passphra
 | | Encrypted | Plain |
 | --- | --- | --- |
 | `youpdated check` | asks for the passphrase | runs |
-| `cat ~/.config/youpdated/config.yaml` | binary | readable |
-| `sqlite3 state.sqlite3 'select * from seen'` | `file is not a database` | readable |
+| `cat ~/.config/youpdated/configs/default.yaml` | binary | readable |
+| `sqlite3 default-state.sqlite3 'select * from seen'` | `file is not a database` | readable |
 | File permissions | `0600` on macOS/Linux, see below on Windows | as created |
 
 **On Windows the file mode does nothing.** There are no POSIX permission bits, so the `0600` the writer asks for is ignored apart from the read-only flag, and access is decided by the ACL the file inherits from its directory. In the default location under `%LOCALAPPDATA%` that already excludes other standard users. The encryption itself is unaffected and works identically on all three platforms.

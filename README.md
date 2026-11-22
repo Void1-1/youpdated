@@ -82,7 +82,7 @@ youpdated --version
 youpdated init
 ```
 
-This creates a starter config file and **prints where it was placed**.
+This creates a short starter config, with the default settings and nothing watched yet, and **prints where it was placed**.
 
 ### 3. Add sources to watch
 

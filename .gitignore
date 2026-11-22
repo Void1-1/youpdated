@@ -11,7 +11,7 @@ __pycache__/
 .pytest_cache/
 .mypy_cache/
 
-# Local config
+# Local dev config
 youpdated.yaml
 youpdated.yml
 *.sqlite3

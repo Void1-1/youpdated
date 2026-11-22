@@ -49,6 +49,8 @@ youpdated check --no-notify            # skip notifications this run
 youpdated check --all --notify         # notify even with --all or --no-save
 youpdated check -v                     # show each request, its status, and item summaries
 youpdated check --state ./test.db      # use a throwaway history file
+youpdated check -c work                # use the named config `work`, with its own history
+youpdated check --all-configs          # the default config, then every named config
 youpdated sources                      # list available sources
 youpdated list                         # what you watch and its latest known version, without fetching
 youpdated list neovim                  # only targets with names containing this string
@@ -68,12 +70,18 @@ youpdated import --format requirements.txt <(pip freeze) # a pipe works too
 youpdated edit                         # open the config in the default editor
 youpdated init --force                 # rewrite the starter config
 youpdated init --encrypt               # starter config written encrypted from the start
+youpdated init work                    # a new named config
+youpdated configs                      # list configs, with what each watches
+youpdated configs rm work              # delete a named config and its history
+youpdated configs migrate              # move a config from before named configs into configs/
 youpdated encrypt                      # lock the config and history behind a passphrase
 youpdated decrypt                      # convert them back to plain files
 youpdated uninstall --test             # list all tool files and the package
 ```
 
 Running `youpdated` without arguments assumes `youpdated check`.
+
+Every command that reads the config takes `-c NAME` for a [named config](configuration.md#multiple-configs), or `-c PATH` for a file. `$YOUPDATED_CONFIG` does the same when `-c` isn't given.
 
 A check records what it found only once its report is out, so if the report or the `--rss` file can't be written, the same updates are reported again next time. `--since` narrows the report: a new item older than the window is left unrecorded, and a check without `--since` still reports. `--test` sends nothing, and lists the config's problems, such as an entry no source can read, in the `problems` panel, which counts for `--fail-on-error`. One run at a time uses a history file; another waits up to a minute for it, then exits `1`.
 
@@ -134,7 +142,7 @@ youpdated api status --json
 youpdated api inbox.list --json --params '{"unread": true}'
 ```
 
-Exits `0` when `ok`, `1` otherwise. An encrypted setup asks for the passphrase, or reads `$YOUPDATED_PASSPHRASE`. `--config` and `--state` pick other files, as for `check`.
+Exits `0` when `ok`, `1` otherwise. An encrypted setup asks for the passphrase, or reads `$YOUPDATED_PASSPHRASE`. `--config` and `--state` pick other files by path. Named configs and `$YOUPDATED_CONFIG` don't apply to `api`.
 
 A scheduled CLI check and the app shouldn't both check: whichever runs first records items as seen, so anything a cron job finds never reaches the app's inbox.
 

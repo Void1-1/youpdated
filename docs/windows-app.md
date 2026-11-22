@@ -62,4 +62,4 @@ The app has no accounts or analytics, and sends requests only to the sites your 
 1. In Settings, choose **Remove Youpdated from this PC**. That stops it starting when you sign in, and removes `youpdated://` links, notifications, the Start menu shortcut, and any stored passphrase. You can have it delete your follows and history too.
 2. Delete the `Youpdated` folder.
 
-Your follows and history, if you kept them, are in `%LOCALAPPDATA%\youpdated`, shared with the command-line tool.
+Your follows and history, if you kept them, are in `%LOCALAPPDATA%\youpdated`, shared with the command-line tool. Named configs with the CLI also are stored there.
