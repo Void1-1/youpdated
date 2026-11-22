@@ -58,6 +58,8 @@ youpdated list --json                  # machine-readable output
 youpdated add git neovim/neovim        # start watching something (several at once is fine)
 youpdated add https://pypi.org/project/rich/ # the source can be left out when the link includes the information
 youpdated add --test steam 440         # show the change to the config without writing it
+youpdated add https://neovim.io        # a web page can be fetched first, if you say so: its version, or the feed it links
+youpdated add -y https://youtu.be/dQw4w9WgXcQ # a video adds its channel; -y fetches without asking
 youpdated remove git neovim/neovim     # stop watching it; any form works, like the full URL
 youpdated rm --wipe 440                # and delete its history
 youpdated import package.json Brewfile # watch everything listed in dependency files
@@ -79,7 +81,18 @@ A check records what it found only once its report is out, so if the report or t
 
 `add` and `rm` (or `remove`) edit the config in place and keep comments and layout. `rm` removes entries watching what you name, including options and comments.
 
-The source can be left out when an entry can only mean one: a GitHub, GitLab, or Codeberg repo, `owner/repo`, a feed URL, a Steam app id or store page, an itch.io page, a YouTube `@handle`, channel, or playlist URL, a browser name, `cask:name`, a scoped `@scope/name` npm package, an address ending `.json`, `.yml`, or `.yaml`, or a package page on npmjs.com, pypi.org, or formulae.brew.sh. Package pages are written as the package name. Any other `http(s)://` address is a `webpage`. A bare name like `express` could be npm, PyPI, or Homebrew, so name the source for those. Entries without a source can mix sources: `youpdated add https://github.com/neovim/neovim @types/react`.
+The source can be left out when an entry can only mean one: a GitHub, GitLab, or Codeberg repo, `owner/repo`, a feed URL, a Steam app id or store page, an itch.io page, a YouTube `@handle`, channel, or playlist URL, a browser name, `cask:name`, a scoped `@scope/name` npm package, an address ending `.json`, `.yml`, or `.yaml`, or a package page on npmjs.com, pypi.org, or formulae.brew.sh. Package pages are written as the package name, and a SteamDB page (`steamdb.info/app/413150`) as its Steam app id. Any other `http(s)://` address is a `webpage`. Entries without a source can mix sources: `youpdated add https://github.com/neovim/neovim @types/react`.
+
+A single word or number (`440`, `firefox`, `express`) has `add` confirm the source it was detected as before adding it: `440 source detected: steam`, then `Add it? [Y/n]`. When more than one source could apply (`express` as an npm, PyPI, or Homebrew package), they're listed to pick from. `-y` and `--no-check` take the only source detected without asking, as does running without a terminal; a word several sources could read is refused, naming them.
+
+Some addresses are better added after a fetch (ones needing to find the source through the page), so `add` asks before fetching them (through the proxy, if one is set), then shows what it found with the newest item:
+
+- **A web page** (any address no other source claims). A page that links a feed (a blog, a Mastodon profile, or a Bluesky profile) offers that feed. If the page also names a version, both are listed to pick from. Saying no to the fetch adds the page as given!
+- **A YouTube video**, `youtu.be`, Shorts, or live link adds the channel that posted it, by its `@handle`. Its page has to be fetched.
+
+`-y` (`--yes`) fetches without asking and takes the best match, and `--no-check` adds a page as given without asking. Without a terminal, nothing is fetched unless `-y` is given. Bluesky feeds are added by the account's DID, so they keep working after a handle change.
+
+A few addresses are refused with alternatives: an account or organization page on GitHub, GitLab, or Codeberg (name one of its repos), and Reddit, which refuses automated readers. `youpdated add feed https://www.reddit.com/r/NAME/.rss` still tries it.
 
 A removed target's history is forgotten after [`expiry`](configuration.md#how-long-history-is-kept). `rm --wipe` forgets it immediately: seen items, baseline, highest version, names cached for it, cached addresses it fetched, and its items and priority in the desktop app. An address another target still fetches keeps its cache.
 

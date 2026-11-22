@@ -57,6 +57,9 @@ _HOST_HINTS = (
     ("codeberg", "forgejo"),
     ("github", "github"),
 )
+_NOT_FORGES = ("githubusercontent.com", "github.io", "gitlab.io", "codeberg.page")
+# GitHub's paths to an account's page: /orgs/neovim/repositories
+_ACCOUNT_PATHS = ("orgs", "users")
 
 
 def _is_prerelease(version: str | None) -> bool:
@@ -70,6 +73,10 @@ def _guess_forge(host: str) -> str | None:
     name = host.split(":")[0]
     if name in KNOWN_HOSTS:
         return KNOWN_HOSTS[name]
+    if any(name.endswith(f".{known}") for known in KNOWN_HOSTS) or any(
+        name == host or name.endswith(f".{host}") for host in _NOT_FORGES
+    ):
+        return None
     for hint, forge in _HOST_HINTS:
         if hint in name:
             return forge
@@ -95,7 +102,7 @@ def _split_location(
         # A well-known host is still one, so a mismatch with `host:` is reported below
         if (
             "." in first
-            and rest.count("/") >= 1
+            and (rest.count("/") >= 1 or named in KNOWN_HOSTS)
             and (wanted in (None, named) or named in KNOWN_HOSTS)
         ):
             url_host, path = first.lower(), rest
@@ -113,6 +120,27 @@ def _split_location(
     return scheme, resolved, path, url_host is not None
 
 
+def _account_page(value: str) -> tuple[str, str] | None:
+    """``(host, account)`` if ``value`` is an account's page on a known forge"""
+    if "://" in value:
+        try:
+            parts = urlsplit(value)
+        except ValueError:
+            return None
+        host, path = (parts.hostname or "").removeprefix("www."), parts.path
+    else:
+        first, _, path = value.partition("/")
+        host = first.lower().removeprefix("www.")
+    if host not in KNOWN_HOSTS:
+        return None
+    segments = [s for s in path.split("/") if s]
+    if KNOWN_HOSTS[host] == "github" and len(segments) >= 2 and segments[0] in _ACCOUNT_PATHS:
+        segments = segments[1:2]
+    if len(segments) == 1 and _SEGMENT_RE.match(segments[0]):
+        return host, segments[0]
+    return None
+
+
 def _clean_path(path: str, forge: str, value: Any, source: str, addressed: bool) -> str:
     path = path.strip("/")
     if forge == "gitlab":
@@ -128,8 +156,8 @@ def _clean_path(path: str, forge: str, value: Any, source: str, addressed: bool)
     if segments:
         segments[-1] = segments[-1].removesuffix(".git")
     if len(segments) < 2 or not all(_SEGMENT_RE.match(s) for s in segments):
-        shape = "group/project" if forge == "gitlab" else "owner/repo"
-        raise ConfigEntryError(f"sources.{source}: `{value}` does not name a {shape}")
+        shape = "a group/project" if forge == "gitlab" else "an owner/repo"
+        raise ConfigEntryError(f"sources.{source}: `{value}` does not name {shape}")
     return "/".join(segments)
 
 
@@ -144,6 +172,13 @@ class GitSource:
         """`owner/repo`, or a repo on a forge known by its host"""
         if value.startswith("@") or is_feed_url(value):
             return None
+        account = _account_page(value)
+        if account is not None:
+            host, name = account
+            raise ConfigEntryError(
+                f"`{value}` is the page of {name} on {host}, not a repo. "
+                f"Name a repo: youpdated add {host}/{name}/REPO"
+            )
         return accepted(self, value)
 
     def targets(self, entries: list[Any]) -> list[Target]:

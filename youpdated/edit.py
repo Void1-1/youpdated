@@ -20,7 +20,7 @@ from .config import SETTINGS_KEYS, ConfigError, PrivacyConfig
 from .http import Client
 from .models import Target
 from .registry import all_aliases, all_sources, canonical_name
-from .sources.base import Source, scalar_key
+from .sources.base import ConfigEntryError, Source, scalar_key
 from .state import State
 
 _NULL_TAG = "tag:yaml.org,2002:null"
@@ -285,20 +285,61 @@ def claims(value: str) -> dict[str, str]:
     """Every source that says ``value`` could be theirs, with the entry it would be
 
     Sources with ``claim()`` say which values can only be theirs: a GitHub URL is `git`.
-    A ``fallback`` source's claim counts only if no other source claims the value
+    A ``fallback`` source's claim counts only if no other source claims the value.
+    A claim raising ``ConfigEntryError`` says the value is its kind but names nothing to watch
     """
     value = _clean(value)
     found: dict[str, str] = {}
     fallbacks: dict[str, str] = {}
+    refused: list[str] = []
     for name, source in sorted(all_sources().items()):
         claim = getattr(source, "claim", None)
         try:
             entry = claim(value) if claim is not None else None
+        except ConfigEntryError as exc:
+            refused.append(str(exc))
+            continue
         except Exception: # a plugin's broken claim can't stop the rest
             entry = None
         if entry is not None:
             (fallbacks if getattr(source, "fallback", False) else found)[name] = entry
+    if not found and refused:
+        raise ConfigError(refused[0])
     return found or fallbacks
+
+
+_BARE_RE = re.compile(r"^[\w.-]+$")
+
+
+def is_bare(value: str) -> bool:
+    """If ``value`` is a single word or number, not a URL"""
+    return bool(_BARE_RE.match(value.strip()))
+
+
+def readers(value: str) -> dict[str, str]:
+    """Every source that takes ``value`` as an entry as is"""
+    found = {}
+    for name, source in sorted(all_sources().items()):
+        try:
+            if source.targets([value]):
+                found[name] = value
+        except Exception:  # a plugin may raise anything
+            continue
+    return found
+
+
+def candidates(value: str) -> dict[str, str]:
+    """Sources a bare word could be"""
+    value = _clean(value)
+    return claims(value) or readers(value)
+
+
+def ambiguous(value: str, found: Sequence[str], command: str = "add") -> ConfigError:
+    """The error for ``value`` that could be any of ``found``"""
+    return ConfigError(
+        f"`{value}` could be {' or '.join(found)}. Name one: "
+        f"youpdated {command} {found[0]} {value}"
+    )
 
 
 def guess_source(value: str, command: str = "add") -> tuple[str, str]:
@@ -308,10 +349,7 @@ def guess_source(value: str, command: str = "add") -> tuple[str, str]:
     if len(found) == 1:
         return next(iter(found.items()))
     if found:
-        raise ConfigError(
-            f"`{value}` could be {' or '.join(found)}. Name one: "
-            f"youpdated {command} {next(iter(found))} {value}"
-        )
+        raise ambiguous(value, list(found), command)
     raise ConfigError(
         f"source type could not be determined for `{value}`, please provide a source type: "
         f"youpdated {command} [source type] {value}. Run `youpdated sources` to see the list."

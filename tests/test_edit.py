@@ -113,7 +113,7 @@ def test_nothing_new_leaves_the_text_alone():
 
 
 def test_an_entry_the_source_rejects_is_an_error():
-    with pytest.raises(ConfigError, match="does not name a owner/repo"):
+    with pytest.raises(ConfigError, match="does not name an owner/repo"):
         add_to_config(EXAMPLE_CONFIG, "git", ["nope"])
 
 
@@ -473,9 +473,11 @@ def test_add_without_a_source_guesses_one_per_entry(config, capsys):
     assert "Added rich under pypi" in out and "Added @types/react under npm" in out
 
 
-def test_a_bare_name_without_a_source_is_refused(config, capsys):
+def test_a_bare_name_without_a_terminal_names_the_sources_it_could_be(config, capsys):
     assert main(["add", "-c", str(config), "express"]) == 1
-    assert "youpdated add [source type] express" in capsys.readouterr().out
+    out = " ".join(capsys.readouterr().out.split())
+    assert "`express` could be homebrew or npm or pypi" in out
+    assert "youpdated add homebrew express" in out
     assert config.read_text(encoding="utf-8") == EXAMPLE_CONFIG
 
 

@@ -27,21 +27,21 @@ class SteamSource:
     caches: ClassVar[tuple[str, ...]] = (NAME_CACHE,)
 
     def claim(self, value: str) -> str | None:
-        """plain number, or store or community page for an app"""
+        """plain number, or store, community, or SteamDB page for an app"""
         url = url_parts(value)
         if value.isdigit() or (
             url and url[0] in ("store.steampowered.com", "steamcommunity.com") and "/app/" in url[1]
         ):
             return accepted(self, value)
-        return None
+        match = re.match(r"/app/(\d+)(?:/|$)", url[1]) if url and url[0] == "steamdb.info" else None
+        return accepted(self, match.group(1)) if match else None
 
     def targets(self, entries: list[Any]) -> list[Target]:
         targets = []
         for entry in entries:
             fields = entry_fields(entry, "appid", self.name)
             raw = str(require(fields, "appid", self.name)).strip()
-            # Accept store URL and id
-            match = re.search(r"(?:app/)?(\d+)", raw)
+            match = re.fullmatch(r"(\d+)", raw) or re.search(r"(?:^|/)app/(\d+)(?:[/?#]|$)", raw)
             if not match:
                 raise ConfigEntryError(
                     f"sources.{self.name}: `{raw}` is not an appid or a store URL"

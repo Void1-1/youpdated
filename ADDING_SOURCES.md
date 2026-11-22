@@ -315,6 +315,29 @@ A source that can read anything of a shape, like `webpage` reading any URL, sets
 fallback: ClassVar[bool] = True
 ```
 
+A value that's plainly yours but names nothing to watch (a GitHub account's page for the git source) can be refused: raise `ConfigEntryError` from `claim()` with what to do instead. Unless another source claims the value, that message is the error, so a fallback doesn't take it:
+
+```python
+if account is not None:
+    raise ConfigEntryError(f"`{value}` is the page of {name} on {host}, not a repo. ...")
+```
+
+### Values only a fetch can place
+
+Some values point at what to watch without naming it: a YouTube video's channel is only on the video's page. `resolves()` says if a value is one of these, without the network, and `resolve()` fetches through the client and returns `(entry, why)`. `youpdated add` and the apps' preview call it before any claim, and show `why` with what was found. Raise `FetchError` if it can't be found:
+
+```python
+def resolves(self, value: str) -> bool:
+    return _video_url_id(value) is not None
+
+def resolve(self, value: str, client: Client) -> tuple[str, str]:
+    fetched = client.get(f"https://www.youtube.com/watch?v={_video_url_id(value)}")
+    ...
+    return handle, "the video's channel"
+```
+
+A fallback can also offer other sources' entries in its place, after it fetches: `instead(target, client)` returns `(source, entry, why)` tuples, like the feed a page links. Within one lookup the client reuses what it fetched, so the source's own `fetch()` doesn't send the request twice. When your entry fails and an offered one works, only the working ones are offered.
+
 ### Thread
 
 Targets are fetched concurrently. Keep everything in local variables or on the `Target`; don't mutate shared state on the source instance.

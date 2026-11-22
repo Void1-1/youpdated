@@ -1,0 +1,25 @@
+{
+  "description": "A profile page that names no version: the feed it links comes back instead",
+  "request": {
+    "id": 72,
+    "op": "targets.preview",
+    "value": "https://mastodon.social/@Gargron"
+  },
+  "events": [],
+  "reply": {
+    "id": 72,
+    "ok": true,
+    "source": "feed",
+    "entry": "https://mastodon.social/@Gargron.rss",
+    "key": "https://mastodon.social/@Gargron.rss",
+    "display": "Eugen Rochko",
+    "already_watching": false,
+    "newest": {
+      "title": "Vine was so good. It inspired so much creativity. It's kind of hard to believe…",
+      "url": "https://mastodon.social/@Gargron/117652186062185513",
+      "version": null,
+      "published": "2026-11-21T02:58:09Z"
+    },
+    "fetch_error": null
+  }
+}

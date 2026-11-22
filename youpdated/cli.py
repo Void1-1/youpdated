@@ -12,9 +12,10 @@ import tempfile
 import threading
 import time
 from contextlib import ExitStack
-from dataclasses import replace
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Callable, Iterable
 
 from rich.console import Console, ConsoleOptions, RenderableType, RenderResult
 from rich.control import Control
@@ -31,7 +32,7 @@ from rich.progress import (
 from rich.segment import ControlType, Segment
 from rich.table import Column
 
-from . import __version__, crypto, notify
+from . import __version__, crypto, notify, preview
 from .cleanup import Trace, find_package, find_traces, remove_package, remove_traces
 from .config import (
     EXAMPLE_CONFIG,
@@ -55,7 +56,10 @@ from .config import (
 )
 from .edit import (
     add_to_config,
+    ambiguous,
+    candidates,
     guess_source,
+    is_bare,
     move_to_settings,
     remove_from_config,
     requested_urls,
@@ -64,10 +68,12 @@ from .edit import (
 )
 from .http import Client, ProxyUnavailable, probe_proxy
 from .importers import READERS, Found, read_file
+from .preview import Option
 from .registry import all_aliases, all_sources, canonical_name, get_source
 from .render import json_out, rss_out, terminal
 from .render import targets as targets_out
 from .runner import build_targets, parse_since, record, rule_warnings, run
+from .sources.base import ConfigEntryError
 from .state import State, StateError, stamp, state_lock
 
 
@@ -144,7 +150,7 @@ def build_parser() -> argparse.ArgumentParser:
     listing.add_argument("--state", help="path to the state database")
 
     for name, aliases, help_text, verb, extra in (
-        ("add", [], "start watching something", "watch", ""),
+        ("add", [], "start watching something", "watch", " [-y] [--no-check]"),
         ("remove", ["rm"], "stop watching something", "stop watching",
          " [--wipe] [--state STATE]"),
     ):
@@ -159,6 +165,15 @@ def build_parser() -> argparse.ArgumentParser:
         )
         edit.add_argument("-c", "--config", help="path to a config file")
         edit.add_argument("--test", action="store_true", help="show changes without writing")
+        if name == "add":
+            edit.add_argument(
+                "-y", "--yes", action="store_true",
+                help="look up a link's source without confirmation, and add the best match",
+            )
+            edit.add_argument(
+                "--no-check", action="store_true",
+                help="add a web page link as given, without fetching it's source or asking",
+            )
         if name == "remove":
             edit.add_argument(
                 "--wipe", action="store_true",
@@ -337,13 +352,305 @@ def _edit_plan(command: str, words: list[str]) -> list[tuple[str, list[str]]]:
     return list(plan.items())
 
 
+Plan = list[tuple[str, list[str]]]
+# Picks what to add once the config is read: (text, path, passphrase) -> plan, or None to cancel
+Picker = Callable[[str, Path, "str | None"], "Plan | None"]
+
+
+class _Canceled(Exception):
+    """Ctrl-C or the end of input at a prompt"""
+
+
+def cmd_add(args: argparse.Namespace, console: Console) -> int:
+    """`add`. A value only findable with a fetch is completed once confirmed. The rest is added as is, nothing sent"""
+    if args.no_check:
+        return cmd_edit(args, console, _edit_plan("add", args.words))
+    items = _add_items(args.words)
+    try:
+        items = _confirm_detected(console, items, asking=sys.stdin.isatty() and not args.yes)
+    except _Canceled:
+        console.print("[dim]Canceled. Nothing was written.[/]")
+        return 1
+    if not items:
+        return 0
+    checked = [item for item in items if item.check]
+    plain = [(i.source, i.entry) for i in items if not i.check]
+    if not checked:
+        return cmd_edit(args, console, _grouped(plain))
+    interactive = sys.stdin.isatty()
+
+    def pick(text: str, path: Path, passphrase: str | None) -> Plan | None:
+        try:
+            fetching = args.yes or (interactive and _fetch_allowed(console, checked))
+        except _Canceled:
+            console.print("[dim]Canceled. Nothing was sent.[/]")
+            return None
+        if fetching:
+            choosing = interactive and not (args.yes or args.test)
+            found = _looked_up(console, checked, text, path, passphrase, choosing)
+        else:
+            found = _as_given(console, checked)
+            # Only videos, none of them added
+            if not (plain or found):
+                return None
+        return None if found is None else _grouped([*plain, *found])
+
+    return cmd_edit(args, console, pick=pick)
+
+
+def _fetch_allowed(console: Console, items: list[_AddItem]) -> bool:
+    """If the user lets ``items`` be fetched to look them up"""
+    for item in items:
+        why = "to find its channel" if item.entry is None else "to look for its feed or version"
+        console.print(f"{escape(item.value)} [dim]would be fetched {why}[/]")
+    noun = "it" if len(items) == 1 else "them"
+    given = ", n adds as given" if any(item.entry is not None for item in items) else ""
+    prompt = f"Fetch {noun}? [Y/n{given}] "
+    while True:
+        answer = _ask(prompt)
+        if answer is None:
+            raise _Canceled
+        if answer in ("", "y", "yes"):
+            return True
+        if answer in ("n", "no"):
+            return False
+
+
+def _as_given(console: Console, items: list[_AddItem]) -> list[tuple[str, str]]:
+    """``(source, entry)`` of ``items`` that can be added without a fetch"""
+    found = []
+    for item in items:
+        if item.entry is not None:
+            found.append((item.source, item.entry))
+        else:
+            console.print(
+                f"[yellow]Not added[/] {escape(item.value)}: it's a video, and its channel is "
+                "found on its page. Re-run with [bold]--yes[/] to fetch it, or name the channel."
+            )
+    return found
+
+
+@dataclass
+class _AddItem:
+    value: str
+    source: str
+    # None until the source fetches it
+    entry: str | None
+    # Looked up and confirmed before it's added
+    check: bool
+    # A bare word's possible sources and entries
+    choices: dict[str, str] = field(default_factory=dict)
+
+
+def _add_items(words: list[str]) -> list[_AddItem]:
+    """What each value is, checked before sending anything"""
+    named = words[0] if get_source(words[0]) is not None else None
+    if named is not None and len(words) == 1:
+        raise ConfigError(f"name what to change: youpdated add {named} ENTRY")
+    items = []
+    for value in words[1:] if named is not None else words:
+        resolving = preview.resolver(value.strip(), named)
+        if resolving is not None:
+            items.append(_AddItem(value.strip(), resolving, None, check=True))
+            continue
+        if named is None and is_bare(value):
+            found = candidates(value)
+            if not found:
+                guess_source(value, "add")
+            items.append(_AddItem(value.strip(), "", None, check=False, choices=found))
+            continue
+        source, entry = (named, value) if named is not None else guess_source(value, "add")
+        try:
+            preview.target(source, entry)
+        except ConfigEntryError as exc:
+            raise ConfigError(str(exc)) from exc
+        fallback = named is None and getattr(get_source(source), "fallback", False)
+        items.append(_AddItem(value, source, entry, check=fallback))
+    return items
+
+
+def _confirm_detected(console: Console, items: list[_AddItem], asking: bool) -> list[_AddItem]:
+    """``items`` with each bare word's source settled"""
+    if not asking:
+        for item in items:
+            if len(item.choices) > 1:
+                raise ambiguous(item.value, list(item.choices))
+    kept = []
+    for item in items:
+        if not item.choices:
+            kept.append(item)
+            continue
+        picked = _detected(console, item.value, item.choices, asking)
+        if picked is None:
+            console.print(f"[dim]Left out {escape(item.value)}[/]")
+            continue
+        item.source, item.entry = picked
+        kept.append(item)
+    return kept
+
+
+def _detected(
+    console: Console, value: str, choices: dict[str, str], asking: bool
+) -> tuple[str, str] | None:
+    """``(source, entry)`` taken for the bare word ``value``"""
+    names = list(choices)
+    if len(names) == 1:
+        console.print(f"{escape(value)} [dim]source detected:[/] {_source_line(names[0])}")
+        if not asking:
+            return names[0], choices[names[0]]
+        while True:
+            answer = _ask("Add it? [Y/n] ")
+            if answer is None:
+                raise _Canceled
+            if answer in ("", "y", "yes"):
+                return names[0], choices[names[0]]
+            if answer in ("n", "no"):
+                return None
+    console.print(f"{escape(value)} [dim]could be:[/]")
+    for number, name in enumerate(names, 1):
+        console.print(f"  {number}. {_source_line(name)}")
+    numbers = "/".join(str(n) for n in range(1, len(names) + 1))
+    while True:
+        answer = _ask(f"Add which? [{numbers}/n] ")
+        if answer is None:
+            raise _Canceled
+        if answer in ("n", "no"):
+            return None
+        if answer.isdigit() and 1 <= int(answer) <= len(names):
+            name = names[int(answer) - 1]
+            return name, choices[name]
+
+
+def _source_line(name: str) -> str:
+    summary = getattr(get_source(name), "summary", "")
+    return f"[cyan]{escape(name)}[/]" + (f" [dim]({escape(summary)})[/]" if summary else "")
+
+
+def _grouped(pairs: Iterable[tuple[str, str]]) -> Plan:
+    plan: dict[str, list[str]] = {}
+    for source, entry in pairs:
+        plan.setdefault(source, []).append(entry)
+    return list(plan.items())
+
+
+def _looked_up(
+    console: Console,
+    items: list[_AddItem],
+    text: str,
+    path: Path,
+    passphrase: str | None,
+    choosing: bool,
+) -> list[tuple[str, str]] | None:
+    """``(source, entry)`` to add"""
+    config = parse_config_text(text, path)
+    if names_itself_privately(config, passphrase is not None):
+        state_path = default_state_path()
+        if _named_ua_confirmed_at(state_path, passphrase):
+            console.print(f"[yellow]warning:[/] {escape(NAMED_UA_WARNING)}")
+        elif not sys.stdin.isatty():
+            raise ConfigError(NAMED_UA_UNCONFIRMED)
+        elif _confirm_named_ua(console):
+            _record_named_ua(state_path, passphrase, console)
+        else:
+            console.print("[dim]Canceled. Nothing was sent.[/]")
+            return None
+
+    chosen: list[tuple[str, str]] = []
+    failed = 0
+    with Client(config.privacy) as client:
+        for item in items:
+            entry, why = item.entry, None
+            if entry is None:
+                try:
+                    with console.status(f"Looking up {escape(item.value)}..."):
+                        entry, why = preview.resolve(item.source, item.value, client)
+                except Exception as exc:
+                    console.print(
+                        f"[red]Couldn't look up[/] {escape(item.value)}: {escape(str(exc))}"
+                    )
+                    failed += 1
+                    continue
+            if add_to_config(text, item.source, [entry]).skipped:
+                console.print(
+                    f"[dim]Already watching {escape(entry)} under {escape(item.source)}[/]"
+                )
+                continue
+            try:
+                with console.status(f"Checking {escape(item.value)}..."):
+                    found = preview.options(
+                        item.source, entry, client, why=why, track_latest=config.track_latest
+                    )
+            except ConfigEntryError as exc:
+                raise ConfigError(str(exc)) from exc
+            try:
+                option = _choose(console, item.value, found, choosing)
+            except _Canceled:
+                console.print("[dim]Canceled. Nothing was written.[/]")
+                return None
+            if option is None:
+                console.print(f"[dim]Left out {escape(item.value)}[/]")
+            else:
+                chosen.append((option.source, option.entry))
+    if failed == len(items):
+        return None
+    return chosen
+
+
+def _choose(console: Console, value: str, found: list[Option], choosing: bool) -> Option | None:
+    """The option to add for ``value``"""
+    console.print(f"[bold]{escape(value)}[/]")
+    several = len(found) > 1
+    for number, option in enumerate(found, 1):
+        lead = f"{number}. " if several else ""
+        console.print(f"  {lead}{_option_line(option)}")
+        console.print(f"  {' ' * len(lead)}  {_option_found(option)}")
+    if not (choosing and several):
+        return found[0]
+    default = found[0] if found[0].error is None else None
+    numbers = "/".join(str(n) for n in range(1, len(found) + 1))
+    enter = "" if default is not None else ""
+    while True:
+        answer = _ask(f"Add which? [{numbers}/n{enter}] ")
+        if answer is None:
+            raise _Canceled
+        if not answer:
+            return default
+        if answer in ("n", "no"):
+            return None
+        if answer.isdigit() and 1 <= int(answer) <= len(found):
+            return found[int(answer) - 1]
+
+
+def _option_line(option: Option) -> str:
+    line = f"[cyan]{escape(option.source)}[/] {escape(option.entry)}"
+    return line + (f" [dim]({escape(option.why)})[/]" if option.why else "")
+
+
+def _option_found(option: Option) -> str:
+    if option.error is not None:
+        return f"[yellow]couldn't check it:[/] {escape(option.error)}"
+    name = escape(option.target.display)
+    newest = option.newest
+    if newest is None:
+        return f"{name} [dim]lists nothing yet[/]"
+    title = newest.title
+    if newest.version and newest.version not in title:
+        title = f"{title} ({newest.version})"
+    when = f" [dim]{newest.published:%Y-%m-%d}[/]" if newest.published else ""
+    return f"{name}, newest: {escape(title)}{when}"
+
+
 def cmd_edit(
-    args: argparse.Namespace, console: Console, plan: list[tuple[str, list[str]]] | None = None
+    args: argparse.Namespace,
+    console: Console,
+    plan: Plan | None = None,
+    *,
+    pick: Picker | None = None,
 ) -> int:
-    """`add`/`remove`, or `import` with the ``plan`` it read"""
+    """`add`/`remove`, or `import` with the ``plan`` it read. ``pick`` makes the plan once the config is read"""
     adding = args.command in ("add", "import")
     wipe = getattr(args, "wipe", False)
-    if plan is None:
+    if plan is None and pick is None:
         plan = _edit_plan(args.command, args.words)
     path = require_config(args.config)
     state_path = Path(args.state).expanduser() if wipe and args.state else default_state_path()
@@ -352,6 +659,11 @@ def cmd_edit(
     passphrase = crypto.prompt_passphrase() if config_locked or state_locked else None
 
     text = edited = read_config_text(path, passphrase)
+    if pick is not None:
+        plan = pick(text, path, passphrase if config_locked else None)
+        if plan is None:
+            return 1
+    assert plan is not None
     changes = []
     for source, entries in plan:
         change = (add_to_config if adding else remove_from_config)(edited, source, entries)
@@ -1266,7 +1578,9 @@ def main(argv: list[str] | None = None) -> int:
             return cmd_sources(console)
         if args.command == "list":
             return cmd_list(args, console)
-        if args.command in ("add", "remove", "rm"):
+        if args.command == "add":
+            return cmd_add(args, console)
+        if args.command in ("remove", "rm"):
             return cmd_edit(args, console)
         if args.command == "import":
             return cmd_import(args, console)
