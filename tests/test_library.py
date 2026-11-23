@@ -581,7 +581,8 @@ def test_library_use_reads_writes_and_prints_nothing(tmp_path):
             config = youpdated.parse_config({{"sources": {{"pypi": ["httpx"]}}}})
             with youpdated.State() as state, youpdated.Client(config.privacy, state) as client:
                 assert youpdated.run(config, state, client, by="library").ok
-        assert "rich" not in sys.modules
+        terminal = [m for m in sys.modules if m == "youpdated.cli" or m.startswith("youpdated.render")]
+        assert not terminal, terminal
         """,
         tmp_path,
     )
