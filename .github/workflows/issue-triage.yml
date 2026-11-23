@@ -87,6 +87,10 @@ jobs:
             if (context.eventName === "issues") {
               const action = context.payload.action;
               if (action === "opened") return;
+              // GitHub fires issues events for pull requests too (a PR is an issue
+              // underneath), e.g. when one is milestoned. Stage is an issue field, and
+              // repository.issue(number:) returns null for a PR, so skip them.
+              if (context.payload.issue.pull_request) return;
               const i = await issue(context.payload.issue.number);
               if (action === "milestoned" && i.status !== "In progress") await set(i, "Planned");
               if (action === "demilestoned" && i.status === "Planned") await set(i, null);
