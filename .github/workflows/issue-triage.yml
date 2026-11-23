@@ -11,6 +11,14 @@ name: issue triage
 #   Issue closed                         -> cleared
 #   Issue reopened                       -> Planned if it has a milestone
 #
+# Labels (only ever added, never removed):
+#
+#   PR changes files                     -> by path, from .github/labeler.yml
+#   Issue or PR opened mentioning a      -> privacy / accessibility
+#     proxy, Tor, telemetry, VoiceOver...
+#   Bug filed against an app             -> app
+#   PR closes an issue                   -> the issue's descriptive labels
+#
 # pull_request_target runs this file from main, with a token that can write to
 # issues even for PRs from forks. Nothing here checks out or runs PR code.
 
@@ -87,6 +95,10 @@ jobs:
             if (context.eventName === "issues") {
               const action = context.payload.action;
               if (action === "opened") return;
+              // GitHub fires issues events for pull requests too (a PR is an issue
+              // underneath), e.g. when one is milestoned. Stage is an issue field, and
+              // repository.issue(number:) returns null for a PR, so skip them.
+              if (context.payload.issue.pull_request) return;
               const i = await issue(context.payload.issue.number);
               if (action === "milestoned" && i.status !== "In progress") await set(i, "Planned");
               if (action === "demilestoned" && i.status === "Planned") await set(i, null);
@@ -127,13 +139,61 @@ jobs:
       - if: github.event_name == 'pull_request_target' && github.event.action != 'closed'
         uses: actions/labeler@v7
 
-      # The bug form's "Where it happened" answer lands in the body under its heading.
+      # Labels by wording and by linked issues. Only ever adds: a label someone
+      # removed by hand stays removed unless the text that earned it is new.
       - if: >-
-          github.event_name == 'issues' && github.event.action == 'opened' &&
-          (contains(github.event.issue.body, 'Mac app (beta)') ||
-           contains(github.event.issue.body, 'Windows app (beta)'))
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-          NUMBER: ${{ github.event.issue.number }}
-        run: gh issue edit "$NUMBER" --add-label app
+          (github.event_name == 'issues' && github.event.action == 'opened') ||
+          (github.event_name == 'pull_request_target' &&
+           contains(fromJSON('["opened", "reopened", "edited"]'), github.event.action))
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            const action = context.payload.action;
+            const pr = context.payload.pull_request;
+            const item = pr ?? context.payload.issue;
+            const add = new Set();
+
+            // Wording. Only on the first look, so editing a typo doesn't bring back a
+            // label someone took off. Template comments are dropped first, so the PR
+            // template's own words never count. Keep these to terms that rarely mean
+            // anything else here: "anonymous" and "tracking" are out, because of
+            // anonymous registry tokens and "tracking a package".
+            if (action === "opened") {
+              const text = `${item.title}\n${item.body ?? ""}`.replace(/<!--[\s\S]*?-->/g, "");
+              const keywords = {
+                privacy: /\b(prox(y|ies)|tor|socks5?h?|telemetry|anonymity|fingerprint(ing)?|user[- ]agents?)\b/i,
+                accessibility: /\b(accessibility|a11y|screen ?readers?|voiceover|narrator|nvda|jaws|high contrast|reduced? motion|dynamic type|keyboard navigation)\b/i,
+              };
+              for (const [label, re] of Object.entries(keywords)) if (re.test(text)) add.add(label);
+            }
+
+            // The bug form's "Where it happened" answer lands in the body under its heading.
+            if (!pr && /^(Mac|Windows) app \(beta\)\r?$/m.test(item.body ?? "")) add.add("app");
+
+            // A PR inherits what describes the issues it closes ("Fixes #N", or linked
+            // in the sidebar). Not triage labels like question or help wanted, which
+            // are about the issue's discussion, not the change.
+            if (pr) {
+              const inherit = new Set(["app", "platform", "privacy", "accessibility", "source request", "documentation"]);
+              const linked = await github.graphql(`
+                query($owner: String!, $repo: String!, $number: Int!) {
+                  repository(owner: $owner, name: $repo) {
+                    pullRequest(number: $number) {
+                      closingIssuesReferences(first: 20) {
+                        nodes { repository { nameWithOwner } labels(first: 50) { nodes { name } } }
+                      }
+                    }
+                  }
+                }`, { owner, repo, number: pr.number });
+              for (const n of linked.repository.pullRequest.closingIssuesReferences.nodes) {
+                if (n.repository.nameWithOwner !== `${owner}/${repo}`) continue;
+                for (const l of n.labels.nodes) if (inherit.has(l.name)) add.add(l.name);
+              }
+            }
+
+            const have = new Set(item.labels.map(l => l.name));
+            const labels = [...add].filter(l => !have.has(l));
+            if (!labels.length) return;
+            await github.rest.issues.addLabels({ owner, repo, issue_number: item.number, labels });
+            core.info(`#${item.number}: + ${labels.join(", ")}`);

@@ -1,4 +1,5 @@
-# Labels pull requests by the files they change. Read by issue-triage.yml.
+# Labels pull requests by the files they change. Read by issue-triage.yml, which
+# also labels issues and PRs by their wording and by the issues a PR closes.
 
 app:
   - changed-files:
@@ -9,3 +10,26 @@ app:
 documentation:
   - changed-files:
       - any-glob-to-all-files: ["docs/**", "*.md", "examples/**"]
+
+# The one HTTP path (proxy, Tor, user agents, cookies) and at-rest encryption are
+# where the no-telemetry and local-only guarantees live, so any change there is
+# worth a privacy-minded look.
+privacy:
+  - changed-files:
+      - any-glob-to-any-file:
+          - youpdated/http.py
+          - youpdated/crypto.py
+          - docs/privacy.md
+          - docs/encryption.md
+
+github_actions:
+  - changed-files:
+      - any-glob-to-any-file: [".github/workflows/**", ".github/labeler.yml"]
+
+# Only files that hold nothing but dependency pins. pyproject.toml and the .csproj
+# files also carry versions and build settings, so they'd label most releases.
+dependencies:
+  - changed-files:
+      - any-glob-to-any-file:
+          - apps/engine/requirements.txt
+          - apps/macos/scripts/dmg-requirements.txt
