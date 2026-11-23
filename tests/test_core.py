@@ -332,6 +332,34 @@ def test_bodies_are_not_reused_outside_a_run_scope(state, client):
 
 
 @respx.mock
+def test_a_nested_run_scope_joins_the_outer_one(state, client):
+    """A source calling `newer()` inside `run()`: leaving the inner scope keeps the run's memory"""
+    shared = respx.get("https://e.com/shared.json").mock(
+        side_effect=[
+            httpx.Response(200, content=b'{"v": 1}'),
+            httpx.Response(200, content=b'{"v": 2}'),
+        ]
+    )
+    refused = respx.get("https://a.itch.io/game").mock(return_value=httpx.Response(403))
+    other = respx.get("https://b.itch.io/game").mock(return_value=httpx.Response(200))
+    with client.run_scope():
+        client.get("https://e.com/shared.json")
+        with client.run_scope():
+            assert client.get("https://e.com/shared.json").content == b'{"v": 1}'
+            with pytest.raises(FetchError, match="HTTP 403"):
+                client.get("https://a.itch.io/game")
+        assert client.get("https://e.com/shared.json").content == b'{"v": 1}'
+        with pytest.raises(FetchError, match="not sent"):
+            client.get("https://b.itch.io/game")
+    assert shared.call_count == 1 and refused.call_count == 1 and other.call_count == 0
+    # The last scope out clears both
+    with client.run_scope():
+        assert client.get("https://e.com/shared.json").content == b'{"v": 2}'
+        client.get("https://b.itch.io/game")
+    assert other.call_count == 1
+
+
+@respx.mock
 def test_use_conditional_false_skips_validators(state):
     state.remember_validators("https://e.com/feed", '"tag"', None)
     route = respx.get("https://e.com/feed").mock(return_value=httpx.Response(200, content=b"x"))

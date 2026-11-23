@@ -278,7 +278,7 @@ if cached is None:
         client.state.cache_set("my_namespace", key, cached)
 ```
 
-`client.state` may be `None`
+`client.state` may be `None`: [`newer()`](docs/library.md) and in-memory library use fetch without history, so a source must still work without its cache.
 
 If the key is the target's `key`, list the namespace on the source so `youpdated rm --wipe` forgets it with the rest of the target's history:
 

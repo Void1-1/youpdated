@@ -7,9 +7,9 @@ Thanks for looking. This is a small project with a few constraints.
 These are the reasons the tool exists, so a change that breaks one needs a strong argument:
 
 1. **No accounts, no required API keys.** Every source works unauthenticated. Keys are read from the environment when present, only to raise rate limits, and are never written to disk.
-2. **Nothing leaves the machine** except requests to the sources the user configured. No telemetry, no crash reporting, no update checks for Youpdated itself.
+2. **Nothing leaves the machine** except requests to the sources the user configured. No telemetry, no crash reporting, no update checks for Youpdated itself. Youpdated never checks for *its own* updates on its own initiative. A program using it [as a library](docs/library.md) that asks it to check that program's own releases has configured that source itself, so that's allowed.
 3. **One HTTP path.** Every request goes through `client.get()` in [youpdated/http.py](youpdated/http.py).
-4. **Files stay in the platform's config and data directories.** Nowhere else.
+4. **Files stay in the platform's config and data directories.** Nowhere else. As a library, Youpdated reads and writes only the paths the calling program gives it, and nothing when it gives none.
 
 ## Setting up
 

@@ -1786,6 +1786,8 @@ def cmd_check(args: argparse.Namespace, console: Console) -> int:
             verbose=args.verbose or args.test,
             use_conditional=not args.all,
             logger=lambda msg: status.print(escape(msg), style="dim"),
+            # Probed above, before the history was opened
+            proxy_probed=True,
         ) as client:
             if args.verbose or args.test:
                 status.print(f"[dim]config: {escape(str(config.path))}[/]")

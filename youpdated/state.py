@@ -252,6 +252,8 @@ class State:
             raise
 
     def _open(self) -> None:
+        if not self.encrypted and self.path is not None and crypto.is_encrypted_file(self.path):
+            raise crypto.EncryptionError(f"{self.path} is encrypted; a passphrase is required")
         restore = self._read_encrypted() if self.encrypted else None
         target = ":memory:" if (self.path is None or self.encrypted) else str(self.path)
         self._lock = threading.Lock()

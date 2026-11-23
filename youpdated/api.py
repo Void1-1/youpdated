@@ -790,7 +790,8 @@ class Engine:
             self._opening = False
             self._cond.notify_all()
         # kept open after the reply when icons are fetched
-        client = Client(config.privacy, state)
+        # The proxy was probed above, before the history was opened
+        client = Client(config.privacy, state, proxy_probed=True)
         due: list[Target] = []
         try:
             result = run(
