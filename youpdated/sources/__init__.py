@@ -1,10 +1,13 @@
 """Built-in sources. Importing this package registers all"""
 
 from . import (  # noqa: F401
-    browser, generic, git, homebrew, itch, jsondoc, npm, pypi, steam, webpage, youtube
+    appstore, browser, crates, fdroid, flathub, generic, git, go, gog, homebrew, itch, jsondoc,
+    maven, modrinth, npm, nuget, packagist, pypi, rubygems, sparkle, steam, webpage, winget,
+    youtube,
 )
 
 __all__ = [
-    "browser", "generic", "git", "homebrew", "itch", "jsondoc", "npm", "pypi", "steam", "webpage",
-    "youtube",
+    "appstore", "browser", "crates", "fdroid", "flathub", "generic", "git", "go", "gog",
+    "homebrew", "itch", "jsondoc", "maven", "modrinth", "npm", "nuget", "packagist", "pypi",
+    "rubygems", "sparkle", "steam", "webpage", "winget", "youtube",
 ]

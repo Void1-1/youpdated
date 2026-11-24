@@ -613,9 +613,11 @@ def _looked_up(
                     )
                     failed += 1
                     continue
-            if add_to_config(text, item.source, [entry]).skipped:
+            change = add_to_config(text, item.source, [entry])
+            if change.skipped:
+                watched = change.watched_as.get(entry, entry)
                 console.print(
-                    f"[dim]Already watching {escape(entry)} under {escape(item.source)}[/]"
+                    f"[dim]Already watching {escape(watched)} under {escape(item.source)}[/]"
                 )
                 continue
             try:
@@ -718,8 +720,9 @@ def cmd_edit(
     for change in changes:
         if adding and change.skipped:
             # one line per source, an import can skip a lot
+            watched = dict.fromkeys(change.watched_as.get(s, s) for s in change.skipped)
             console.print(
-                f"[dim]Already watching {escape(', '.join(change.skipped))} "
+                f"[dim]Already watching {escape(', '.join(watched))} "
                 f"under {escape(change.section)}[/]"
             )
         elif not adding:

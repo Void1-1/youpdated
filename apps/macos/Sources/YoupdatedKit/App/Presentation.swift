@@ -29,8 +29,9 @@ public enum SourceStyle {
     public static func symbolName(_ source: String) -> String {
         switch source {
         case "git": "chevron.left.forwardslash.chevron.right"
-        case "steam", "itch": "gamecontroller"
-        case "npm", "pypi": "shippingbox"
+        case "steam", "itch", "gog", "modrinth": "gamecontroller"
+        case "npm", "pypi", "crates", "go", "rubygems", "packagist", "nuget", "maven": "shippingbox"
+        case "sparkle", "appstore", "flathub", "fdroid", "winget": "app.badge"
         case "homebrew": "mug"
         case "youtube": "play.rectangle"
         case "feed": "dot.radiowaves.up.forward"
@@ -64,6 +65,19 @@ public enum SourceLabel {
         case "npm": return "npm"
         case "pypi": return "PyPI"
         case "homebrew": return "Homebrew"
+        case "crates": return "crates.io"
+        case "go": return "Go"
+        case "rubygems": return "RubyGems"
+        case "packagist": return "Packagist"
+        case "nuget": return "NuGet"
+        case "maven": return "Maven"
+        case "sparkle": return "Sparkle"
+        case "appstore": return "App Store"
+        case "flathub": return "Flathub"
+        case "fdroid": return "F-Droid"
+        case "winget": return "winget"
+        case "gog": return "GOG"
+        case "modrinth": return "Modrinth"
         case "youtube": return "YouTube"
         case "feed": return key.flatMap(host(of:)) ?? String(localized: "Feed")
         case "browser": return String(localized: "Browsers")

@@ -28,6 +28,21 @@ jobs:
           - source: browser
           - source: feed
           - source: pypi
+          - source: crates
+          - source: go
+          - source: rubygems
+          - source: packagist
+          - source: nuget
+          - source: maven
+          - source: sparkle
+          - source: appstore
+          - source: flathub
+          - source: fdroid
+          # anonymous GitHub API calls are 60 an hour per IP, shared on runners
+          - source: winget
+            flaky: true
+          - source: gog
+          - source: modrinth
 
     steps:
       - uses: actions/checkout@v7

@@ -59,3 +59,42 @@ sources:
 
   pypi:
     - youpdated
+
+  crates:
+    - serde
+
+  go:
+    - github.com/spf13/cobra
+
+  rubygems:
+    - rails
+
+  packagist:
+    - monolog/monolog
+
+  nuget:
+    - Newtonsoft.Json
+
+  maven:
+    - com.google.guava:guava
+
+  sparkle:
+    - https://www.iterm2.com/appcasts/final_modern.xml
+
+  appstore:
+    - 284882215
+
+  flathub:
+    - org.mozilla.firefox
+
+  fdroid:
+    - org.fdroid.fdroid
+
+  winget:
+    - Mozilla.Firefox
+
+  gog:
+    - 1207658924
+
+  modrinth:
+    - sodium

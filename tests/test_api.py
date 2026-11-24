@@ -513,7 +513,9 @@ def test_preview_says_which_source_is_meant(tmp_path):
     engine = Engine(tmp_path / "config.yaml", tmp_path / "state.db")
     ambiguous = engine("targets.preview", value="express")
     assert ambiguous["error"]["code"] == "ambiguous"
-    assert ambiguous["error"]["choices"] == ["homebrew", "npm", "pypi"]
+    assert ambiguous["error"]["choices"] == [
+        "crates", "homebrew", "modrinth", "npm", "nuget", "pypi", "rubygems",
+    ]
     assert engine("targets.preview", value="hello there")["error"]["code"] == "unrecognized"
 
 

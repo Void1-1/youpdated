@@ -1,0 +1,212 @@
+[
+ {
+  "id": "6etTPjD5",
+  "project_id": "AANobbMI",
+  "name": "Sodium 0.9.4-beta.1 for Fabric 26.3",
+  "version_number": "mc26.3-0.9.4-beta.1-fabric",
+  "version_type": "beta",
+  "date_published": "2026-11-23T02:14:03.524022Z",
+  "game_versions": [
+   "26.3"
+  ],
+  "loaders": [
+   "fabric"
+  ],
+  "changelog": "Sodium 0.9.4-beta.1 is a followup release to Sodium 0.9.3 and includes bug fixes.\n\n- Fixed rare cases of missing terrain when using spherical render distance and moving very rapidly"
+ },
+ {
+  "id": "LHznwVbu",
+  "project_id": "AANobbMI",
+  "name": "Sodium 0.9.4-beta.1 for NeoForge 26.3",
+  "version_number": "mc26.3-0.9.4-beta.1-neoforge",
+  "version_type": "beta",
+  "date_published": "2026-11-23T02:14:03.505173Z",
+  "game_versions": [
+   "26.3"
+  ],
+  "loaders": [
+   "neoforge"
+  ],
+  "changelog": "Sodium 0.9.4-beta.1 is a followup release to Sodium 0.9.3 and includes bug fixes.\n\n- Fixed rare cases of missing terrain when using spherical render distance and moving very rapidly"
+ },
+ {
+  "id": "2R9btaY6",
+  "project_id": "AANobbMI",
+  "name": "Sodium 0.9.3 for NeoForge 26.3",
+  "version_number": "mc26.3-0.9.3-neoforge",
+  "version_type": "release",
+  "date_published": "2026-11-21T18:19:30.183565Z",
+  "game_versions": [
+   "26.3"
+  ],
+  "loaders": [
+   "neoforge"
+  ],
+  "changelog": "Sodium 0.9.3 adds the option to use spherical render distance and appropriate fog. Additionally, we've implemented a number of bug fixes and minor improvements. The release now includes constraints for NeoForge to prevent launching in broken configurations. Vanilla graphics options are now automatic"
+ },
+ {
+  "id": "tFcTKXDx",
+  "project_id": "AANobbMI",
+  "name": "Sodium 0.9.3 for Fabric 26.3",
+  "version_number": "mc26.3-0.9.3-fabric",
+  "version_type": "release",
+  "date_published": "2026-11-21T18:19:30.089939Z",
+  "game_versions": [
+   "26.3"
+  ],
+  "loaders": [
+   "fabric"
+  ],
+  "changelog": "Sodium 0.9.3 adds the option to use spherical render distance and appropriate fog. Additionally, we've implemented a number of bug fixes and minor improvements. The release now includes constraints for NeoForge to prevent launching in broken configurations. Vanilla graphics options are now automatic"
+ },
+ {
+  "id": "CT6qQx01",
+  "project_id": "AANobbMI",
+  "name": "Sodium 0.9.3-beta.5 for NeoForge 26.3",
+  "version_number": "mc26.3-0.9.3-beta.5-neoforge",
+  "version_type": "beta",
+  "date_published": "2026-11-12T01:12:30.162066Z",
+  "game_versions": [
+   "26.3"
+  ],
+  "loaders": [
+   "neoforge"
+  ],
+  "changelog": "Sodium 0.9.3-beta.5 implements a number of bug fixes and minor improvements.\n\n- Show macOS fullscreen menu visibility option on the Sodium options screen\n- Fix Fluid Culling For Non-Full Blocks With Unusual Shapes ([#3916](https://github.com/CaffeineMC/sodium/pull/3916))\n- Use SDL message box instea"
+ },
+ {
+  "id": "v7Lw0h1m",
+  "project_id": "AANobbMI",
+  "name": "Sodium 0.9.3-beta.5 for Fabric 26.3",
+  "version_number": "mc26.3-0.9.3-beta.5-fabric",
+  "version_type": "beta",
+  "date_published": "2026-11-12T01:12:30.154674Z",
+  "game_versions": [
+   "26.3"
+  ],
+  "loaders": [
+   "fabric"
+  ],
+  "changelog": "Sodium 0.9.3-beta.5 implements a number of bug fixes and minor improvements.\n\n- Show macOS fullscreen menu visibility option on the Sodium options screen\n- Fix Fluid Culling For Non-Full Blocks With Unusual Shapes ([#3916](https://github.com/CaffeineMC/sodium/pull/3916))\n- Use SDL message box instea"
+ },
+ {
+  "id": "zqgcaQxE",
+  "project_id": "AANobbMI",
+  "name": "Sodium 0.9.3-beta.4 for NeoForge 26.3",
+  "version_number": "mc26.3-0.9.3-beta.4-neoforge",
+  "version_type": "beta",
+  "date_published": "2026-11-08T03:54:24.510506Z",
+  "game_versions": [
+   "26.3"
+  ],
+  "loaders": [
+   "neoforge"
+  ],
+  "changelog": "Sodium 0.9.3-beta.4 implements a number of bug fixes and minor improvements.\n\n- Show macOS fullscreen menu visibility option on the Sodium options screen\n- Fix Fluid Culling For Non-Full Blocks With Unusual Shapes ([#3916](https://github.com/CaffeineMC/sodium/pull/3916))\n- Use SDL message box instea"
+ },
+ {
+  "id": "2MZWfUts",
+  "project_id": "AANobbMI",
+  "name": "Sodium 0.9.3-beta.4 for Fabric 26.3",
+  "version_number": "mc26.3-0.9.3-beta.4-fabric",
+  "version_type": "beta",
+  "date_published": "2026-11-08T03:54:24.496862Z",
+  "game_versions": [
+   "26.3"
+  ],
+  "loaders": [
+   "fabric"
+  ],
+  "changelog": "Sodium 0.9.3-beta.4 implements a number of bug fixes and minor improvements.\n\n- Show macOS fullscreen menu visibility option on the Sodium options screen\n- Fix Fluid Culling For Non-Full Blocks With Unusual Shapes ([#3916](https://github.com/CaffeineMC/sodium/pull/3916))\n- Use SDL message box instea"
+ },
+ {
+  "id": "aFVpk3tG",
+  "project_id": "AANobbMI",
+  "name": "Sodium 0.9.3-beta.3 for Fabric 26.3",
+  "version_number": "mc26.3-0.9.3-beta.3-fabric",
+  "version_type": "beta",
+  "date_published": "2026-11-07T02:07:28.269034Z",
+  "game_versions": [
+   "26.3"
+  ],
+  "loaders": [
+   "fabric"
+  ],
+  "changelog": "Sodium 0.9.3-beta.3 implements a number of bug fixes and minor improvements.\n\n- Show macOS fullscreen menu visibility option on the Sodium options screen\n- Fix Fluid Culling For Non-Full Blocks With Unusual Shapes ([#3916](https://github.com/CaffeineMC/sodium/pull/3916))\n- Use SDL message box instea"
+ },
+ {
+  "id": "Sx1xfT5Y",
+  "project_id": "AANobbMI",
+  "name": "Sodium 0.9.3-beta.3 for NeoForge 26.3",
+  "version_number": "mc26.3-0.9.3-beta.3-neoforge",
+  "version_type": "beta",
+  "date_published": "2026-11-07T02:07:28.204186Z",
+  "game_versions": [
+   "26.3"
+  ],
+  "loaders": [
+   "neoforge"
+  ],
+  "changelog": "Sodium 0.9.3-beta.3 implements a number of bug fixes and minor improvements.\n\n- Show macOS fullscreen menu visibility option on the Sodium options screen\n- Fix Fluid Culling For Non-Full Blocks With Unusual Shapes ([#3916](https://github.com/CaffeineMC/sodium/pull/3916))\n- Use SDL message box instea"
+ },
+ {
+  "id": "RlRgB5qP",
+  "project_id": "AANobbMI",
+  "name": "Sodium 0.9.3-beta.2 for Fabric 26.3",
+  "version_number": "mc26.3-0.9.3-beta.2-fabric",
+  "version_type": "beta",
+  "date_published": "2026-11-07T01:34:13.438886Z",
+  "game_versions": [
+   "26.3"
+  ],
+  "loaders": [
+   "fabric"
+  ],
+  "changelog": "Sodium 0.9.3-beta.2 implements a number of bug fixes and minor improvements.\n\n- Show macOS fullscreen menu visibility option on the Sodium options screen\n- Fix Fluid Culling For Non-Full Blocks With Unusual Shapes ([#3916](https://github.com/CaffeineMC/sodium/pull/3916))\n- Use SDL message box instea"
+ },
+ {
+  "id": "V4VWv3Mk",
+  "project_id": "AANobbMI",
+  "name": "Sodium 0.9.3-beta.2 for NeoForge 26.3",
+  "version_number": "mc26.3-0.9.3-beta.2-neoforge",
+  "version_type": "beta",
+  "date_published": "2026-11-07T01:34:13.436565Z",
+  "game_versions": [
+   "26.3"
+  ],
+  "loaders": [
+   "neoforge"
+  ],
+  "changelog": "Sodium 0.9.3-beta.2 implements a number of bug fixes and minor improvements.\n\n- Show macOS fullscreen menu visibility option on the Sodium options screen\n- Fix Fluid Culling For Non-Full Blocks With Unusual Shapes ([#3916](https://github.com/CaffeineMC/sodium/pull/3916))\n- Use SDL message box instea"
+ },
+ {
+  "id": "g6ju16VJ",
+  "project_id": "AANobbMI",
+  "name": "Sodium 0.9.3-beta.1 for Fabric 26.3",
+  "version_number": "mc26.3-0.9.3-beta.1-fabric",
+  "version_type": "beta",
+  "date_published": "2026-10-15T17:51:44.107526Z",
+  "game_versions": [
+   "26.3"
+  ],
+  "loaders": [
+   "fabric"
+  ],
+  "changelog": "Sodium 0.9.3-beta.1 implements a number of bug fixes and minor improvements.\n\n- Show macOS fullscreen menu visibility option on the Sodium options screen\n- Fix Fluid Culling For Non-Full Blocks With Unusual Shapes ([#3916](https://github.com/CaffeineMC/sodium/pull/3916))\n- Use SDL message box instea"
+ },
+ {
+  "id": "SS023RVV",
+  "project_id": "AANobbMI",
+  "name": "Sodium 0.9.3-beta.1 for NeoForge 26.3",
+  "version_number": "mc26.3-0.9.3-beta.1-neoforge",
+  "version_type": "beta",
+  "date_published": "2026-10-15T17:51:44.019537Z",
+  "game_versions": [
+   "26.3"
+  ],
+  "loaders": [
+   "neoforge"
+  ],
+  "changelog": "Sodium 0.9.3-beta.1 implements a number of bug fixes and minor improvements.\n\n- Show macOS fullscreen menu visibility option on the Sodium options screen\n- Fix Fluid Culling For Non-Full Blocks With Unusual Shapes ([#3916](https://github.com/CaffeineMC/sodium/pull/3916))\n- Use SDL message box instea"
+ }
+]

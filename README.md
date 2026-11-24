@@ -46,8 +46,21 @@
 | `npm` | New versions of a JavaScript package |
 | `homebrew` | New versions of a Homebrew formula or cask |
 | `pypi` | New releases of a Python package, and if it's archived or deprecated |
+| `crates` | New releases of a Rust crate on crates.io |
+| `go` | New versions of a Go module |
+| `rubygems` | New releases of a Ruby gem |
+| `packagist` | New releases of a PHP package on Packagist |
+| `nuget` | New releases of a NuGet (.NET) package |
+| `maven` | New versions of a Maven artifact, on Maven Central or another repository |
+| `sparkle` | New releases of a Mac app, from its Sparkle appcast used to check updates |
+| `appstore` | New versions of an Apple App Store app |
+| `flathub` | New releases of a Linux app on Flathub |
+| `fdroid` | New versions of an Android app on F-Droid |
+| `winget` | New versions of a Windows Package Manager package |
 | `steam` | Patch notes and news for a game |
 | `itch` | Devlog posts and new builds of an itch.io game |
+| `gog` | New builds of a GOG game |
+| `modrinth` | New versions of a Minecraft mod, plugin, or pack on Modrinth |
 | `youtube` | New videos on a channel or playlist |
 | `browser` | New Chrome, Brave, Firefox, and Edge releases |
 | `feed` | Anything else with an RSS or Atom feed |
@@ -130,8 +143,21 @@ youpdated check
 | An npm package | `express`, `"@types/node"` | The package name on npmjs.com. **Quote names starting with `@`.** |
 | A Homebrew formula or cask | `wget`, `cask:firefox` | The name after `brew install`. Put `cask:` in front of casks. |
 | A PyPI package | `httpx` | The name after `pip install`. |
+| A Rust crate | `serde` | The name on crates.io, or after `cargo add`. |
+| A Go module | `github.com/spf13/cobra` | The path after `go get`. A `pkg.go.dev` URL also works. |
+| A Ruby gem | `rails` | The name after `gem install`. |
+| A PHP package | `monolog/monolog` | The `vendor/package` after `composer require`. |
+| A NuGet package | `Newtonsoft.Json` | The id after `dotnet add package`. |
+| A Maven artifact | `com.google.guava:guava` | `group:artifact`, as in a Gradle dependency. |
+| A Mac app with Sparkle | `https://www.iterm2.com/appcasts/final_modern.xml` | The app's appcast URL: `defaults read /Applications/<App>.app/Contents/Info SUFeedURL`. |
+| An App Store app | `284882215` | The number after `id` in its `apps.apple.com` URL. The URL also works. |
+| A Flathub app | `org.mozilla.firefox` | The app id at the end of its `flathub.org/apps/` URL, or after `flatpak install`. |
+| An F-Droid app | `org.fdroid.fdroid` | The package name at the end of its `f-droid.org/packages/` URL. |
+| A winget package | `Mozilla.Firefox` | The id `winget search` shows. |
 | A Steam game | `440` | The number in the store URL: `store.steampowered.com/app/`**`440`**`/Team_Fortress_2/`. The full store URL also works. |
 | An itch.io game | `https://user.itch.io/game-name` | The game's page URL, exactly as it appears in the address bar. |
+| A GOG game | `1207658924` | The game's product id. `youpdated add` with its store page URL looks the id up. |
+| A Modrinth project | `sodium` | The name at the end of its `modrinth.com/mod/` URL. The URL also works. |
 | A YouTube channel | `"@NASA"` | The `@handle` from the channel URL. **Keep the quotes with `@` characters** |
 | A YouTube playlist | `https://www.youtube.com/playlist?list=PLxxxx` | The playlist's URL, as it appears in the address bar. `playlist: PLxxxx`, with just the `list=` section, also works. |
 | A browser | `chrome`, `brave`, `firefox`, `edge` | Just the name. |

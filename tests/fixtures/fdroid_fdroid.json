@@ -1,0 +1,18 @@
+{
+ "packageName": "org.fdroid.fdroid",
+ "suggestedVersionCode": 2000053,
+ "packages": [
+  {
+   "versionName": "2.0.3",
+   "versionCode": 2000053
+  },
+  {
+   "versionName": "2.0.2",
+   "versionCode": 2000052
+  },
+  {
+   "versionName": "2.0.1",
+   "versionCode": 2000051
+  }
+ ]
+}
