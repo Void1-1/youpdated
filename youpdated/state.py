@@ -16,6 +16,7 @@ from typing import Any, Generator, Iterable
 
 from . import crypto
 from .config import PRIORITIES
+from .errors import YoupdatedError
 from .models import Update
 
 # ``(source, key)`` of a target
@@ -154,7 +155,7 @@ def _rules_value(rules: Iterable[frozenset[str]]) -> str:
     return "|".join(sorted({",".join(sorted(ignore)) for ignore in rules}))
 
 
-class StateError(Exception):
+class StateError(YoupdatedError):
     """raised with message for the user"""
 
 
@@ -252,6 +253,8 @@ class State:
             raise
 
     def _open(self) -> None:
+        if not self.encrypted and self.path is not None and crypto.is_encrypted_file(self.path):
+            raise crypto.EncryptionError(f"{self.path} is encrypted; a passphrase is required")
         restore = self._read_encrypted() if self.encrypted else None
         target = ":memory:" if (self.path is None or self.encrypted) else str(self.path)
         self._lock = threading.Lock()
@@ -283,7 +286,9 @@ class State:
                 self._conn.close()
                 raise StateError(f"{self.path}: not a youpdated history database ({exc})") from exc
 
-    # only applicable to minor version differences, WILL NOT HANDLE MAJOR ONES HERE, will also only exist for a limited amount of versions after change
+    # Only for differences within a major version, never across majors.
+    # A library host keeps its history file across upgrades
+    # ex: v1.0.0 drops all migrations for versions within v0.x.x, and v2.0.0 would drop any for within v1.x.x
     def _migrate(self) -> None:
         """Bring a database written by an older version up to the current schema"""
         columns = {row["name"] for row in self._conn.execute("PRAGMA table_info(seen)")}
@@ -737,7 +742,7 @@ class State:
             return None
 
     def set_last_run(self, when: datetime | None = None, by: str | None = None) -> None:
-        """``by`` is ``app`` or ``cli``"""
+        """``by`` is ``app``, ``cli``, or a library host's name"""
         self.cache_set("meta", "last_run", (when or datetime.now(timezone.utc)).isoformat())
         if by is not None:
             self.cache_set("app", "last_run_by", by)

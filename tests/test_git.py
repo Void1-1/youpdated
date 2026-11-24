@@ -388,7 +388,7 @@ def test_github_history_moves_to_git(tmp_path):
 
     with State(path) as state:
         assert not state.is_new(
-            Update("git", "github.com/python/cpython", "release:v3.15.0", "", "")
+            Update(source="git", target="github.com/python/cpython", uid="release:v3.15.0", title="", url="")
         )
         assert state.is_baselined("git", "github.com/python/cpython")
         assert not state.ignore_rules_changed(

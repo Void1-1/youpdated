@@ -197,4 +197,5 @@ youpdated uninstall          # remove Youpdated and its files
 - [Privacy](https://github.com/Void1-1/youpdated/blob/main/docs/privacy.md): proxies, Tor, and details on what information is sent where
 - [Encryption at rest](https://github.com/Void1-1/youpdated/blob/main/docs/encryption.md): lock your config and history behind a passphrase
 - [Troubleshooting](https://github.com/Void1-1/youpdated/blob/main/docs/troubleshooting.md): common issues, and more about uninstalling
+- [Library](https://github.com/Void1-1/youpdated/blob/main/docs/library.md): use Youpdated from Python as a dependency tracker or to check for your own program's releases
 - [Contributing](https://github.com/Void1-1/youpdated/blob/main/CONTRIBUTING.md): installing from source, running the tests, and [adding a source](https://github.com/Void1-1/youpdated/blob/main/ADDING_SOURCES.md)

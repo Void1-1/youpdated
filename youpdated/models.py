@@ -20,7 +20,8 @@ def clean_text(text: Any) -> str:
     return _UNSAFE_RE.sub("", text if isinstance(text, str) else str(text))
 
 
-@dataclass
+# Keyword-only
+@dataclass(kw_only=True)
 class Target:
     """Target watched, normalized from a config entry.
 
@@ -62,7 +63,7 @@ class Target:
         return self.ignore | {f"match:{glob}" for glob in self.versions.match}
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, kw_only=True)
 class Update:
     source: str
     target: str
@@ -108,7 +109,7 @@ class Update:
         }
 
 
-@dataclass
+@dataclass(kw_only=True)
 class RunError:
     """A source failure, collected not raised"""
 

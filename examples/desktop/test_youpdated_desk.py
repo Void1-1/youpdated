@@ -103,7 +103,7 @@ def test_summary_falls_back_to_the_raw_target():
 
 
 def test_first_error_counts_the_others():
-    result = RunResult(errors=[RunError("github", "a", "boom"), RunError("npm", "b", "bang")])
+    result = RunResult(errors=[RunError(source="github", target="a", message="boom"), RunError(source="npm", target="b", message="bang")])
     assert desk._first_error(result) == "github/a: boom (+1 more)"
     assert desk._first_error(RunResult()) is None
 
