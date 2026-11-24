@@ -1,0 +1,15 @@
+{
+ "resultCount": 1,
+ "results": [
+  {
+   "kind": "software",
+   "trackId": 284882215,
+   "trackName": "Facebook",
+   "bundleId": "com.facebook.Facebook",
+   "version": "588.1",
+   "currentVersionReleaseDate": "2026-11-20T07:29:44Z",
+   "releaseNotes": "Our teams have solved many crashes, fixed issues you\u2019ve reported and made the app faster.",
+   "trackViewUrl": "https://apps.apple.com/us/app/facebook/id284882215?uo=4"
+  }
+ ]
+}

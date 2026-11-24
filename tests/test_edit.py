@@ -104,6 +104,20 @@ def test_an_entry_already_watched_in_another_form_is_skipped():
     )
     assert change.skipped == ["https://github.com/python/cpython", "github.com/torvalds/linux"]
     assert change.applied == ["torvalds/linux"]
+    # the skipped value as given, and the config entry that watches it
+    assert change.watched_as == {
+        "https://github.com/python/cpython": "python/cpython",
+        "github.com/torvalds/linux": "torvalds/linux",
+    }
+
+
+def test_an_already_watched_entry_names_the_configs_spelling():
+    text = "sources:\n  crates:\n    - serde_json\n    - {crate: Tokio, name: Tokio}\n"
+    change = add_to_config(text, "crates", ["serde-json", "tokio"])
+    assert change.skipped == ["serde-json", "tokio"]
+    assert change.watched_as == {
+        "serde-json": "serde_json", "tokio": "{crate: Tokio, name: Tokio}",
+    }
 
 
 def test_nothing_new_leaves_the_text_alone():
@@ -118,8 +132,8 @@ def test_an_entry_the_source_rejects_is_an_error():
 
 
 def test_an_unknown_source_is_an_error():
-    with pytest.raises(ConfigError, match="unknown source `crates`"):
-        add_to_config(EXAMPLE_CONFIG, "crates", ["serde"])
+    with pytest.raises(ConfigError, match="unknown source `cargo`"):
+        add_to_config(EXAMPLE_CONFIG, "cargo", ["serde"])
 
 def test_a_new_section_goes_at_the_end_of_sources_spaced_like_the_rest():
     text = (
@@ -476,8 +490,8 @@ def test_add_without_a_source_guesses_one_per_entry(config, capsys):
 def test_a_bare_name_without_a_terminal_names_the_sources_it_could_be(config, capsys):
     assert main(["add", "-c", str(config), "express"]) == 1
     out = " ".join(capsys.readouterr().out.split())
-    assert "`express` could be homebrew or npm or pypi" in out
-    assert "youpdated add homebrew express" in out
+    assert "`express` could be crates or homebrew or modrinth or npm or nuget or pypi or rubygems" in out
+    assert "youpdated add crates express" in out
     assert config.read_text(encoding="utf-8") == EXAMPLE_CONFIG
 
 

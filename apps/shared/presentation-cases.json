@@ -136,6 +136,36 @@
       "label": "Homebrew"
     },
     {
+      "source": "crates",
+      "key": "serde",
+      "display": "serde",
+      "hash": 441865894,
+      "color": 10,
+      "color_name": "Pink",
+      "initials": "S",
+      "label": "crates.io"
+    },
+    {
+      "source": "appstore",
+      "key": "284882215",
+      "display": "Facebook",
+      "hash": 84135215,
+      "color": 11,
+      "color_name": "Graphite",
+      "initials": "F",
+      "label": "App Store"
+    },
+    {
+      "source": "gog",
+      "key": "1207658924",
+      "display": "The Witcher: Enhanced Edition",
+      "hash": 3421221920,
+      "color": 8,
+      "color_name": "Indigo",
+      "initials": "TW",
+      "label": "GOG"
+    },
+    {
       "source": "youtube",
       "key": "UC123",
       "display": "@SomeChannel",
