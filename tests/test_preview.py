@@ -494,6 +494,13 @@ def test_add_skips_the_lookup_for_what_is_already_watched(config, monkeypatch, c
     assert f"Already watching {SITE} under webpage" in capsys.readouterr().out
 
 
+def test_add_names_an_already_watched_entry_as_the_config_spells_it(config, monkeypatch, capsys):
+    tty(monkeypatch, interactive=False)
+    config.write_text(CONFIG + "  crates:\n    - serde_json\n", encoding="utf-8")
+    assert main(["add", "-y", "--no-check", "-c", str(config), "crates", "serde-json"]) == 0
+    assert "Already watching serde_json under crates" in capsys.readouterr().out
+
+
 # A single word or number: its source is shown and confirmed
 
 ADD_IT = "Add it? [Y/n] "
@@ -540,12 +547,12 @@ def test_add_canceled_at_the_detected_source_writes_nothing(config, monkeypatch,
 
 def test_add_asks_which_when_several_sources_read_a_bare_name(config, monkeypatch, capsys):
     tty(monkeypatch)
-    asked = answers(monkeypatch, "", "9", "3")
+    asked = answers(monkeypatch, "", "9", "6")
     assert main(["add", "-c", str(config), "rich"]) == 0
-    assert asked == ["Add which? [1/2/3/n] "] * 3
+    assert asked == ["Add which? [1/2/3/4/5/6/7/n] "] * 3
     assert _sources(config)["pypi"] == ["rich"]
     out = capsys.readouterr().out
-    assert "rich could be:" in out and "1. homebrew" in out and "3. pypi" in out
+    assert "rich could be:" in out and "1. crates" in out and "6. pypi" in out
 
 
 def test_add_asks_which_when_two_sources_claim_a_number(config, monkeypatch, capsys):
@@ -584,7 +591,7 @@ def test_add_yes_still_refuses_a_bare_name_several_sources_read(config, monkeypa
     asked = answers(monkeypatch)
     assert main(["add", "-y", "-c", str(config), "440", "rich"]) == 1
     assert asked == []
-    assert "`rich` could be homebrew or npm or pypi" in " ".join(capsys.readouterr().out.split())
+    assert "`rich` could be crates or homebrew or modrinth or npm or nuget or pypi or rubygems" in " ".join(capsys.readouterr().out.split())
     assert config.read_text(encoding="utf-8") == CONFIG
 
 

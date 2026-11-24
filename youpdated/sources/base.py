@@ -5,11 +5,12 @@ from __future__ import annotations
 import re
 from contextvars import ContextVar
 from datetime import datetime, timezone
-from typing import Any, ClassVar, Iterable, Protocol, runtime_checkable
+from typing import Any, Callable, ClassVar, Iterable, Protocol, runtime_checkable
 from urllib.parse import urlsplit
 
 from ..http import Client
 from ..models import Target, Update
+from ..versions import release
 
 
 class ConfigEntryError(Exception):
@@ -106,3 +107,48 @@ def parse_iso(value: Any) -> datetime | None:
     except ValueError:
         return None
     return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+
+
+MAX_VERSIONS = 10
+
+
+def recent_versions(
+    ordered: Iterable[str],
+    is_prerelease: Callable[[str], bool],
+    latest: str | None = None,
+    limit: int = MAX_VERSIONS,
+) -> set[str]:
+    """Which of ``ordered`` (newest first) to list.
+
+    The newest ``limit``, plus the newest ``limit`` finals, plus ``latest``
+    """
+    ordered = [version for version in ordered if version]
+    listed = set(ordered[:limit])
+    listed |= set([version for version in ordered if not is_prerelease(version)][:limit])
+    if latest:
+        listed.add(latest)
+    return listed
+
+
+def newest_first(dated: list[tuple[str, datetime | None]]) -> list[tuple[str, datetime | None]]:
+    """``(version, published)`` pairs sorted newest first, undated last"""
+    return sorted(dated, key=lambda pair: pair[1] or _UNDATED, reverse=True)
+
+
+_UNDATED = datetime.min.replace(tzinfo=timezone.utc)
+
+
+def semver_prerelease(version: str) -> bool:
+    """A SemVer version with a pre-release part, ``1.0.0-rc.1`` (build metadata ``+...`` aside)"""
+    return "-" in version.split("+", 1)[0]
+
+
+def highest(versions: Iterable[str]) -> str | None:
+    """The version with the highest numbers, the first of a tie"""
+    best: str | None = None
+    best_numbers: tuple[int, ...] = ()
+    for version in versions:
+        numbers = release(version) or ()
+        if best is None or numbers > best_numbers:
+            best, best_numbers = version, numbers
+    return best
