@@ -34,6 +34,8 @@ class Source(Protocol):
 
 The split matters: `targets()` is pure config parsing and never touches the network, so `youpdated check --test` can validate a config without sending a request. `fetch()` does the network work and is called once per target, possibly on several threads at once.
 
+Import everything a source needs from `youpdated` itself. That contract (`name`, `summary`, `targets()`, `fetch()`, `caches`, `shared_caches`, the `Client.get()` arguments, and the helpers shown) follows semver from v1.0.0, so a plugin keeps working through every 1.x release. The hooks for `youpdated add` under [Recognizing your entries](#recognizing-your-entries) and [Values only a fetch can place](#values-only-a-fetch-can-place) are newer and may still change in a minor release. See [what the library promises](docs/library.md#what-you-can-rely-on).
+
 ## Two ways to add one
 
 **In-tree** for a source you want in the project itself:
@@ -61,8 +63,7 @@ sources:
 `entry_fields()` collapses both into a dict, so you never branch on the shape yourself:
 
 ```python
-from youpdated.models import Target
-from youpdated.sources.base import ConfigEntryError, entry_fields, require
+from youpdated import ConfigEntryError, Target, entry_fields, require
 
 
 def targets(self, entries: list[Any]) -> list[Target]:
@@ -79,7 +80,7 @@ def targets(self, entries: list[Any]) -> list[Target]:
     return targets
 ```
 
-A `Target` has four fields:
+A `Target` has four fields you set, by keyword like every field of `Target` and `Update`:
 
 | Field | Purpose |
 | --- | --- |
@@ -119,7 +120,7 @@ Any other non-200 raises `FetchError`, which the runner catches and reports with
 If the feed is RSS or Atom, don't parse it yourself:
 
 ```python
-from youpdated.sources.feed import parse_feed
+from youpdated import parse_feed
 
 return parse_feed(fetched.content, source=self.name, target=target.key, tags=("release",))
 ```
@@ -138,10 +139,16 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any, ClassVar, Iterable
 
-from youpdated.http import Client
-from youpdated.models import Target, Update
-from youpdated.registry import register
-from youpdated.sources.base import ConfigEntryError, entry_fields, parse_iso, require
+from youpdated import (
+    Client,
+    ConfigEntryError,
+    Target,
+    Update,
+    entry_fields,
+    parse_iso,
+    register,
+    require,
+)
 
 MAX_VERSIONS = 10
 
@@ -294,10 +301,13 @@ shared_caches: ClassVar[tuple[str, ...]] = ("my_shared_namespace",)
 
 ### Recognizing your entries
 
-`youpdated add <value>` works without a source when only one source claims the value. To use, add an optional `claim()` returning the config entry for a value that can only be yours, or `None`. `accepted()` returns the entry if your `targets()` reads it, and `url_parts()` splits a URL:
+`youpdated add <value>` works without a source when only one source claims the value. To use, add an optional `claim()` returning the config entry for a value that can only be yours, or `None`. `accepted()` returns the entry if your `targets()` reads it, and `url_parts()` splits a URL.
+
+These hooks, and the ones in the next section, serve `youpdated add` and the apps' preview. They may still change in a minor release, so `accepted()` lives with them in `youpdated.sources.base` rather than in `youpdated`. A plugin that uses them should pin a compatible range, like `youpdated>=1.2,<1.3`:
 
 ```python
-from .base import accepted, url_parts
+from youpdated import url_parts
+from youpdated.sources.base import accepted
 
 def claim(self, value: str) -> str | None:
     """A project page on pypi.org"""
@@ -358,7 +368,7 @@ Then test against it. The `client` fixture from [tests/conftest.py](tests/confte
 import httpx
 import respx
 
-from youpdated.registry import get_source
+from youpdated import get_source
 from .conftest import fixture
 
 
@@ -431,5 +441,6 @@ Users then configure it like any built-in source. A plugin that fails to import 
 - [ ] `tags` describe the update type, so `ignore:` rules can match them
 - [ ] `version` is set on items that are versions, so `versions:` rules can compare them
 - [ ] Tests cover parsing, both config shapes, and uid stability
+- [ ] Imports only from `youpdated` (besides `claim()` helpers)
 - [ ] Optional: `claim()` for values only this source can mean, `caches` for namespaces keyed by target
 - [ ] Registered: `@register` plus an import, or an entry point

@@ -24,12 +24,13 @@ PUBLIC = {
     "newer", "NoVersionsError", "parse_config", "load_config",
     "Config", "PrivacyConfig", "ConfigError",
     "State", "StateError", "StateBusy",
-    "Client", "FetchError", "ProxyUnavailable",
+    "Client", "Fetched", "FetchError", "ProxyUnavailable",
     "run", "record", "RunResult", "ProgressReporter",
     "Update", "Target", "RunError",
     "Source", "ConfigEntryError",
+    "entry_fields", "require", "parse_iso", "url_parts", "parse_feed",
     "register", "all_sources", "get_source",
-    "EncryptionError", "WrongPassphrase",
+    "EncryptionError", "WrongPassphrase", "YoupdatedError",
 }
 
 REPO = Path(__file__).resolve().parent.parent
@@ -91,19 +92,25 @@ PROMISED_PARAMS = {
     "Client": {"privacy", "state", "product"},
     "run": {"config", "state", "client", "only_sources", "save", "progress", "by"},
     "record": {"state", "result", "by"},
+    "entry_fields": {"entry", "scalar_key", "source"},
+    "require": {"fields", "key", "source"},
+    "parse_iso": {"value"},
+    "url_parts": {"value"},
+    "parse_feed": {"content", "source", "target", "tags"},
 }
 PROMISED_MEMBERS = {
     "Config": {"sources", "privacy", "warnings", "expiry"},
     "PrivacyConfig": {"proxy", "user_agent", "jitter", "concurrency", "timeout", "fast_mode"},
     "State": {"close", "__enter__", "__exit__", "cache_get", "cache_set"},
-    "Client": {"close", "__enter__", "__exit__", "get"},
+    "Client": {"close", "__enter__", "__exit__", "get", "state"},
+    "Fetched": {"url", "status", "content", "headers", "text", "json"},
     "RunResult": {"updates", "errors", "warnings", "baseline", "baselined", "ok"},
     "ProgressReporter": {"run_started", "target_started", "target_finished"},
     "Update": {
         "source", "target", "uid", "title", "url", "published", "version", "body", "tags",
         "aliases", "dedupe_key", "to_dict",
     },
-    "Target": {"source", "key", "label", "params", "display"},
+    "Target": {"source", "key", "label", "params", "display", "track_latest"},
     "RunError": {"source", "target", "message", "key"},
 }
 
@@ -122,8 +129,64 @@ def test_promised_members_are_there(name):
 
     cls = getattr(youpdated, name)
     fields = {f.name for f in dataclasses.fields(cls)} if dataclasses.is_dataclass(cls) else set()
-    missing = {m for m in PROMISED_MEMBERS[name] if m not in fields and not hasattr(cls, m)}
+    # Client sets `state` in __init__
+    instance_only = {"state"} if name == "Client" else set()
+    missing = {m for m in PROMISED_MEMBERS[name] - instance_only if m not in fields and not hasattr(cls, m)}
     assert not missing, missing
+
+
+def test_client_get_takes_the_documented_arguments():
+    import inspect
+
+    params = inspect.signature(youpdated.Client.get).parameters
+    assert {"url", "headers", "conditional", "soft_statuses", "retries"} <= set(params)
+    assert all(params[name].kind is inspect.Parameter.KEYWORD_ONLY
+               for name in ("headers", "conditional", "soft_statuses", "retries"))
+
+
+@pytest.mark.parametrize("name", ["Update", "Target", "RunError", "PrivacyConfig"])
+def test_public_dataclasses_take_keywords_only(name):
+    """So a field added in a minor release never shifts anyone's arguments"""
+    import dataclasses
+
+    assert all(f.kw_only for f in dataclasses.fields(getattr(youpdated, name)))
+
+
+def test_errors_are_related_as_documented():
+    errors = [
+        "ConfigError", "ConfigEntryError", "StateError", "StateBusy", "FetchError",
+        "ProxyUnavailable", "EncryptionError", "WrongPassphrase", "NoVersionsError",
+    ]
+    for name in errors:
+        assert issubclass(getattr(youpdated, name), youpdated.YoupdatedError), name
+    assert issubclass(youpdated.StateBusy, youpdated.StateError)
+    assert issubclass(youpdated.WrongPassphrase, youpdated.EncryptionError)
+    assert issubclass(youpdated.ProxyUnavailable, youpdated.FetchError)
+    assert not issubclass(youpdated.ConfigEntryError, youpdated.ConfigError)
+
+
+def test_adding_sources_imports_only_public_names():
+    """A plugin following the guide keeps working through 1.x"""
+    import ast
+    import re
+
+    guide = (REPO / "ADDING_SOURCES.md").read_text(encoding="utf-8")
+    seen = set()
+    for block in re.findall(r"```python\n(.*?)```", guide, re.S):
+        try:
+            tree = ast.parse(block)
+        except SyntaxError:
+            continue
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom) and node.module and node.module.startswith("youpdated"):
+                names = {alias.name for alias in node.names}
+                seen |= names
+                if node.module == "youpdated":
+                    assert names <= set(youpdated.__all__), names - set(youpdated.__all__)
+                else:
+                    # Only the provisional claim() helper lives outside the API
+                    assert (node.module, names) == ("youpdated.sources.base", {"accepted"}), node.module
+    assert {"Target", "Update", "Client", "register", "entry_fields", "parse_feed"} <= seen
 
 
 def test_unknown_names_still_raise_attribute_error():
@@ -147,9 +210,13 @@ def test_dependency_tracker_flow_with_public_names_only():
         assert [t.key for t in first.baselined] == ["httpx"]
 
         route.mock(return_value=_pypi(["0.27.0", "0.28.0", "0.28.1"]))
-        second = youpdated.run(config, state, client, by="library")
+        second = youpdated.run(config, state, client, by="Host")
         assert [u.version for u in second.updates] == ["0.28.1"]
         assert all(isinstance(u, youpdated.Update) for u in second.updates)
+        assert state.cache_get("app", "last_run_by") == "Host"
+        # A host that doesn't say isn't recorded as the CLI
+        youpdated.run(config, state, client)
+        assert state.cache_get("app", "last_run_by") == "library"
 
     assert route.calls.last.request.headers["User-Agent"] == f"Host/2.0 {UA}"
 
@@ -262,6 +329,16 @@ def test_client_without_privacy_names_youpdated_and_the_host():
     assert route.calls.last.request.headers["User-Agent"] == (
         f"MyApp/1.2 (+https://myapp.example) {UA}"
     )
+
+
+@respx.mock
+def test_privacy_config_names_youpdated_by_default():
+    """A host that only sets a proxy or pacing still names itself"""
+    route = respx.get("https://example.com/").mock(return_value=httpx.Response(200))
+    assert youpdated.PrivacyConfig().user_agent == "youpdated"
+    with youpdated.Client(youpdated.PrivacyConfig(jitter=(0.0, 0.0)), product="MyApp/1.2") as client:
+        client.get("https://example.com/")
+    assert route.calls.last.request.headers["User-Agent"] == f"MyApp/1.2 {UA}"
 
 
 @respx.mock
@@ -490,6 +567,15 @@ def test_newer_raises_when_the_fetch_fails(quick):
     respx.get(PYPI).mock(return_value=httpx.Response(404))
     with pytest.raises(youpdated.FetchError, match="no package named `httpx`"):
         youpdated.newer("pypi", "httpx", current="0.27.0", client=quick)
+
+
+@respx.mock
+def test_newer_raises_fetch_error_for_an_answer_the_source_cant_read(quick):
+    # A captive portal's sign-in page where PyPI's JSON should be
+    respx.get(PYPI).mock(return_value=httpx.Response(200, html="<html>Sign in to Wi-Fi</html>"))
+    with pytest.raises(youpdated.FetchError, match="pypi `httpx`") as caught:
+        youpdated.newer("pypi", "httpx", current="0.27.0", client=quick)
+    assert isinstance(caught.value.__cause__, ValueError)
 
 
 @respx.mock

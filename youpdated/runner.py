@@ -167,9 +167,12 @@ def run(
     since: timedelta | None = None,
     save: bool = True,
     progress: ProgressReporter | None = None,
-    by: str = "cli",
+    by: str = "library",
 ) -> RunResult:
-    """Fetch every target of ``config``, report what ``state`` hasn't seen, and record it"""
+    """Fetch every target of ``config``, report what ``state`` hasn't seen, and record it
+
+    ``by`` is what ran the check, recorded with it as :func:`record` does
+    """
     if config.privacy.proxy and client.privacy.proxy != config.privacy.proxy:
         # A Client made without the config's privacy settings would send every request direct
         raise ValueError(
@@ -412,10 +415,11 @@ def _highest_versions(
     return rows, items
 
 
-def record(state: State, result: RunResult, by: str = "cli") -> None:
+def record(state: State, result: RunResult, by: str = "library") -> None:
     """Record what :func:`run` fetched: seen items, validators, and baselines, then prune
 
-    ``by`` is what ran the check: ``cli``, ``app``, or a library host's own name
+    ``by`` is what ran the check: ``cli``, ``app``, or a library host's own name (``library`` unless given).
+    `youpdated list` and the apps show only ``cli`` and ``app``
     """
     pending, result._pending = result._pending, None
     if pending is None:

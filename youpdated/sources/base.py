@@ -8,11 +8,12 @@ from datetime import datetime, timezone
 from typing import Any, ClassVar, Iterable, Protocol, runtime_checkable
 from urllib.parse import urlsplit
 
+from ..errors import YoupdatedError
 from ..http import Client
 from ..models import Target, Update
 
 
-class ConfigEntryError(Exception):
+class ConfigEntryError(YoupdatedError):
     """Unknown entry or formats"""
 
 

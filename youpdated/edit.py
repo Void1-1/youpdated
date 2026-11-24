@@ -543,7 +543,7 @@ def requested_urls(source: Source | None, targets: list[Target], state: State) -
     """URLs ``targets`` ask for"""
     if source is None:
         return set()
-    with Client(PrivacyConfig(), state, test=True) as client:
+    with Client(PrivacyConfig(user_agent="rotate"), state, test=True) as client:
         for target in targets:
             try:
                 list(source.fetch(target, client))

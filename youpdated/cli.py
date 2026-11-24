@@ -1842,7 +1842,7 @@ def cmd_check(args: argparse.Namespace, console: Console) -> int:
                     f"[dim]Wrote {len(result.updates)} entries to {escape(str(rss_path))}[/]"
                 )
             if not args.no_save:
-                record(state, result)
+                record(state, result, by="cli")
 
             if send_notifications:
                 # save first: a run killed while a slow webhook answers must not notify twice

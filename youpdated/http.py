@@ -23,6 +23,7 @@ import httpx
 
 from . import __version__
 from .config import PrivacyConfig
+from .errors import YoupdatedError
 from .state import State
 
 # failures before the request leaves
@@ -128,12 +129,15 @@ def redact_url(url: str) -> str:
     return f"{parts.scheme}://{parts.netloc.rpartition('@')[2]}{tail}"
 
 
-class FetchError(Exception):
+class FetchError(YoupdatedError):
     """Network or unexpected-status failure for one URL."""
 
 
-class ProxyUnavailable(Exception):
-    """The configured proxy could not be reached. Raised before any source runs."""
+class ProxyUnavailable(FetchError):
+    """The configured proxy could not be reached. Raised before any source runs.
+
+    A :class:`FetchError`, so a host catching failed fetches also catches a proxy that's down
+    """
 
 
 # Where a proxy listens when the URL omits the port.
@@ -276,10 +280,10 @@ class Client:
         product: str | None = None,
         proxy_probed: bool = False,
     ):
-        """``privacy`` names Youpdated in the User-Agent for a library; CLI and engine pass the config's, `rotate` by default.
+        """``privacy`` defaults to :class:`PrivacyConfig`'s, which names Youpdated in the User-Agent; CLI and engine pass the config's, `rotate` by default.
         ``product`` is the host's token, sent before Youpdated's with `user_agent: youpdated`.
         ``proxy_probed``: the caller has just probed the proxy, so the next :meth:`check_proxy` doesn't again"""
-        self.privacy = privacy or PrivacyConfig(user_agent="youpdated")
+        self.privacy = privacy or PrivacyConfig()
         self.product = None if product is None else check_product(product)
         self.state = state
         self.test = test

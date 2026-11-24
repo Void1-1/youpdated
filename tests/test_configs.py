@@ -210,7 +210,8 @@ def test_init_refuses_a_name_and_c(app):
 
 def test_init_writes_the_basic_settings_at_their_defaults_and_watches_nothing():
     loaded = parse_config_text(INIT_CONFIG, allow_empty=True)
-    assert loaded.privacy == PrivacyConfig()
+    # The CLI's default, unlike the library's
+    assert loaded.privacy == PrivacyConfig(user_agent="rotate")
     assert loaded.sources == {}
     assert not loaded.warnings
 

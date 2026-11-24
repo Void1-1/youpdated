@@ -43,8 +43,8 @@ def fake(tmp_path, monkeypatch):
 
 @pytest.fixture
 def client(state):
-    # Zero jitter keeps fast; respx intercepts before socket
-    privacy = PrivacyConfig(jitter=(0.0, 0.0), concurrency=1)
+    # Zero jitter keeps fast; respx intercepts before socket. `rotate`, as the CLI's config parses
+    privacy = PrivacyConfig(user_agent="rotate", jitter=(0.0, 0.0), concurrency=1)
     with Client(privacy, state) as c:
         c.retry_backoff = 0  # don't spend real seconds testing retry paths
         yield c

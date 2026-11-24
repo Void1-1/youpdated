@@ -10,7 +10,8 @@ from packaging.version import InvalidVersion, Version
 
 from . import config as _config
 from .config import Config, ConfigError
-from .http import Client
+from .errors import YoupdatedError
+from .http import Client, FetchError
 from .models import Update
 from .registry import all_sources, canonical_name
 from .runner import _split_entry_rules, build_targets
@@ -25,7 +26,7 @@ _PRERELEASE_RE = re.compile(
 )
 
 
-class NoVersionsError(Exception):
+class NoVersionsError(YoupdatedError):
     """:func:`newer` found no versions to compare"""
 
 
@@ -79,6 +80,7 @@ def newer(
     ``versions`` and ``ignore`` are that entry's `versions:` and `ignore:` rules; a dict ``entry`` may carry them too.
     Prereleases are left out unless ``prereleases``.
     ``client`` is used and left open if given; otherwise one is made with ``product`` as the host's User-Agent token, and closed.
+    Any failure to fetch or read a release list is a :class:`FetchError`, never an empty list.
     """
     current_release = release(current) if isinstance(current, str) else None
     if current_release is None:
@@ -101,6 +103,8 @@ def newer(
     if ignore is not None:
         raw["ignore"] = {source: ignore}
     config = parse_config(raw, allow_empty=False)
+    # Raises ConfigError for a dict entry's bad `versions:`/`ignore:`
+    # build_targets() would only collect it, below, as the source's ConfigEntryError
     _split_entry_rules(entry, source)
     targets, errors = build_targets(config)
     if errors:
@@ -123,7 +127,15 @@ def newer(
                 client.deferred_validators(),
                 client.tracked_urls(),
             ):
-                items = list(sources[target.source].fetch(target, client))
+                try:
+                    items = list(sources[target.source].fetch(target, client))
+                except YoupdatedError:
+                    raise
+                except Exception as exc:
+                    # A source that can't read the answer failed to fetch
+                    raise FetchError(
+                        f"{target.source} `{target.display}`: {type(exc).__name__}: {exc}"
+                    ) from exc
             fetched.extend(items)
             kept.extend(target.versions.admit([u for u in items if target.keeps(u)], previous))
     finally:

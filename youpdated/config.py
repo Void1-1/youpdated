@@ -18,6 +18,7 @@ import yaml
 from platformdirs import PlatformDirs
 
 from . import crypto
+from .errors import YoupdatedError
 from .versions import ANY_BUMP, BUMPS, release
 
 # appauthor=False for Windows: left unset, platformdirs falls back to app name as the author and nests everything under
@@ -31,14 +32,15 @@ LEGACY_CONFIG_NAME = "config.yaml"
 LEGACY_STATE_NAME = "state.sqlite3"
 
 
-class ConfigError(Exception):
+class ConfigError(YoupdatedError):
     """Raised with a message meant to be shown to the user."""
 
 
-@dataclass
+@dataclass(kw_only=True)
 class PrivacyConfig:
     proxy: str | None = None
-    user_agent: str = "rotate"
+    # Names Youpdated, same as the library; the CLI and engine parse configs with `rotate` instead
+    user_agent: str = "youpdated"
     jitter: tuple[float, float] = (0.5, 3.0)
     concurrency: int = 4
     timeout: float = 20.0
