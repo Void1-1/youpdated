@@ -15,8 +15,8 @@ from .base import (
 )
 
 REGISTRATION = "https://api.nuget.org/v3/registration5-gz-semver2"
-# NuGet's package id rules
-ID_RE = re.compile(r"^\w+([_.-]\w+)*$")
+# NuGet's package id rules. `_` is already in `\w`, so only `.` and `-` separate runs
+ID_RE = re.compile(r"^\w+(?:[.-]\w+)*$")
 # Unlisting a version sets its published date to 1900, because why not ig
 _UNLISTED_YEAR = 1900
 

@@ -17,7 +17,7 @@ from .base import (
 )
 
 # Composer's rule for `vendor/package`
-NAME_RE = re.compile(r"^[a-z0-9]([_.-]?[a-z0-9]+)*/[a-z0-9](([_.]|-{1,2})?[a-z0-9]+)*$")
+NAME_RE = re.compile(r"^[a-z0-9]+(?:[_.-][a-z0-9]+)*/[a-z0-9]+(?:(?:[_.]|-{1,2})[a-z0-9]+)*$")
 # Composer's unstable suffixes: alpha, beta, RC, dev, and `a1`/`b2`
 _PRERELEASE_RE = re.compile(r"(?i)(alpha|beta|rc|dev)|\d[-.]?[ab]\d*$")
 
