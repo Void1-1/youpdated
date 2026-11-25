@@ -1,15 +1,19 @@
 name: issue triage
 
-# Keeps the account-level "Stage" issue field in step with milestones and pull
-# requests, and labels new issues and PRs. Issue types (Bug, Feature, Task) come
-# from the issue forms, not from here.
+# Keeps GitHub's native issue status in step with milestones and pull requests,
+# and labels new issues and PRs. Issue types (Bug, Feature, Task) come from the
+# issue forms, not from here. Statuses are picked by category (backlog, planned,
+# started, ...), so renaming one in the repository settings doesn't break this.
 #
-#   Issue added to a milestone           -> Planned (unless already In progress)
-#   Issue removed from its milestone     -> cleared, if it was Planned
-#   PR opened that says "Fixes #N"       -> #N In progress
-#   That PR closed without merging       -> #N back to Planned, or cleared
-#   Issue closed                         -> cleared
-#   Issue reopened                       -> Planned if it has a milestone
+#   Issue opened or added to a milestone -> Todo, if it was in Backlog
+#   Issue removed from its milestone     -> Backlog, if it was Todo
+#   Draft PR that says "Fixes #N"        -> #N In progress
+#   PR ready for review                  -> #N In review
+#   That PR closed without merging       -> #N back to Todo (milestoned) or Backlog
+#   Issue closed                         -> Done / Not planned, if GitHub left it open-looking
+#   Issue reopened                       -> Todo (milestoned) or Backlog
+#
+# A merged PR closes the issue itself, and GitHub moves it to Done.
 #
 # Labels (only ever added, never removed):
 #
@@ -26,7 +30,7 @@ on:
   issues:
     types: [opened, milestoned, demilestoned, closed, reopened]
   pull_request_target:
-    types: [opened, reopened, edited, synchronize, closed]
+    types: [opened, reopened, edited, synchronize, ready_for_review, converted_to_draft, closed]
 
 permissions:
   contents: read
@@ -47,63 +51,86 @@ jobs:
           script: |
             const { owner, repo } = context.repo;
 
-            const fields = await github.graphql(`
+            // Issue statuses are a public preview, rolling out gradually; the API
+            // returns null planningStatuses where they aren't available.
+            const r = await github.graphql(`
               query($owner: String!, $repo: String!) {
                 repository(owner: $owner, name: $repo) {
-                  issueFields(first: 50) {
-                    nodes { ... on IssueFieldSingleSelect { id name options { id name } } }
-                  }
+                  planningStatuses(first: 50) { nodes { id name category { key } } }
                 }
               }`, { owner, repo });
-            const field = fields.repository.issueFields.nodes.find(f => f && f.name === "Stage");
-            if (!field) {
-              core.warning('No "Stage" issue field on this repository; nothing to do.');
+            const statuses = r.repository.planningStatuses?.nodes ?? [];
+            if (!statuses.length) {
+              core.warning("Issue statuses aren't available on this repository; nothing to do.");
               return;
             }
-            const option = name => field.options.find(o => o.name === name).id;
+            // The first status in a category (they come in display order), or the
+            // one named `name` when the category has several, like "In progress"
+            // and "In review" under started.
+            const pick = (key, name) => {
+              const all = statuses.filter(s => s.category.key === key);
+              return all.find(s => s.name === name) ?? all[0] ?? null;
+            };
+            const status = {
+              backlog: pick("backlog"),
+              planned: pick("planned"),
+              working: pick("started", "In progress"),
+              review: pick("started", "In review"),
+              completed: pick("completed"),
+              not_planned: pick("not_planned"),
+            };
 
             async function issue(number) {
               const r = await github.graphql(`
                 query($owner: String!, $repo: String!, $number: Int!) {
                   repository(owner: $owner, name: $repo) {
                     issue(number: $number) {
-                      id state milestone { number }
-                      issueFieldValues(first: 20) {
-                        nodes { ... on IssueFieldSingleSelectValue { name field { ... on IssueFieldSingleSelect { id } } } }
-                      }
+                      id state stateReason milestone { number }
+                      status { id name category { key } }
                     }
                   }
                 }`, { owner, repo, number });
               const i = r.repository.issue;
-              const value = i.issueFieldValues.nodes.find(v => v && v.field && v.field.id === field.id);
-              return { id: i.id, number, open: i.state === "OPEN", milestone: !!i.milestone, status: value ? value.name : null };
+              return {
+                id: i.id, number, open: i.state === "OPEN", reason: i.stateReason,
+                milestone: !!i.milestone, status: i.status,
+                category: i.status ? i.status.category.key : null,
+              };
             }
 
-            async function set(i, status) {
-              if (i.status === status) return;
-              const value = status ? { fieldId: field.id, singleSelectOptionId: option(status) }
-                                   : { fieldId: field.id, delete: true };
+            // Setting a status also opens or closes the issue to match its category,
+            // so callers only ever set an open status on an open issue and a closed
+            // one on a closed issue.
+            async function set(i, to) {
+              if (!to || i.status?.id === to.id) return;
               await github.graphql(`
-                mutation($issueId: ID!, $value: IssueFieldCreateOrUpdateInput!) {
-                  setIssueFieldValue(input: { issueId: $issueId, issueFields: [$value] }) { clientMutationId }
-                }`, { issueId: i.id, value });
-              core.info(`#${i.number}: ${i.status ?? "(none)"} -> ${status ?? "(none)"}`);
+                mutation($issueId: ID!, $statusId: ID!) {
+                  setIssueStatus(input: { issueId: $issueId, statusId: $statusId }) { clientMutationId }
+                }`, { issueId: i.id, statusId: to.id });
+              core.info(`#${i.number}: ${i.status?.name ?? "(none)"} -> ${to.name}`);
             }
 
-            const resting = i => (i.open && i.milestone ? "Planned" : null);
+            // Where an open issue sits when nobody is working on it.
+            const resting = i => (i.milestone ? status.planned : status.backlog);
+            const idle = i => !i.category || ["backlog", "planned"].includes(i.category);
 
             if (context.eventName === "issues") {
               const action = context.payload.action;
-              if (action === "opened") return;
               // GitHub fires issues events for pull requests too (a PR is an issue
-              // underneath), e.g. when one is milestoned. Stage is an issue field, and
-              // repository.issue(number:) returns null for a PR, so skip them.
+              // underneath), e.g. when one is milestoned. Only issues have a status,
+              // and repository.issue(number:) returns null for a PR, so skip them.
               if (context.payload.issue.pull_request) return;
               const i = await issue(context.payload.issue.number);
-              if (action === "milestoned" && i.status !== "In progress") await set(i, "Planned");
-              if (action === "demilestoned" && i.status === "Planned") await set(i, null);
-              if (action === "closed") await set(i, null);
-              if (action === "reopened") await set(i, resting(i));
+              if ((action === "opened" || action === "milestoned") && i.open && idle(i)) await set(i, resting(i));
+              if (action === "demilestoned" && i.open && i.category === "planned") await set(i, status.backlog);
+              // GitHub normally moves a closed issue to a closed status itself. This
+              // covers an issue that still shows an open one. Duplicates are left
+              // alone: that status needs the duplicated issue, which only a person knows.
+              if (action === "closed" && !i.open && (!i.category || ["backlog", "planned", "started"].includes(i.category))) {
+                if (i.reason === "COMPLETED") await set(i, status.completed);
+                if (i.reason === "NOT_PLANNED") await set(i, status.not_planned);
+              }
+              if (action === "reopened" && i.open && i.category !== "started") await set(i, resting(i));
               return;
             }
 
@@ -124,9 +151,9 @@ jobs:
             for (const n of numbers) {
               const i = await issue(n);
               if (!i.open) continue;
-              if (pr.state === "open") await set(i, "In progress");
-              else if (!pr.merged && i.status === "In progress") await set(i, resting(i));
-              // Merged: the issue closes itself, and the "closed" event clears it.
+              if (pr.state === "open") await set(i, pr.draft ? status.working : status.review);
+              else if (!pr.merged && i.category === "started") await set(i, resting(i));
+              // Merged: the issue closes itself, and GitHub moves it to Done.
             }
 
   labels:
