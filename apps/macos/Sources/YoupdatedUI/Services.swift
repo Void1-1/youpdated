@@ -2,11 +2,13 @@ import AppKit
 import Observation
 import Security
 import ServiceManagement
+import UserNotifications
 import YoupdatedKit
 
 /// The passphrase, as a generic password, if "Remember on this computer" is on
 public enum Keychain {
-    public static let service = "Youpdated"
+    public static let service = Bundle.main.object(forInfoDictionaryKey: "YoupdatedDevelopment") as? Bool ?? false
+        ? "Youpdated Dev" : "Youpdated"
     public static let account = "passphrase"
 
     private static var query: [String: Any] {
@@ -130,5 +132,73 @@ public final class Downloader {
             index += 1
         }
         return candidate
+    }
+}
+
+/// Settings → Advanced → Remove Youpdated from this Mac
+@MainActor
+@Observable
+public final class Removal {
+    public enum State: Equatable {
+        case idle
+        case removing
+        /// `dataRemoved` is nil when the config and history were kept
+        case removed(dataRemoved: Bool?)
+    }
+
+    public private(set) var state: State = .idle
+    public let canRemoveData = EngineCommand.uninstall() != nil
+    public let canTrashApp = !(Bundle.main.object(forInfoDictionaryKey: "YoupdatedDevelopment") as? Bool ?? false)
+
+    public init() {}
+
+    /// Stops checks and the engine, then clears what the app set up in macOS, and the config and history if asked
+    public func remove(model: AppModel, alsoData: Bool) async {
+        guard state == .idle else { return }
+        state = .removing
+        await model.quit()
+        if SMAppService.mainApp.status != .notRegistered {
+            try? await SMAppService.mainApp.unregister()
+        }
+        let center = UNUserNotificationCenter.current()
+        center.removeAllDeliveredNotifications()
+        center.removeAllPendingNotificationRequests()
+        Keychain.delete()
+        var dataRemoved: Bool?
+        if alsoData, let command = EngineCommand.uninstall() {
+            dataRemoved = await command.run()
+        }
+        state = .removed(dataRemoved: dataRemoved)
+    }
+
+    /// Set once Quit is chosen, so the done alert doesn't come back while quitting
+    public private(set) var quitting = false
+
+    public func quit(trash: Bool) {
+        guard !quitting else { return }
+        quitting = true
+        Task {
+            if trash && canTrashApp {
+                let app = Bundle.main.bundleURL
+                do {
+                    _ = try await NSWorkspace.shared.recycle([app])
+                } catch {
+                    let alert = NSAlert()
+                    alert.alertStyle = .warning
+                    alert.messageText = String(localized: "Youpdated couldn't be moved to the Trash")
+                    alert.informativeText = String(localized: "It's still at \(app.path). Drag it to the Trash to finish removing it.")
+                    alert.addButton(withTitle: String(localized: "Show in Finder and Quit"))
+                    alert.addButton(withTitle: String(localized: "Quit"))
+                    if alert.runModal() == .alertFirstButtonReturn {
+                        NSWorkspace.shared.activateFileViewerSelecting([app])
+                    }
+                }
+            }
+            if let id = Bundle.main.bundleIdentifier {
+                AppTraces.remove(home: FileManager.default.homeDirectoryForCurrentUser, bundleId: id)
+                UserDefaults.standard.removePersistentDomain(forName: id)
+            }
+            exit(0)
+        }
     }
 }

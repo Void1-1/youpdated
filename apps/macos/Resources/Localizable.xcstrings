@@ -20,6 +20,9 @@
         }
       }
     },
+    "%@, ignores the digest" : {
+
+    },
     "%lld of the last %lld versions fit: %@" : {
       "localizations" : {
         "en" : {
@@ -57,6 +60,9 @@
     "1 Hour" : {
 
     },
+    "A URL or a header token is saved in the config." : {
+
+    },
     "A new browser each check" : {
 
     },
@@ -72,7 +78,16 @@
     "Add" : {
 
     },
+    "Add Header" : {
+
+    },
     "Add Source" : {
+
+    },
+    "Add Webhook" : {
+
+    },
+    "Add Webhook…" : {
 
     },
     "Address" : {
@@ -102,6 +117,9 @@
     "Already watching %@." : {
 
     },
+    "Also delete my config and history" : {
+
+    },
     "Also forget its history" : {
 
     },
@@ -112,6 +130,12 @@
 
     },
     "App version" : {
+
+    },
+    "Automatic" : {
+
+    },
+    "Automatic (%@)" : {
 
     },
     "Browsers" : {
@@ -176,6 +200,9 @@
 
     },
     "Comfortable" : {
+
+    },
+    "Command" : {
 
     },
     "Compact" : {
@@ -265,6 +292,9 @@
     "Digest time" : {
 
     },
+    "Discord" : {
+
+    },
     "Done" : {
 
     },
@@ -277,10 +307,25 @@
     "Downloading Youpdated %@…" : {
 
     },
+    "Each check posts new updates to these addresses." : {
+
+    },
     "Earlier" : {
 
     },
+    "Edit Command" : {
+
+    },
+    "Edit Webhook" : {
+
+    },
+    "Edit…" : {
+
+    },
     "Engine version" : {
+
+    },
+    "Enter the full address, with https://" : {
 
     },
     "Every %lld hours" : {
@@ -290,6 +335,9 @@
 
     },
     "Every request goes through this proxy. If it stops answering, checks stop." : {
+
+    },
+    "Every update" : {
 
     },
     "Every version" : {
@@ -337,6 +385,9 @@
     "Forgets what it has seen, its updates, and its priority" : {
 
     },
+    "Format" : {
+
+    },
     "Gap between requests to a site" : {
 
     },
@@ -361,6 +412,9 @@
     "Group read updates" : {
 
     },
+    "Headers" : {
+
+    },
     "Hide from the Feed" : {
 
     },
@@ -368,6 +422,9 @@
 
     },
     "High" : {
+
+    },
+    "High priority only" : {
 
     },
     "Import %@" : {
@@ -389,6 +446,12 @@
 
     },
     "It lists no versions to filter." : {
+
+    },
+    "It's still at %@. Drag it to the Trash to finish removing it." : {
+
+    },
+    "JSON" : {
 
     },
     "Keeps the passphrase in your keychain" : {
@@ -460,6 +523,9 @@
     "More" : {
 
     },
+    "Move to Trash and Quit" : {
+
+    },
     "Name" : {
 
     },
@@ -494,6 +560,9 @@
 
     },
     "Normal" : {
+
+    },
+    "Normal and high priority" : {
 
     },
     "Not Now" : {
@@ -586,6 +655,9 @@
     "Proxy" : {
 
     },
+    "Quit" : {
+
+    },
     "Quit Youpdated" : {
 
     },
@@ -607,6 +679,27 @@
     "Remember passphrase on this computer" : {
 
     },
+    "Remove" : {
+
+    },
+    "Remove Command" : {
+
+    },
+    "Remove Header" : {
+
+    },
+    "Remove Webhook" : {
+
+    },
+    "Remove Youpdated from this Mac" : {
+
+    },
+    "Remove Youpdated from this Mac?" : {
+
+    },
+    "Remove…" : {
+
+    },
     "Report" : {
 
     },
@@ -622,6 +715,9 @@
     "Retry" : {
 
     },
+    "Runs once for each new update." : {
+
+    },
     "Save" : {
 
     },
@@ -634,6 +730,12 @@
     "Select or enter patterns." : {
 
     },
+    "Send" : {
+
+    },
+    "Send Test" : {
+
+    },
     "Send a daily digest" : {
 
     },
@@ -641,6 +743,15 @@
 
     },
     "Send requests as Youpdated?" : {
+
+    },
+    "Sent" : {
+
+    },
+    "Set Command" : {
+
+    },
+    "Set Command…" : {
 
     },
     "Settings…" : {
@@ -673,6 +784,9 @@
     "Show icons" : {
 
     },
+    "Show in Finder and Quit" : {
+
+    },
     "Show in Following" : {
 
     },
@@ -703,7 +817,13 @@
     "Skipped" : {
 
     },
+    "Slack" : {
+
+    },
     "Snooze 1 Hour" : {
+
+    },
+    "Some of your config and history couldn't be deleted. Run youpdated uninstall in Terminal." : {
 
     },
     "Source" : {
@@ -773,7 +893,16 @@
         }
       }
     },
+    "This development build uses its own config and history, existing ones are kept." : {
+
+    },
     "This engine can't change privacy settings. Edit `settings.privacy` manually." : {
+
+    },
+    "This engine can't change webhooks or commands. Edit `settings.notify` manually." : {
+
+    },
+    "This turns off Start at login, clears notifications, passphrases, app settings, caches, and logs." : {
 
     },
     "This week" : {
@@ -804,6 +933,12 @@
 
     },
     "Turn on fast mode?" : {
+
+    },
+    "Turns off Start at login, clears notifications, passphrases, and app settings." : {
+
+    },
+    "URL" : {
 
     },
     "Unlock" : {
@@ -839,7 +974,13 @@
     "User agent" : {
 
     },
+    "Value" : {
+
+    },
     "View" : {
+
+    },
+    "Wait for the daily digest" : {
 
     },
     "Watch" : {
@@ -860,7 +1001,13 @@
     "Web page" : {
 
     },
+    "Webhooks" : {
+
+    },
     "What changed in the things you follow" : {
+
+    },
+    "When a digest is set, normal priority updates wait. High priority updates are sent immediately." : {
 
     },
     "Will Follow" : {
@@ -882,6 +1029,12 @@
 
     },
     "Youpdated can't check" : {
+
+    },
+    "Youpdated couldn't be moved to the Trash" : {
+
+    },
+    "Youpdated has been removed" : {
 
     },
     "Youpdated identifies itself" : {
@@ -920,10 +1073,19 @@
     "Youpdated, problems" : {
 
     },
+    "Your config and history are removed." : {
+
+    },
+    "Your config and history were kept." : {
+
+    },
     "^[%lld new update](inflect: true)" : {
 
     },
     "^[%lld update](inflect: true)" : {
+
+    },
+    "`{title}`, `{label}`, `{url}`, `{version}`, `{source}`, `{target}`, `{published}`, `{tags}`, and `{body}` are filled in." : {
 
     },
     "and %lld more" : {
@@ -936,6 +1098,9 @@
 
     },
     "npm package" : {
+
+    },
+    "ntfy" : {
 
     },
     "· %@" : {

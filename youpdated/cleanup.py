@@ -7,6 +7,7 @@ import shlex
 import shutil
 import subprocess
 import sys
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from importlib import metadata
 from pathlib import Path
@@ -35,13 +36,20 @@ DIST_NAME = "youpdated"
 class Trace:
     """Something Youpdated-based."""
 
-    path: Path
-    kind: str  # "config" | "state" | "directory"
+    path: Path | None  # None for a keychain item or registry key
+    kind: str  # "config", "state", "directory" or "app"
     note: str
+    # For "app": shown instead of the path, and how it's removed
+    label: str | None = None
+    remover: Callable[[], None] | None = None
 
     @property
     def exists(self) -> bool:
-        return self.path.exists()
+        return self.path is not None and self.path.exists()
+
+    @property
+    def shown(self) -> str:
+        return self.label or str(self.path)
 
 
 def find_traces(
@@ -49,8 +57,9 @@ def find_traces(
     state_override: str | Path | None = None,
     *,
     keep_config: bool = False,
+    keep_app: bool = False,
 ) -> list[Trace]:
-    """Every file and directory this tool may have created, existing now."""
+    """Every file and directory this tool and the desktop apps may have created, existing now."""
     traces: list[Trace] = []
     seen: set[Path] = set()
 
@@ -87,6 +96,11 @@ def find_traces(
         if state is not None:
             add(lock_path(Path(state).expanduser()), "state", "history database lock")
 
+    if not keep_app:
+        from . import apptraces
+
+        traces += apptraces.app_traces()
+
     # Dirs last, the folders inside before the app folders holding them
     for directory in (configs_dir(), history_dir(), config_dir(), data_dir()):
         add(directory, "directory", "application directory (only if empty)")
@@ -108,24 +122,36 @@ def _is_app_dir(path: Path) -> bool:
 def remove_traces(traces: list[Trace]) -> tuple[list[Trace], list[tuple[Trace, str]]]:
     """Delete the given traces. Returns ``(removed, failed)``.
 
-    Files first, then directories, any additions to dirs that are unexpected donn't let them delete
+    Files first, app traces, then directories, any additions to dirs that are unexpected don't let them delete
     """
     removed: list[Trace] = []
     failed: list[tuple[Trace, str]] = []
 
-    files = [t for t in traces if t.kind != "directory"]
+    files = [t for t in traces if t.kind in ("config", "state")]
+    apps = [t for t in traces if t.kind == "app"]
     directories = [t for t in traces if t.kind == "directory"]
 
     for trace in files:
         try:
-            if trace.path.is_file():
+            if trace.path is not None and trace.path.is_file():
                 trace.path.unlink()
                 removed.append(trace)
         except OSError as exc:
             failed.append((trace, str(exc)))
 
+    for trace in apps:
+        if trace.remover is None:
+            continue
+        try:
+            trace.remover()
+            removed.append(trace)
+        except OSError as exc:
+            failed.append((trace, str(exc) or type(exc).__name__))
+
     for trace in directories:
         path = trace.path
+        if path is None:
+            continue
         # it must be a youpdated directory and empty.
         if not _is_app_dir(path):
             failed.append((trace, "not a youpdated directory, aborted"))
