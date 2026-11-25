@@ -20,8 +20,11 @@ All notable changes to this project are documented here. The format follows [Kee
 
 - **Multiple configs** (#84). `youpdated init NAME` creates a named config with its own sources, settings, history, and, optionally, its own passphrase, kept entirely separated from the others. Pick one with `-c NAME` on `check`, `list`, `add`, `rm`, `import`, `edit`, `encrypt`, and `decrypt`, or with `$YOUPDATED_CONFIG`. `youpdated configs` lists them, `configs rm NAME` deletes one and its history, and `check --all-configs` checks the default and then every named config in order. An encrypted named config reads `$YOUPDATED_PASSPHRASE_<NAME>` before `$YOUPDATED_PASSPHRASE`. The desktop apps only use the default config. See [Multiple configs](docs/configuration.md#multiple-configs).
 
+- **Remove Youpdated from this Mac** (Settings → Advanced), same as the Windows app's Remove Youpdated from this PC. It turns off Start at login, clears notifications, the saved passphrase, and the app's settings, caches, and log, and can delete your config and history too. Then it quits, or moves the app to the Trash and quits.
+
 ### Changed
 
+- **`youpdated uninstall` also removes desktop app files.** On Mac, app settings, caches, diagnostic log, and the passphrase in your keychain; on Windows, the app's settings and log, Start menu shortcut, starting at sign-in, `youpdated://` links, notification registration and icon, and the passphrase in Credential Manager. The app itself is left in place, and `uninstall` prints its location. `--keep-app` skips all of it. See [Uninstalling](docs/troubleshooting.md#uninstalling).
 - **`Client()` and `PrivacyConfig()` name Youpdated in the User-Agent by default**, same as `user_agent: youpdated`, and configs parsed through the library default to it. The CLI, the engine, and the apps still default to `rotate`. `import youpdated` is now lazy and no longer loads the rest of the package.
 - **For source plugins: import from `youpdated` itself.** `Target`, `Update`, `RunError`, and `PrivacyConfig` now take keyword arguments only, and `ProxyUnavailable` is now a `FetchError`. [ADDING_SOURCES.md](ADDING_SOURCES.md) shows the imports, and which hooks may still change.
 - **Opening encrypted history without a passphrase says one is required**, as an encryption error, instead of calling the file not a history database.

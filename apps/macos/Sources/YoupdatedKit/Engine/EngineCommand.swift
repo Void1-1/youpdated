@@ -24,6 +24,32 @@ public struct EngineCommand: Sendable, Hashable {
         bundle: Bundle = .main,
         environment: [String: String] = ProcessInfo.processInfo.environment
     ) -> EngineCommand {
+        var command = engine(bundle: bundle, environment: environment)
+        command.arguments += ["api", "serve"]
+        let overrides = overrides(bundle: bundle, environment: environment)
+        if let config = overrides.config {
+            command.arguments += ["--config", config]
+        }
+        if let state = overrides.state {
+            command.arguments += ["--state", state]
+        }
+        return command
+    }
+
+    /// The engine's `uninstall` of the config and history, for Remove Youpdated from this Mac
+    public static func uninstall(
+        bundle: Bundle = .main,
+        environment: [String: String] = ProcessInfo.processInfo.environment
+    ) -> EngineCommand? {
+        let overrides = overrides(bundle: bundle, environment: environment)
+        guard overrides.config == nil, overrides.state == nil else { return nil }
+        var command = engine(bundle: bundle, environment: environment)
+        command.arguments += ["uninstall", "--yes", "--keep-package", "--keep-app"]
+        return command
+    }
+
+    /// The engine's program and its leading arguments (`python3 -m youpdated`)
+    private static func engine(bundle: Bundle, environment: [String: String]) -> EngineCommand {
         let info = bundle.object(forInfoDictionaryKey: infoKey) as? [String: Any] ?? [:]
         var env = environment
         // stdout carries protocol
@@ -48,20 +74,42 @@ public struct EngineCommand: Sendable, Hashable {
         if let pythonPath = info["pythonPath"] as? String, !pythonPath.isEmpty {
             env["PYTHONPATH"] = pythonPath
         }
-
-        argv += ["api", "serve"]
-        if let config = environment[configKey] ?? info["config"] as? String, !config.isEmpty {
-            argv += ["--config", config]
-        }
-        if let state = environment[stateKey] ?? info["state"] as? String, !state.isEmpty {
-            argv += ["--state", state]
-        }
         let executable = argv.removeFirst()
         return EngineCommand(
             executable: locate(executable, path: env["PATH"]),
             arguments: argv,
             environment: env
         )
+    }
+
+    private static func overrides(bundle: Bundle, environment: [String: String]) -> (config: String?, state: String?) {
+        let info = bundle.object(forInfoDictionaryKey: infoKey) as? [String: Any] ?? [:]
+        let config = environment[configKey] ?? info["config"] as? String
+        let state = environment[stateKey] ?? info["state"] as? String
+        return (config?.isEmpty == false ? config : nil, state?.isEmpty == false ? state : nil)
+    }
+
+    /// Runs it to the end with no input or output, as for `uninstall`
+    public func run() async -> Bool {
+        let process = Process()
+        process.executableURL = executable
+        process.arguments = arguments
+        process.environment = environment
+        if let directory { process.currentDirectoryURL = directory }
+        process.standardInput = FileHandle.nullDevice
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+        return await withCheckedContinuation { continuation in
+            process.terminationHandler = { finished in
+                continuation.resume(returning: finished.terminationReason == .exit && finished.terminationStatus == 0)
+            }
+            do {
+                try process.run()
+            } catch {
+                process.terminationHandler = nil
+                continuation.resume(returning: false)
+            }
+        }
     }
 
     static func split(_ raw: String) -> [String] {

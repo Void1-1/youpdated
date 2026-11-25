@@ -48,3 +48,19 @@ def client(state):
     with Client(privacy, state) as c:
         c.retry_backoff = 0  # don't spend real seconds testing retry paths
         yield c
+
+
+@pytest.fixture(autouse=True)
+def _no_real_app_traces(monkeypatch):
+    """`uninstall` tests run with --yes: never let them find, or delete local pre-existing app settings"""
+    from youpdated import apptraces
+
+    monkeypatch.setattr(apptraces, "app_traces", lambda platform=None: [])
+    monkeypatch.setattr(apptraces, "app_locations", lambda platform=None: [])
+    monkeypatch.setattr(apptraces, "registry", None)
+    monkeypatch.setattr(apptraces, "credentials", None)
+    monkeypatch.setattr(apptraces, "_run", _refuse_run)
+
+
+def _refuse_run(*command):
+    raise AssertionError(f"a test ran {command[0]}; patch apptraces._run instead")
