@@ -32,7 +32,7 @@ from rich.progress import (
 from rich.segment import ControlType, Segment
 from rich.table import Column
 
-from . import __version__, crypto, notify, preview
+from . import __version__, apptraces, crypto, notify, preview
 from .cleanup import Trace, find_package, find_traces, remove_package, remove_traces
 from .configs import CONFIG_ENV, Selected, check_name, chosen, named, select
 from .config import (
@@ -270,6 +270,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     uninstall.add_argument(
         "--keep-package", action="store_true", help="delete files but keep the package installed"
+    )
+    uninstall.add_argument(
+        "--keep-app",
+        action="store_true",
+        help="keep desktop app settings, stored passphrase, and registrations",
     )
     uninstall.add_argument(
         "--test", action="store_true", help="list removals without deleting"
@@ -1474,27 +1479,44 @@ def cmd_check_all(args: argparse.Namespace, console: Console) -> int:
 
 
 def cmd_uninstall(args: argparse.Namespace, console: Console) -> int:
-    traces = find_traces(args.config, args.state, keep_config=args.keep_config)
+    traces = find_traces(
+        args.config, args.state, keep_config=args.keep_config, keep_app=args.keep_app
+    )
+    apps = [] if args.keep_app else apptraces.app_locations()
     package = None if args.keep_package else find_package()
     from_source = None
     if package is None and not args.keep_package:
         # no package to remove, explain
         from_source = f"[dim]This copy runs from source ({escape(str(tool_dir()))}), not a package.[/]"
 
+    kept_apps = "\n".join(
+        f"[dim]The app itself is kept, at {escape(str(app))}. "
+        + ("Drag it to the Trash to remove it." if app.suffix == ".app" else "Delete that folder to remove it.")
+        + "[/]"
+        for app in apps
+    )
+
     if not traces and package is None:
         console.print("[dim]No Youpdated files found.[/]")
         if from_source:
             console.print(from_source)
+        if kept_apps:
+            console.print(kept_apps)
         return 0
 
     console.print("[bold]This will permanently delete:[/]\n")
     for trace in traces:
-        console.print(f"  [yellow]{escape(str(trace.path))}[/]")
+        console.print(f"  [yellow]{escape(trace.shown)}[/]")
         console.print(f"    [dim]{trace.note}[/]")
     if package is not None:
         console.print(f"  [yellow]youpdated {escape(package.version)}[/]")
         console.print(f"    [dim]the package, with: {escape(package.display)}[/]")
     console.print()
+    notes = [kept_apps] if kept_apps else []
+    if any(trace.kind == "app" for trace in traces):
+        notes.insert(0, "[dim]Quit the desktop app first.[/]")
+    if notes:
+        console.print("\n".join(notes) + "\n")
 
     if args.test:
         console.print("[dim]--test: nothing was deleted.[/]")
@@ -1520,9 +1542,9 @@ def cmd_uninstall(args: argparse.Namespace, console: Console) -> int:
         removed, failed = remove_traces(traces)
 
         for trace in removed:
-            console.print(f"[green]removed[/] {escape(str(trace.path))}")
+            console.print(f"[green]removed[/] {escape(trace.shown)}")
         for trace, reason in failed:
-            console.print(f"[yellow]kept[/]    {escape(str(trace.path))}: {escape(reason)}")
+            console.print(f"[yellow]kept[/]    {escape(trace.shown)}: {escape(reason)}")
 
         console.print(
             f"\n[bold]{len(removed)}[/] item(s) removed"

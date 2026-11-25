@@ -149,6 +149,28 @@ import Testing
         #expect(command.arguments == ["api", "serve"])
     }
 
+    @Test func uninstallKeepsTheEngineAndTheAppsOwnTraces() throws {
+        let command = try #require(EngineCommand.uninstall(
+            bundle: .main,
+            environment: ["YOUPDATED_ENGINE": "/usr/bin/python3 -m youpdated", "YOUPDATED_PASSPHRASE": "secret"]))
+        #expect(command.executable.path == "/usr/bin/python3")
+        #expect(command.arguments == ["-m", "youpdated", "uninstall", "--yes", "--keep-package", "--keep-app"])
+        #expect(command.environment["YOUPDATED_PASSPHRASE"] == nil)
+    }
+
+    @Test func noUninstallWithADevelopmentConfigOrHistory() {
+        // it would delete the real config and history, and leave these
+        #expect(EngineCommand.uninstall(bundle: .main, environment: ["YOUPDATED_ENGINE_CONFIG": "/tmp/y/config.yaml"]) == nil)
+        #expect(EngineCommand.uninstall(bundle: .main, environment: ["YOUPDATED_ENGINE_STATE": "/tmp/y/state.sqlite3"]) == nil)
+        #expect(EngineCommand.uninstall(bundle: .main, environment: ["YOUPDATED_ENGINE_CONFIG": ""]) != nil)
+    }
+
+    @Test func runReportsTheExitStatus() async {
+        #expect(await EngineCommand(executable: URL(filePath: "/usr/bin/true"), arguments: [], environment: [:]).run())
+        #expect(await !EngineCommand(executable: URL(filePath: "/usr/bin/false"), arguments: [], environment: [:]).run())
+        #expect(await !EngineCommand(executable: URL(filePath: "/nonexistent/engine"), arguments: [], environment: [:]).run())
+    }
+
     @Test func splitsQuotedWords() {
         #expect(EngineCommand.split(#"  "/path with space/python" -m  youpdated "#) == ["/path with space/python", "-m", "youpdated"])
     }

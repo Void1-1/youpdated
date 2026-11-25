@@ -145,8 +145,8 @@ func run() async throws {
 
     // Settings → Advanced
     let (advancedModel, _) = await makeModel()
-    try await render("settings-advanced", size: CGSize(width: 520, height: 420), title: "Advanced") {
-        SettingsPaneView(.advanced).environment(advancedModel).frame(width: 480).padding(20)
+    try await render("settings-advanced", size: CGSize(width: 520, height: 520), title: "Advanced") {
+        SettingsPaneView(.advanced).environment(advancedModel).environment(Removal()).frame(width: 480).padding(20)
     }
 
     // a target with no updates, filtered in Following
