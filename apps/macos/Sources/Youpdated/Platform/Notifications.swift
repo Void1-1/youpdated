@@ -20,7 +20,6 @@ final class Notifications: NSObject, UNUserNotificationCenterDelegate {
     var respond: ((AppModel.NotificationAction, [String], URL?) async -> Date?)?
     var download: (() -> Void)?
     var showInbox: (() -> Void)?
-    private var authorized: Bool?
 
     func start() {
         center.delegate = self
@@ -34,9 +33,12 @@ final class Notifications: NSObject, UNUserNotificationCenterDelegate {
         ])
     }
 
-    /// Asks once, on the first time
+    /// Asks the first time. After that it reads System Settings on every post
     private func authorize() async -> Bool {
-        if let authorized { return authorized }
+        let status = await center.notificationSettings().authorizationStatus
+        if status != .notDetermined {
+            return status == .authorized || status == .provisional
+        }
         let granted: Bool
         do {
             granted = try await center.requestAuthorization(options: [.alert, .sound, .badge])
@@ -46,7 +48,6 @@ final class Notifications: NSObject, UNUserNotificationCenterDelegate {
         }
         let settings = await center.notificationSettings()
         AppLog.shared.write("Notifications: allowed \(granted), authorization \(settings.authorizationStatus.rawValue), alerts \(settings.alertSetting.rawValue)")
-        authorized = granted
         return granted
     }
 

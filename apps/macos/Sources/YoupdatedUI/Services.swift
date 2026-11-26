@@ -84,6 +84,34 @@ public final class LoginItem {
     }
 }
 
+/// If macOS enabled app notifications
+@MainActor
+@Observable
+public final class NotificationPermission {
+    public private(set) var status: UNAuthorizationStatus = .notDetermined
+
+    public init() {}
+
+    public var denied: Bool { status == .denied }
+
+    public func refresh() async {
+        status = await UNUserNotificationCenter.current().notificationSettings().authorizationStatus
+    }
+
+    /// Shows macOS's prompt while it hasn't been answered
+    public func request() async {
+        _ = try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge])
+        await refresh()
+    }
+
+    public func openSystemSettings() {
+        let id = Bundle.main.bundleIdentifier ?? ""
+        if let url = URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension?id=\(id)") {
+            NSWorkspace.shared.open(url)
+        }
+    }
+}
+
 /// Fetches this platform's file from an app release and opens it
 @MainActor
 @Observable

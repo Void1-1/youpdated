@@ -25,6 +25,8 @@ struct YoupdatedApp: App {
                 .environment(delegate.model)
                 .environment(delegate.downloader)
                 .environment(delegate.loginItem)
+                .environment(delegate.notificationPermission)
+                .environment(delegate.removal)
         }
     }
 }
