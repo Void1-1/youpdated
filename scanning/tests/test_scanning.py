@@ -1,0 +1,77 @@
+"""youpdated_scanning's dispatch. Each scanner gets its own file, with captured fixtures, as it's written"""
+
+from __future__ import annotations
+
+from typing import ClassVar
+
+import pytest
+
+import youpdated_scanning
+from youpdated.importers import Found
+from youpdated_scanning import SCANNERS, Installed, ScanError, scan
+
+
+class Fake:
+    name: ClassVar[str] = "fake"
+    summary: ClassVar[str] = "test scanner"
+    sources: ClassVar[tuple[str, ...]] = ("steam",)
+
+    def __init__(self, finds=(), *, available=True, error=None):
+        self.finds, self._available, self.error = list(finds), available, error
+
+    def available(self):
+        return self._available
+
+    def scan(self):
+        if self.error:
+            raise self.error
+        return self.finds
+
+
+@pytest.fixture
+def scanners(monkeypatch):
+    replaced: dict = {}
+    monkeypatch.setattr(youpdated_scanning, "SCANNERS", replaced)
+    return replaced
+
+
+def test_every_scanner_names_sources_youpdated_has():
+    from youpdated.registry import all_sources
+
+    known = all_sources()
+    for scanner in SCANNERS.values():
+        assert set(scanner.sources) <= set(known), scanner.name
+
+
+def test_finds_go_into_found_and_come_back(scanners):
+    scanners["fake"] = Fake([Installed("steam", "440", "Team Fortress 2", "123")])
+    found = Found()
+    installed = scan(found)
+    assert found.entries == {"steam": ["440"]}
+    assert installed[0].version == "123"
+
+
+def test_a_find_the_source_rejects_is_skipped(scanners):
+    scanners["fake"] = Fake([Installed("steam", "not an app")])
+    found = Found()
+    scan(found)
+    assert found.entries == {}
+    assert found.skipped
+
+
+def test_unavailable_scanners_are_not_run(scanners):
+    scanners["fake"] = Fake(error=AssertionError("ran"), available=False)
+    scan(Found())
+
+
+def test_a_failing_scanner_is_a_warning(scanners):
+    scanners["fake"] = Fake(error=ScanError("winget export exited with 1"))
+    found = Found()
+    scan(found)
+    assert found.warnings == ["fake: winget export exited with 1"]
+
+
+def test_only_names_known_scanners(scanners):
+    scanners["fake"] = Fake()
+    with pytest.raises(ValueError, match="no scanner named nope"):
+        scan(Found(), ["nope"])

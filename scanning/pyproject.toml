@@ -1,0 +1,42 @@
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "youpdated-scanning"
+version = "0.1.0"
+description = "Find installed sources on this machine and watch them with Youpdated"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+license-files = ["../LICENSE"]
+authors = [{ name = "Void1-1", email = "161782542+Void1-1@users.noreply.github.com" }]
+keywords = ["updates", "release-tracking", "steam", "sparkle", "winget", "youpdated"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Intended Audience :: End Users/Desktop",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Utilities",
+    "Typing :: Typed",
+]
+dependencies = ["youpdated>=0.6"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.urls]
+Homepage = "https://github.com/Void1-1/youpdated"
+Repository = "https://github.com/Void1-1/youpdated"
+Issues = "https://github.com/Void1-1/youpdated/issues"
+
+[tool.setuptools.packages.find]
+include = ["youpdated_scanning*"]
+
+[tool.setuptools.package-data]
+youpdated_scanning = ["py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

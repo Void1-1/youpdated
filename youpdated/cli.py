@@ -213,6 +213,17 @@ def build_parser() -> argparse.ArgumentParser:
     imports.add_argument("-c", "--config", metavar="CONFIG", help=CONFIG_HELP)
     imports.add_argument("--test", action="store_true", help="show changes without writing")
 
+    scans = sub.add_parser(
+        "scan",
+        help="watch sources installed on this machine (needs youpdated[scanning])",
+    )
+    scans.add_argument(
+        "--only", action="append", metavar="SCANNER",
+        help="run only this scanner (steam, apps, winget, homebrew, flatpak)",
+    )
+    scans.add_argument("-c", "--config", metavar="CONFIG", help=CONFIG_HELP)
+    scans.add_argument("--test", action="store_true", help="show changes without writing")
+
     editor = sub.add_parser("edit", help="open the config in your editor")
     editor.add_argument("-c", "--config", metavar="CONFIG", help=CONFIG_HELP)
     editor.add_argument("--state", help="path to the state database")
@@ -697,8 +708,8 @@ def cmd_edit(
     *,
     pick: Picker | None = None,
 ) -> int:
-    """`add`/`remove`, or `import` with the ``plan`` it read. ``pick`` makes the plan once the config is read"""
-    adding = args.command in ("add", "import")
+    """`add`/`remove`, or `import`/`scan` with the ``plan`` it read. ``pick`` makes the plan once the config is read"""
+    adding = args.command in ("add", "import", "scan")
     wipe = getattr(args, "wipe", False)
     if plan is None and pick is None:
         plan = _edit_plan(args.command, args.words)
@@ -794,13 +805,40 @@ def cmd_import(args: argparse.Namespace, console: Console) -> int:
     # files first
     for name in args.files:
         read_file(Path(name).expanduser(), found, args.format)
+    return _add_found(args, console, found, "Nothing to watch in these files.")
 
+
+SCANNING_HINT = (
+    "Scanning this machine needs youpdated-scanning, which isn't part of the default install. "
+    "Add it with `pipx install 'youpdated[scanning]'` or `pipx inject youpdated youpdated-scanning`."
+)
+
+
+def cmd_scan(args: argparse.Namespace, console: Console) -> int:
+    # The scanners live in their own package. This hands their findings to the config editor, like `import`.
+    try:
+        import youpdated_scanning
+    except ImportError:
+        console.print(f"[red]Error:[/] {escape(SCANNING_HINT)}")
+        return 1
+    found = Found()
+    try:
+        youpdated_scanning.scan(found, args.only)
+    except ValueError as exc:
+        # an unknown --only name
+        console.print(f"[red]Error:[/] {escape(str(exc))}")
+        return 1
+    return _add_found(args, console, found, "Found nothing to watch on this machine.")
+
+
+def _add_found(args: argparse.Namespace, console: Console, found: Found, nothing: str) -> int:
+    """report what ``found`` skipped, then add the rest to the config"""
     for what, why in found.skipped:
         console.print(f"[yellow]Skipped[/] {escape(what)} [dim]: {escape(why)}[/]")
     for warning in found.warnings:
         console.print(f"[yellow]Warning:[/] {escape(warning)}")
     if not found.entries:
-        console.print("[dim]Nothing to watch in these files.[/]")
+        console.print(f"[dim]{nothing}[/]")
         return 0
     return cmd_edit(args, console, list(found.entries.items()))
 
@@ -1891,7 +1929,7 @@ def cmd_check(args: argparse.Namespace, console: Console) -> int:
 
 # Commands that take -c NAME / $YOUPDATED_CONFIG, with that config's own history
 _SELECTING = frozenset({
-    "check", "list", "add", "remove", "rm", "import", "edit",
+    "check", "list", "add", "remove", "rm", "import", "scan", "edit",
     "encrypt", "set-encrypted", "decrypt", "set-decrypted",
 })
 
@@ -1929,6 +1967,8 @@ def main(argv: list[str] | None = None) -> int:
             return cmd_edit(args, console)
         if args.command == "import":
             return cmd_import(args, console)
+        if args.command == "scan":
+            return cmd_scan(args, console)
         if args.command == "edit":
             return cmd_editor(args, console)
         if args.command == "init":
