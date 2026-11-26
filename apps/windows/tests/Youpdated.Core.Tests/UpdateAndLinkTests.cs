@@ -34,6 +34,31 @@ public class UpdateAndLinkTests
         Assert.Null(AppUpdate.From(self with { Starred = false }, new Version(1, 0, 0)));
     }
 
+    [Fact]
+    public void BetasAreOfferedTheirOwnRelease()
+    {
+        // The starred item is app-windows-v1.1.0
+        var self = Items.Single(item => item.Starred);
+        Assert.NotNull(AppUpdate.From(self, new InstalledVersion(new Version(1, 1, 0), "beta.1")));
+        Assert.Null(AppUpdate.From(self, new InstalledVersion(new Version(1, 1, 1), "beta.1")));
+        Assert.Null(AppUpdate.From(self, new Version(1, 1, 0)));
+    }
+
+    [Theory]
+    [InlineData("0.11.0-beta.1+7f5aa3af", "0.11.0", "beta.1", "0.11.0-beta.1")]
+    [InlineData("0.11.0+7f5aa3af", "0.11.0", null, "0.11.0")]
+    [InlineData("0.11.0", "0.11.0", null, "0.11.0")]
+    [InlineData("0.11.0.0", "0.10.0", null, "0.10.0")]
+    [InlineData("nonsense", "0.10.0", null, "0.10.0")]
+    [InlineData(null, "0.10.0", null, "0.10.0")]
+    public void InstalledVersionKeepsABetaLabel(string? informational, string number, string? prerelease, string display)
+    {
+        var version = InstalledVersion.FromAssembly(informational, new Version(0, 10, 0, 0));
+        Assert.Equal(Version.Parse(number), version.Number);
+        Assert.Equal(prerelease, version.Prerelease);
+        Assert.Equal(display, version.Display);
+    }
+
     [Theory]
     [InlineData("youpdated://add?url=https%3A%2F%2Fgithub.com%2Fa%2Fb", "https://github.com/a/b")]
     [InlineData("youpdated://add?url=https://example.com/feed?x=1&y=2", "https://example.com/feed?x=1&y=2")]

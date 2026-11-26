@@ -50,7 +50,7 @@ gh release edit app-macos-v<version> --draft=false --latest=false
 
 - **Upload while it's a draft: publishing makes a release's files permanent.**
 - `--latest=false` keeps the CLI's release as the repo's latest.
-- Use a plain version number, with no `-beta` and without marking the release as a prerelease. The app follows its own repo with `ignore: [prerelease]`, so testers wouldn't hear about one.
+- A beta is `MARKETING_VERSION = <x.y.z>-beta.<n>`, tagged `app-macos-v<x.y.z>-beta.<n>` and created with `--prerelease` as well. The app follows its own repo with `ignore: [prerelease]`, so installed apps won't get notified about a beta. A beta will be notified about its final release.
 - `release.yml` only publishes releases whose tag starts with `v` to PyPI, so app releases are skipped.
 - Tag with `app-macos-v`: each app only takes its own tags as updates.
 

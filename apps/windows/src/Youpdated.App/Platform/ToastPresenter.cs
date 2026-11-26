@@ -14,11 +14,11 @@ internal sealed class ToastPresenter : INotificationPresenter
     // Toast tags and groups limited to 64 chars
     private const int TagLength = 16;
 
-    private readonly Version _appVersion;
+    private readonly InstalledVersion _appVersion;
     private readonly ConcurrentDictionary<string, (string Tag, string Group)> _shown = new();
     private bool _registered;
 
-    public ToastPresenter(Version appVersion)
+    public ToastPresenter(InstalledVersion appVersion)
     {
         _appVersion = appVersion;
     }

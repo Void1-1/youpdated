@@ -114,14 +114,14 @@ public sealed partial class FeedViewModel : ObservableObject
     private readonly IShell _shell;
     private readonly TimeProvider _time;
     private readonly IUiDispatcher _ui;
-    private readonly Version _appVersion;
+    private readonly InstalledVersion _appVersion;
     private readonly Dictionary<string, FeedCard> _cards = [];
     private readonly HashSet<string> _held = [];
     private ITimer? _settle;
     private int _own;
     private bool _loaded;
 
-    public FeedViewModel(InboxViewModel inbox, IShell shell, TimeProvider time, IUiDispatcher ui, Version appVersion)
+    public FeedViewModel(InboxViewModel inbox, IShell shell, TimeProvider time, IUiDispatcher ui, InstalledVersion appVersion)
     {
         _inbox = inbox;
         _shell = shell;

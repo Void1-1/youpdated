@@ -29,7 +29,7 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     public SettingsViewModel(
         EngineClient engine, IStartupRegistration startup, ICredentialStore credentials,
-        Func<string?> passphrase, Version appVersion, ILocalStateStore localState)
+        Func<string?> passphrase, InstalledVersion appVersion, ILocalStateStore localState)
     {
         _engine = engine;
         _startup = startup;
@@ -50,7 +50,7 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     public static IReadOnlyList<int> IntervalChoices => Settings.IntervalChoices;
 
-    public Version AppVersion { get; }
+    public InstalledVersion AppVersion { get; }
 
     public Settings Current { get; private set; } = Settings.Defaults;
 

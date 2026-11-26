@@ -138,7 +138,7 @@ public static class FeedBuilder
 {
     /// <param name="held">Items to place as if unread</param>
     public static FeedLayout Build(
-        IEnumerable<InboxItem> items, FeedOptions options, DateTimeOffset now, TimeZoneInfo zone, Version appVersion,
+        IEnumerable<InboxItem> items, FeedOptions options, DateTimeOffset now, TimeZoneInfo zone, InstalledVersion appVersion,
         IReadOnlySet<string>? held = null)
     {
         var all = items.ToList();

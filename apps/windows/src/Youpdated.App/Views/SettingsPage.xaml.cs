@@ -26,7 +26,7 @@ public sealed partial class SettingsPage : Page
 
     private AppViewModel? _app;
 
-    public static string AppVersion(Version version) => Text.Format("SettingsVersion", version.ToString(3));
+    public static string AppVersion(InstalledVersion version) => Text.Format("SettingsVersion", version.Display);
 
     public static string UpdateStatus(bool watching) =>
         Text.Get(watching ? "SettingsUpdatesWatching" : "SettingsUpdatesOff");
@@ -307,7 +307,7 @@ public sealed partial class SettingsPage : Page
         AppLog.SetEnabled(DiagnosticLogSwitch.IsOn);
         if (DiagnosticLogSwitch.IsOn)
         {
-            AppLog.Write($"Diagnostic log on, Youpdated {Settings.AppVersion.ToString(3)}, {Settings.EngineVersion}, Windows {Environment.OSVersion.Version}");
+            AppLog.Write($"Diagnostic log on, Youpdated {Settings.AppVersion.Display}, {Settings.EngineVersion}, Windows {Environment.OSVersion.Version}");
         }
         ShowLogCard.IsEnabled = AppLog.Exists;
     }

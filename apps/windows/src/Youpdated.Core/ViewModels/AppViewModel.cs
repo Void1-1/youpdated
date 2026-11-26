@@ -46,7 +46,7 @@ public sealed record AppServices(
     ILocalStateStore LocalState,
     IDataRemover DataRemover,
     HttpClient Http,
-    Version AppVersion);
+    InstalledVersion AppVersion);
 
 public sealed partial class AppViewModel : ObservableObject, IAsyncDisposable
 {
