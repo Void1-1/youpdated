@@ -133,13 +133,27 @@ struct ViewSettings: View {
 
 struct NotificationSettings: View {
     @Environment(AppModel.self) private var model
+    @Environment(NotificationPermission.self) private var permission
 
     var body: some View {
         Form {
+            // off whenever macOS won't show them
             Toggle(String(localized: "Show notifications"), isOn: Binding(
-                get: { model.settings.osNotifications },
-                set: { on in Task { await model.update(SettingsPatch(osNotifications: on)) } }
+                get: { model.settings.osNotifications && !permission.denied },
+                set: { on in
+                    Task {
+                        if on { await permission.request() }
+                        await model.update(SettingsPatch(osNotifications: on))
+                    }
+                }
             ))
+            .disabled(permission.denied)
+            if permission.denied {
+                Text(String(localized: "Notifications for Youpdated are turned off in System Settings."))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Button(String(localized: "Allow in Notification Settings…")) { permission.openSystemSettings() }
+            }
             Toggle(String(localized: "Send a daily digest"), isOn: Binding(
                 get: { model.settings.digestTime != nil },
                 set: { on in Task { await model.update(SettingsPatch(digestTime: .some(on ? DigestSchedule.suggested : nil))) } }
@@ -167,16 +181,18 @@ struct NotificationSettings: View {
                     }
                 }
             }
-            Button(String(localized: "Notification Settings…")) {
-                let id = Bundle.main.bundleIdentifier ?? ""
-                if let url = URL(string: "x-apple.systempreferences:com.apple.Notifications-Settings.extension?id=\(id)") {
-                    NSWorkspace.shared.open(url)
-                }
+            if !permission.denied {
+                Button(String(localized: "Notification Settings…")) { permission.openSystemSettings() }
             }
             NotifySections()
         }
         .formStyle(.grouped)
         .task { await model.loadNotify() }
+        .task { await permission.refresh() }
+        // catches a change made in System Settings while this pane is open
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            Task { await permission.refresh() }
+        }
     }
 
     static func date(for time: String) -> Date {

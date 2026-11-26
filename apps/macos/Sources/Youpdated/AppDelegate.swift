@@ -14,6 +14,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let router = Router()
     let downloader = Downloader()
     let loginItem = LoginItem()
+    let notificationPermission = NotificationPermission()
     let removal = Removal()
     let model: AppModel
     private let configWatcher = ConfigWatcher()

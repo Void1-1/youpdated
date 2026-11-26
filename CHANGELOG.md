@@ -40,6 +40,10 @@ All notable changes to this project are documented here. The format follows [Kee
 
 - **Checks remember more (for `list`).** Each check now records which targets failed, the item behind a `bump:` target's highest release, and the CLI now keeps the names sources resolve.
 
+### Fixed
+
+- **MacOS notification settings** now correctly check actual notification access through System Settings.
+
 ## [0.6.0] — 2026-11-14
 
 ### Added
