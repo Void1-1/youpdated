@@ -19,6 +19,7 @@ from ..models import Target, Update
 from ..registry import register
 from .base import ConfigEntryError, entry_fields, require
 from .feed import feed_title, is_feed_url, parse_document, parse_entries
+from .sparkle import is_appcast_url
 
 MAX_ITEMS = 20
 VERSION_RE = re.compile(r"\bv?(\d+\.\d+[\d.]*(?:-[A-Za-z0-9.]+)?)\b")
@@ -30,8 +31,8 @@ class FeedSource:
     summary: ClassVar[str] = "Any RSS or Atom feed, for apps without a dedicated source"
 
     def claim(self, value: str) -> str | None:
-        """URL ending: `.xml`, `.rss`, `.atom`, `/feed`"""
-        return value if is_feed_url(value) else None
+        """URL ending: `.xml`, `.rss`, `.atom`, `/feed`, but not a Sparkle appcast"""
+        return value if is_feed_url(value) and not is_appcast_url(value) else None
 
     def targets(self, entries: list[Any]) -> list[Target]:
         targets = []

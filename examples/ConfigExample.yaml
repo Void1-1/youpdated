@@ -81,6 +81,26 @@ sources:
       ignore: [prerelease]           # skip alphas, betas, rcs, and dev releases
       versions: {bump: minor, min: "5.0"} # 5.2.0 and 6.0.0, not 5.2.1, nothing before 5.0
 
+  crates: [serde]                    # Rust, crates.io
+  go: [github.com/spf13/cobra]       # a Go module path, as after `go get`
+  rubygems: [rails]
+  packagist: [monolog/monolog]       # PHP, vendor/package
+  nuget: [Newtonsoft.Json]           # .NET
+  maven:
+    - com.google.guava:guava         # group:artifact on Maven Central
+    - package: androidx.core:core
+      repository: https://dl.google.com/android/maven2 # any other Maven repository
+
+  sparkle:                           # a Mac app's Sparkle appcast
+    - https://www.iterm2.com/appcasts/final_modern.xml
+  appstore:
+    - 284882215                      # the number after `id` in its App Store URL
+    - app: com.apple.dt.Xcode        # or a bundle id
+      country: gb                    # two letters; us default
+  flathub: [org.mozilla.firefox]     # Linux apps
+  fdroid: [org.fdroid.fdroid]        # Android apps
+  winget: [Mozilla.Firefox]          # Windows; GITHUB_TOKEN raises GitHub's limit
+
   steam:
     - 440                            # appid; the store name is looked up for you
     - appid: 730
@@ -90,6 +110,17 @@ sources:
     - https://hempuli.itch.io/baba-is-you # devlogs and builds (the default)
     - url: https://aak581.itch.io/engineering-marvels-from-hell
       watch: [devlog]                # devlog | releases
+
+  gog:
+    - 1207658924                     # product id
+    - product: 1207658924
+      os: mac                        # windows (default) or mac
+
+  modrinth:                          # Minecraft mods, plugins, and packs
+    - sodium
+    - project: iris
+      loaders: [fabric]              # only builds for these
+      game_versions: ["1.21.1"]      # quoted!
 
   youtube:
     - "@NASA"                        # handle, channel id (UC...), or channel URL

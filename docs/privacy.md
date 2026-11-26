@@ -22,6 +22,19 @@
 | `npm` | the public registry |
 | `homebrew` | the formulae.brew.sh JSON API |
 | `pypi` | PyPI's JSON index, as pip reads it |
+| `crates` | the crates.io API |
+| `go` | proxy.golang.org, same module proxy `go get` uses |
+| `rubygems` | the rubygems.org API |
+| `packagist` | repo.packagist.org, as Composer reads it |
+| `nuget` | the nuget.org registration API |
+| `maven` | the repository's `maven-metadata.xml` (Maven Central by default) |
+| `sparkle` | the appcast itself |
+| `appstore` | Apple's iTunes lookup API |
+| `flathub` | the flathub.org API |
+| `fdroid` | the f-droid.org API |
+| `winget` | GitHub's API, for the `microsoft/winget-pkgs` repo |
+| `gog` | GOG's content-system and product APIs; `add` with a store page fetches that page |
+| `modrinth` | the Modrinth API |
 | `steam` | the store's news feed |
 | `itch` | `<game>/devlog.rss` + the game page |
 | `youtube` | the channel feed; while it's down, an Invidious instance (a third party, which sees the channels asked for), then the Data API with `YOUTUBE_API_KEY` |
@@ -30,9 +43,9 @@
 | `json` | the document itself |
 | `webpage` | the page itself |
 
-**The desktop app's Show icons** (off by default) adds requests for a picture for each target: Steam's store details and header image, a git repo owner's avatar (from the forge's API outside GitHub), a YouTube channel's page and picture, an itch game's page and cover, or a feed's image or its site's icon. They go through the same client and `settings.privacy` options as everything else, a few per check, and about once a month per target afterwards. npm, PyPI, Homebrew, and browsers have no icons and get no extra requests. The icons are kept in the history, so they can be encrypted, and turning the setting off deletes them.
+**The desktop app's Show icons** (off by default) adds requests for a picture for each target: Steam's store details and header image, a git repo owner's avatar (from the forge's API outside GitHub), a YouTube channel's page and picture, an itch game's page and cover, or a feed's image or its site's icon. They go through the same client and `settings.privacy` options as everything else, a few per check, and about once a month per target afterwards. npm, PyPI, Homebrew, browsers, and the other registry, app store, GOG, and Modrinth sources have no icons and get no extra requests. The icons are kept in the history, so they can be encrypted, and turning the setting off deletes them.
 
-**App diagnostic logs** (Settings → Advanced, off by default) writes errors to `%LOCALAPPDATA%\youpdated\app\app.log` on Windows and `~/Library/Logs/Youpdated/app.log` on Mac, and is never sent anywhere. It holds app, engine, and OS versions, if notifications could be shown, and errors, including engine outputs when something fails. That can reveal sources you follow, and system file paths, so read it before sharing. It isn't encrypted, even when your config and history are! Turning the setting off stops new writes but keeps the file; on Windows, **Remove Youpdated from this PC** deletes it, and on Mac you can delete the folder.
+**App diagnostic logs** (Settings → Advanced, off by default) writes errors to `%LOCALAPPDATA%\youpdated\app\app.log` on Windows and `~/Library/Logs/Youpdated/app.log` on Mac, and is never sent anywhere. It holds app, engine, and OS versions, if notifications could be shown, and errors, including engine outputs when something fails. That can reveal sources you follow, and system file paths, so read it before sharing. It isn't encrypted, even when your config and history are! Turning the setting off stops new writes but keeps the file; **Remove Youpdated from this PC** or **from this Mac** deletes it, and so does `youpdated uninstall` if the CLI is installed.
 
 ## The `settings.privacy` block
 

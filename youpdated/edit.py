@@ -46,6 +46,7 @@ class Change:
     applied: list[str] = field(default_factory=list)
     # Entries already watched (add) or not watched (remove), left alone
     skipped: list[str] = field(default_factory=list)
+    watched_as: dict[str, str] = field(default_factory=dict)
     # Targets in a remove that nothing in the config watches, for `--wipe`
     # a key can appear more than once, from entries with different options
     dropped: list[Target] = field(default_factory=list)
@@ -362,10 +363,12 @@ def add_to_config(text: str, source: str, values: Sequence[str | dict[str, Any]]
     # alias section is used if canonical is absent
     section = next((n for n in parsed.names if n in parsed.listed), parsed.source)
 
-    watched: set[str] = set()
+    # target key: how the entry watching it is written
+    watched: dict[str, str] = {}
     for name in parsed.sections():
         for entry in parsed.listed[name]:
-            watched |= _keys(parsed.handler, entry)
+            for key in _keys(parsed.handler, entry):
+                watched.setdefault(key, _spelled(entry))
 
     change = Change(text=text, section=section)
     lines: list[str] = []
@@ -386,10 +389,12 @@ def add_to_config(text: str, source: str, values: Sequence[str | dict[str, Any]]
             keys = {t.key for t in parsed.handler.targets([fields])}
         except Exception as exc:
             raise ConfigError(str(exc)) from exc
-        if keys and keys <= watched:
+        if keys and keys <= watched.keys():
             change.skipped.append(value)
+            change.watched_as[value] = ", ".join(dict.fromkeys(watched[k] for k in sorted(keys)))
             continue
-        watched |= keys
+        for key in keys:
+            watched.setdefault(key, value)
         change.applied.append(value)
         lines.append(line)
         entries.append(entry)
@@ -543,7 +548,7 @@ def requested_urls(source: Source | None, targets: list[Target], state: State) -
     """URLs ``targets`` ask for"""
     if source is None:
         return set()
-    with Client(PrivacyConfig(), state, test=True) as client:
+    with Client(PrivacyConfig(user_agent="rotate"), state, test=True) as client:
         for target in targets:
             try:
                 list(source.fetch(target, client))
@@ -881,6 +886,13 @@ def _targets(handler: Source, entry: Any) -> list[Target]:
 
 def _keys(handler: Source, entry: Any) -> set[str]:
     return {t.key for t in _targets(handler, entry)}
+
+
+def _spelled(entry: Any) -> str:
+    """a config entry as written: scalar as is, mapping as a YAML line"""
+    if isinstance(entry, dict):
+        return yaml.safe_dump(entry, default_flow_style=True, sort_keys=False, width=1 << 16).strip()
+    return str(entry)
 
 
 def _line_ends(edited: str, original: str) -> str:

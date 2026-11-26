@@ -1,0 +1,1080 @@
+[
+ {
+  "number": "1.19.7",
+  "platform": "ruby",
+  "prerelease": false,
+  "created_at": "2026-11-02T18:22:56.838Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.7",
+  "platform": "x86_64-linux-musl",
+  "prerelease": false,
+  "created_at": "2026-11-02T18:22:54.427Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.7",
+  "platform": "x86_64-linux-gnu",
+  "prerelease": false,
+  "created_at": "2026-11-02T18:22:52.292Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.7",
+  "platform": "x86_64-darwin",
+  "prerelease": false,
+  "created_at": "2026-11-02T18:22:49.511Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.7",
+  "platform": "x64-mingw-ucrt",
+  "prerelease": false,
+  "created_at": "2026-11-02T18:22:46.914Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.7",
+  "platform": "java",
+  "prerelease": false,
+  "created_at": "2026-11-02T18:22:44.638Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.7",
+  "platform": "arm64-darwin",
+  "prerelease": false,
+  "created_at": "2026-11-02T18:22:41.894Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.7",
+  "platform": "arm-linux-musl",
+  "prerelease": false,
+  "created_at": "2026-11-02T18:22:39.475Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.7",
+  "platform": "arm-linux-gnu",
+  "prerelease": false,
+  "created_at": "2026-11-02T18:22:36.523Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.7",
+  "platform": "aarch64-linux-musl",
+  "prerelease": false,
+  "created_at": "2026-11-02T18:22:33.803Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.7",
+  "platform": "aarch64-linux-gnu",
+  "prerelease": false,
+  "created_at": "2026-11-02T18:22:30.560Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.6",
+  "platform": "ruby",
+  "prerelease": false,
+  "created_at": "2026-11-02T07:02:19.630Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.6",
+  "platform": "x86_64-linux-musl",
+  "prerelease": false,
+  "created_at": "2026-11-02T07:02:17.288Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.6",
+  "platform": "x86_64-linux-gnu",
+  "prerelease": false,
+  "created_at": "2026-11-02T07:02:14.782Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.6",
+  "platform": "x86_64-darwin",
+  "prerelease": false,
+  "created_at": "2026-11-02T07:02:12.272Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.6",
+  "platform": "x64-mingw-ucrt",
+  "prerelease": false,
+  "created_at": "2026-11-02T07:02:09.528Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.6",
+  "platform": "java",
+  "prerelease": false,
+  "created_at": "2026-11-02T07:02:07.374Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.6",
+  "platform": "arm64-darwin",
+  "prerelease": false,
+  "created_at": "2026-11-02T07:02:03.973Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.6",
+  "platform": "arm-linux-musl",
+  "prerelease": false,
+  "created_at": "2026-11-02T07:02:01.662Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.6",
+  "platform": "arm-linux-gnu",
+  "prerelease": false,
+  "created_at": "2026-11-02T07:01:58.988Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.6",
+  "platform": "aarch64-linux-musl",
+  "prerelease": false,
+  "created_at": "2026-11-02T07:01:55.962Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.6",
+  "platform": "aarch64-linux-gnu",
+  "prerelease": false,
+  "created_at": "2026-11-02T07:01:53.123Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.5",
+  "platform": "ruby",
+  "prerelease": false,
+  "created_at": "2026-11-02T03:40:07.885Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.5",
+  "platform": "x86_64-linux-musl",
+  "prerelease": false,
+  "created_at": "2026-11-02T03:40:05.341Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.5",
+  "platform": "x86_64-linux-gnu",
+  "prerelease": false,
+  "created_at": "2026-11-02T03:40:02.935Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.5",
+  "platform": "x86_64-darwin",
+  "prerelease": false,
+  "created_at": "2026-11-02T03:40:00.245Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.5",
+  "platform": "x64-mingw-ucrt",
+  "prerelease": false,
+  "created_at": "2026-11-02T03:39:57.421Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.5",
+  "platform": "java",
+  "prerelease": false,
+  "created_at": "2026-11-02T03:39:54.420Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.5",
+  "platform": "arm64-darwin",
+  "prerelease": false,
+  "created_at": "2026-11-02T03:39:50.738Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.5",
+  "platform": "arm-linux-musl",
+  "prerelease": false,
+  "created_at": "2026-11-02T03:39:47.795Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.5",
+  "platform": "arm-linux-gnu",
+  "prerelease": false,
+  "created_at": "2026-11-02T03:39:44.784Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.5",
+  "platform": "aarch64-linux-musl",
+  "prerelease": false,
+  "created_at": "2026-11-02T03:39:41.941Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.5",
+  "platform": "aarch64-linux-gnu",
+  "prerelease": false,
+  "created_at": "2026-11-02T03:39:38.534Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.4",
+  "platform": "ruby",
+  "prerelease": false,
+  "created_at": "2026-06-18T15:18:58.041Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.4",
+  "platform": "x86_64-linux-musl",
+  "prerelease": false,
+  "created_at": "2026-06-18T15:18:54.716Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.4",
+  "platform": "x86_64-linux-gnu",
+  "prerelease": false,
+  "created_at": "2026-06-18T15:18:50.642Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.4",
+  "platform": "x86_64-darwin",
+  "prerelease": false,
+  "created_at": "2026-06-18T15:18:44.155Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.4",
+  "platform": "x64-mingw-ucrt",
+  "prerelease": false,
+  "created_at": "2026-06-18T15:18:39.632Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.4",
+  "platform": "java",
+  "prerelease": false,
+  "created_at": "2026-06-18T15:18:35.798Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.4",
+  "platform": "arm64-darwin",
+  "prerelease": false,
+  "created_at": "2026-06-18T15:18:31.523Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.4",
+  "platform": "arm-linux-musl",
+  "prerelease": false,
+  "created_at": "2026-06-18T15:18:27.613Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.4",
+  "platform": "arm-linux-gnu",
+  "prerelease": false,
+  "created_at": "2026-06-18T15:18:23.963Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.4",
+  "platform": "aarch64-linux-musl",
+  "prerelease": false,
+  "created_at": "2026-06-18T15:18:18.243Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.4",
+  "platform": "aarch64-linux-gnu",
+  "prerelease": false,
+  "created_at": "2026-06-18T15:18:13.773Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.3",
+  "platform": "ruby",
+  "prerelease": false,
+  "created_at": "2026-04-27T21:16:23.955Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.3",
+  "platform": "x86_64-linux-musl",
+  "prerelease": false,
+  "created_at": "2026-04-27T21:16:20.947Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.3",
+  "platform": "x86_64-linux-gnu",
+  "prerelease": false,
+  "created_at": "2026-04-27T21:16:18.386Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.3",
+  "platform": "x86_64-darwin",
+  "prerelease": false,
+  "created_at": "2026-04-27T21:16:15.533Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.3",
+  "platform": "x64-mingw-ucrt",
+  "prerelease": false,
+  "created_at": "2026-04-27T21:16:11.954Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.3",
+  "platform": "java",
+  "prerelease": false,
+  "created_at": "2026-04-27T21:16:08.745Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.3",
+  "platform": "arm64-darwin",
+  "prerelease": false,
+  "created_at": "2026-04-27T21:16:05.175Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.3",
+  "platform": "arm-linux-musl",
+  "prerelease": false,
+  "created_at": "2026-04-27T21:16:01.717Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.3",
+  "platform": "arm-linux-gnu",
+  "prerelease": false,
+  "created_at": "2026-04-27T21:15:58.492Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.3",
+  "platform": "aarch64-linux-musl",
+  "prerelease": false,
+  "created_at": "2026-04-27T21:15:54.379Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.3",
+  "platform": "aarch64-linux-gnu",
+  "prerelease": false,
+  "created_at": "2026-04-27T21:15:50.442Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.2",
+  "platform": "ruby",
+  "prerelease": false,
+  "created_at": "2026-03-19T21:12:43.001Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.2",
+  "platform": "x86_64-linux-musl",
+  "prerelease": false,
+  "created_at": "2026-03-19T21:12:38.952Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.2",
+  "platform": "x86_64-linux-gnu",
+  "prerelease": false,
+  "created_at": "2026-03-19T21:12:35.341Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.2",
+  "platform": "x86_64-darwin",
+  "prerelease": false,
+  "created_at": "2026-03-19T21:12:32.367Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.2",
+  "platform": "x64-mingw-ucrt",
+  "prerelease": false,
+  "created_at": "2026-03-19T21:12:29.394Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.2",
+  "platform": "java",
+  "prerelease": false,
+  "created_at": "2026-03-19T21:12:25.587Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.2",
+  "platform": "arm64-darwin",
+  "prerelease": false,
+  "created_at": "2026-03-19T21:12:22.178Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.2",
+  "platform": "arm-linux-musl",
+  "prerelease": false,
+  "created_at": "2026-03-19T21:12:19.285Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.2",
+  "platform": "arm-linux-gnu",
+  "prerelease": false,
+  "created_at": "2026-03-19T21:12:15.269Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.2",
+  "platform": "aarch64-linux-musl",
+  "prerelease": false,
+  "created_at": "2026-03-19T21:12:11.482Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.2",
+  "platform": "aarch64-linux-gnu",
+  "prerelease": false,
+  "created_at": "2026-03-19T21:12:07.878Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.1",
+  "platform": "ruby",
+  "prerelease": false,
+  "created_at": "2026-02-16T23:31:21.075Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.1",
+  "platform": "x86_64-linux-musl",
+  "prerelease": false,
+  "created_at": "2026-02-16T23:31:17.785Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.1",
+  "platform": "x86_64-linux-gnu",
+  "prerelease": false,
+  "created_at": "2026-02-16T23:31:14.900Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.1",
+  "platform": "x86_64-darwin",
+  "prerelease": false,
+  "created_at": "2026-02-16T23:31:12.332Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.1",
+  "platform": "x64-mingw-ucrt",
+  "prerelease": false,
+  "created_at": "2026-02-16T23:31:09.416Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.1",
+  "platform": "java",
+  "prerelease": false,
+  "created_at": "2026-02-16T23:31:06.291Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.1",
+  "platform": "arm64-darwin",
+  "prerelease": false,
+  "created_at": "2026-02-16T23:31:02.935Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.1",
+  "platform": "arm-linux-musl",
+  "prerelease": false,
+  "created_at": "2026-02-16T23:30:59.426Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.1",
+  "platform": "arm-linux-gnu",
+  "prerelease": false,
+  "created_at": "2026-02-16T23:30:56.552Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.1",
+  "platform": "aarch64-linux-musl",
+  "prerelease": false,
+  "created_at": "2026-02-16T23:30:53.380Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.1",
+  "platform": "aarch64-linux-gnu",
+  "prerelease": false,
+  "created_at": "2026-02-16T23:30:49.791Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.0",
+  "platform": "ruby",
+  "prerelease": false,
+  "created_at": "2025-12-28T16:47:52.309Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.0",
+  "platform": "x86_64-linux-musl",
+  "prerelease": false,
+  "created_at": "2025-12-28T16:47:48.433Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.0",
+  "platform": "x86_64-linux-gnu",
+  "prerelease": false,
+  "created_at": "2025-12-28T16:47:45.468Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.0",
+  "platform": "x86_64-darwin",
+  "prerelease": false,
+  "created_at": "2025-12-28T16:47:42.757Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.0",
+  "platform": "x64-mingw-ucrt",
+  "prerelease": false,
+  "created_at": "2025-12-28T16:47:39.359Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.0",
+  "platform": "java",
+  "prerelease": false,
+  "created_at": "2025-12-28T16:47:36.165Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.0",
+  "platform": "arm64-darwin",
+  "prerelease": false,
+  "created_at": "2025-12-28T16:47:32.677Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.0",
+  "platform": "arm-linux-musl",
+  "prerelease": false,
+  "created_at": "2025-12-28T16:47:29.340Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.0",
+  "platform": "arm-linux-gnu",
+  "prerelease": false,
+  "created_at": "2025-12-28T16:47:26.101Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.0",
+  "platform": "aarch64-linux-musl",
+  "prerelease": false,
+  "created_at": "2025-12-28T16:47:22.456Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.19.0",
+  "platform": "aarch64-linux-gnu",
+  "prerelease": false,
+  "created_at": "2025-12-28T16:47:18.466Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.18.10",
+  "platform": "ruby",
+  "prerelease": false,
+  "created_at": "2025-09-15T01:53:57.224Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.18.10",
+  "platform": "x86_64-linux-musl",
+  "prerelease": false,
+  "created_at": "2025-09-15T01:53:53.982Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.18.10",
+  "platform": "x86_64-linux-gnu",
+  "prerelease": false,
+  "created_at": "2025-09-15T01:53:50.697Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.18.10",
+  "platform": "x86_64-darwin",
+  "prerelease": false,
+  "created_at": "2025-09-15T01:53:45.710Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.18.10",
+  "platform": "x64-mingw-ucrt",
+  "prerelease": false,
+  "created_at": "2025-09-15T01:53:41.632Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.18.10",
+  "platform": "java",
+  "prerelease": false,
+  "created_at": "2025-09-15T01:53:37.668Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.18.10",
+  "platform": "arm64-darwin",
+  "prerelease": false,
+  "created_at": "2025-09-15T01:53:33.387Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.18.10",
+  "platform": "arm-linux-musl",
+  "prerelease": false,
+  "created_at": "2025-09-15T01:53:29.349Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.18.10",
+  "platform": "arm-linux-gnu",
+  "prerelease": false,
+  "created_at": "2025-09-15T01:53:25.228Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.18.10",
+  "platform": "aarch64-linux-musl",
+  "prerelease": false,
+  "created_at": "2025-09-15T01:53:20.851Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.18.10",
+  "platform": "aarch64-linux-gnu",
+  "prerelease": false,
+  "created_at": "2025-09-15T01:53:16.730Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.18.9",
+  "platform": "x86_64-linux-musl",
+  "prerelease": false,
+  "created_at": "2025-07-21T02:32:53.246Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.18.9",
+  "platform": "x86_64-linux-gnu",
+  "prerelease": false,
+  "created_at": "2025-07-21T02:32:49.427Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.18.9",
+  "platform": "x86_64-darwin",
+  "prerelease": false,
+  "created_at": "2025-07-21T02:32:45.784Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.18.9",
+  "platform": "x64-mingw-ucrt",
+  "prerelease": false,
+  "created_at": "2025-07-21T02:32:42.077Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.18.9",
+  "platform": "java",
+  "prerelease": false,
+  "created_at": "2025-07-21T02:32:39.033Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.18.9",
+  "platform": "ruby",
+  "prerelease": false,
+  "created_at": "2025-07-21T02:32:35.233Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.18.9",
+  "platform": "arm-linux-musl",
+  "prerelease": false,
+  "created_at": "2025-07-21T02:32:32.334Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.18.9",
+  "platform": "arm-linux-gnu",
+  "prerelease": false,
+  "created_at": "2025-07-21T02:32:29.235Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.18.9",
+  "platform": "arm64-darwin",
+  "prerelease": false,
+  "created_at": "2025-07-21T02:32:26.484Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.18.9",
+  "platform": "aarch64-linux-musl",
+  "prerelease": false,
+  "created_at": "2025-07-21T02:32:22.337Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.18.9",
+  "platform": "aarch64-linux-gnu",
+  "prerelease": false,
+  "created_at": "2025-07-21T02:32:18.464Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.18.8",
+  "platform": "x86_64-linux-musl",
+  "prerelease": false,
+  "created_at": "2025-04-21T19:13:45.152Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.18.8",
+  "platform": "x86_64-linux-gnu",
+  "prerelease": false,
+  "created_at": "2025-04-21T19:13:41.468Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.18.8",
+  "platform": "x86_64-darwin",
+  "prerelease": false,
+  "created_at": "2025-04-21T19:13:37.316Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.18.8",
+  "platform": "x64-mingw-ucrt",
+  "prerelease": false,
+  "created_at": "2025-04-21T19:13:32.539Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.18.8",
+  "platform": "java",
+  "prerelease": false,
+  "created_at": "2025-04-21T19:13:29.505Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.18.8",
+  "platform": "ruby",
+  "prerelease": false,
+  "created_at": "2025-04-21T19:13:25.111Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.18.8",
+  "platform": "arm-linux-musl",
+  "prerelease": false,
+  "created_at": "2025-04-21T19:13:20.509Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.18.8",
+  "platform": "arm-linux-gnu",
+  "prerelease": false,
+  "created_at": "2025-04-21T19:13:15.128Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.18.8",
+  "platform": "arm64-darwin",
+  "prerelease": false,
+  "created_at": "2025-04-21T19:13:11.265Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.18.8",
+  "platform": "aarch64-linux-musl",
+  "prerelease": false,
+  "created_at": "2025-04-21T19:13:06.466Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.18.8",
+  "platform": "aarch64-linux-gnu",
+  "prerelease": false,
+  "created_at": "2025-04-21T19:13:01.774Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.18.7",
+  "platform": "x86_64-linux-musl",
+  "prerelease": false,
+  "created_at": "2025-03-31T17:48:26.845Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.18.7",
+  "platform": "x86_64-linux-gnu",
+  "prerelease": false,
+  "created_at": "2025-03-31T17:48:23.352Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.18.7",
+  "platform": "x86_64-darwin",
+  "prerelease": false,
+  "created_at": "2025-03-31T17:48:20.569Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.18.7",
+  "platform": "x64-mingw-ucrt",
+  "prerelease": false,
+  "created_at": "2025-03-31T17:48:15.525Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.18.7",
+  "platform": "java",
+  "prerelease": false,
+  "created_at": "2025-03-31T17:48:12.145Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.18.7",
+  "platform": "ruby",
+  "prerelease": false,
+  "created_at": "2025-03-31T17:48:08.364Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.18.7",
+  "platform": "arm-linux-musl",
+  "prerelease": false,
+  "created_at": "2025-03-31T17:48:05.019Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.18.7",
+  "platform": "arm-linux-gnu",
+  "prerelease": false,
+  "created_at": "2025-03-31T17:48:02.249Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.18.7",
+  "platform": "arm64-darwin",
+  "prerelease": false,
+  "created_at": "2025-03-31T17:47:59.208Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.18.7",
+  "platform": "aarch64-linux-musl",
+  "prerelease": false,
+  "created_at": "2025-03-31T17:47:55.238Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.18.7",
+  "platform": "aarch64-linux-gnu",
+  "prerelease": false,
+  "created_at": "2025-03-31T17:47:51.194Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.18.0.rc1",
+  "platform": "x86_64-linux-musl",
+  "prerelease": true,
+  "created_at": "2024-12-16T17:48:44.371Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.18.0.rc1",
+  "platform": "x86_64-linux-gnu",
+  "prerelease": true,
+  "created_at": "2024-12-16T17:48:41.045Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.18.0.rc1",
+  "platform": "x86_64-darwin",
+  "prerelease": true,
+  "created_at": "2024-12-16T17:48:37.692Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.18.0.rc1",
+  "platform": "x64-mingw-ucrt",
+  "prerelease": true,
+  "created_at": "2024-12-16T17:48:34.016Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.18.0.rc1",
+  "platform": "java",
+  "prerelease": true,
+  "created_at": "2024-12-16T17:48:29.577Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.18.0.rc1",
+  "platform": "ruby",
+  "prerelease": true,
+  "created_at": "2024-12-16T17:48:24.566Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.18.0.rc1",
+  "platform": "arm-linux-musl",
+  "prerelease": true,
+  "created_at": "2024-12-16T17:48:20.758Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.18.0.rc1",
+  "platform": "arm-linux-gnu",
+  "prerelease": true,
+  "created_at": "2024-12-16T17:48:16.590Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.18.0.rc1",
+  "platform": "arm64-darwin",
+  "prerelease": true,
+  "created_at": "2024-12-16T17:48:12.383Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.18.0.rc1",
+  "platform": "aarch64-linux-musl",
+  "prerelease": true,
+  "created_at": "2024-12-16T17:48:05.986Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.18.0.rc1",
+  "platform": "aarch64-linux-gnu",
+  "prerelease": true,
+  "created_at": "2024-12-16T17:48:01.279Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.16.0.rc1",
+  "platform": "ruby",
+  "prerelease": true,
+  "created_at": "2023-12-13T22:00:39.303Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.16.0.rc1",
+  "platform": "x86_64-linux",
+  "prerelease": true,
+  "created_at": "2023-12-13T22:00:35.274Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.16.0.rc1",
+  "platform": "x86_64-darwin",
+  "prerelease": true,
+  "created_at": "2023-12-13T22:00:31.165Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.16.0.rc1",
+  "platform": "x86-mingw32",
+  "prerelease": true,
+  "created_at": "2023-12-13T22:00:26.132Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.16.0.rc1",
+  "platform": "x86-linux",
+  "prerelease": true,
+  "created_at": "2023-12-13T22:00:21.474Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.16.0.rc1",
+  "platform": "x64-mingw32",
+  "prerelease": true,
+  "created_at": "2023-12-13T22:00:17.567Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.16.0.rc1",
+  "platform": "x64-mingw-ucrt",
+  "prerelease": true,
+  "created_at": "2023-12-13T22:00:13.614Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.16.0.rc1",
+  "platform": "java",
+  "prerelease": true,
+  "created_at": "2023-12-13T22:00:09.140Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.16.0.rc1",
+  "platform": "arm64-darwin",
+  "prerelease": true,
+  "created_at": "2023-12-13T22:00:04.037Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.16.0.rc1",
+  "platform": "arm-linux",
+  "prerelease": true,
+  "created_at": "2023-12-13T21:59:58.810Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ },
+ {
+  "number": "1.16.0.rc1",
+  "platform": "aarch64-linux",
+  "prerelease": true,
+  "created_at": "2023-12-13T21:59:54.415Z",
+  "summary": "Nokogiri (\u92f8) makes it easy and painless to work with XML and HTML from Ruby."
+ }
+]

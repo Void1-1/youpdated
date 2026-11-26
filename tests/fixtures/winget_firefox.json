@@ -1,0 +1,92 @@
+[
+ {
+  "name": "100.0.1",
+  "path": "manifests/m/Mozilla/Firefox/100.0.1",
+  "type": "dir",
+  "html_url": "https://github.com/microsoft/winget-pkgs/tree/master/manifests/m/Mozilla/Firefox/100.0.1"
+ },
+ {
+  "name": "100.0.2",
+  "path": "manifests/m/Mozilla/Firefox/100.0.2",
+  "type": "dir",
+  "html_url": "https://github.com/microsoft/winget-pkgs/tree/master/manifests/m/Mozilla/Firefox/100.0.2"
+ },
+ {
+  "name": "158.0.1",
+  "path": "manifests/m/Mozilla/Firefox/158.0.1",
+  "type": "dir",
+  "html_url": "https://github.com/microsoft/winget-pkgs/tree/master/manifests/m/Mozilla/Firefox/158.0.1"
+ },
+ {
+  "name": "158.0",
+  "path": "manifests/m/Mozilla/Firefox/158.0",
+  "type": "dir",
+  "html_url": "https://github.com/microsoft/winget-pkgs/tree/master/manifests/m/Mozilla/Firefox/158.0"
+ },
+ {
+  "name": "159.0.1",
+  "path": "manifests/m/Mozilla/Firefox/159.0.1",
+  "type": "dir",
+  "html_url": "https://github.com/microsoft/winget-pkgs/tree/master/manifests/m/Mozilla/Firefox/159.0.1"
+ },
+ {
+  "name": "159.0",
+  "path": "manifests/m/Mozilla/Firefox/159.0",
+  "type": "dir",
+  "html_url": "https://github.com/microsoft/winget-pkgs/tree/master/manifests/m/Mozilla/Firefox/159.0"
+ },
+ {
+  "name": "160.0.1",
+  "path": "manifests/m/Mozilla/Firefox/160.0.1",
+  "type": "dir",
+  "html_url": "https://github.com/microsoft/winget-pkgs/tree/master/manifests/m/Mozilla/Firefox/160.0.1"
+ },
+ {
+  "name": "160.0",
+  "path": "manifests/m/Mozilla/Firefox/160.0",
+  "type": "dir",
+  "html_url": "https://github.com/microsoft/winget-pkgs/tree/master/manifests/m/Mozilla/Firefox/160.0"
+ },
+ {
+  "name": "99.0.1",
+  "path": "manifests/m/Mozilla/Firefox/99.0.1",
+  "type": "dir",
+  "html_url": "https://github.com/microsoft/winget-pkgs/tree/master/manifests/m/Mozilla/Firefox/99.0.1"
+ },
+ {
+  "name": "99.0",
+  "path": "manifests/m/Mozilla/Firefox/99.0",
+  "type": "dir",
+  "html_url": "https://github.com/microsoft/winget-pkgs/tree/master/manifests/m/Mozilla/Firefox/99.0"
+ },
+ {
+  "name": "Beta",
+  "path": "manifests/m/Mozilla/Firefox/Beta",
+  "type": "dir",
+  "html_url": "https://github.com/microsoft/winget-pkgs/tree/master/manifests/m/Mozilla/Firefox/Beta"
+ },
+ {
+  "name": "DeveloperEdition",
+  "path": "manifests/m/Mozilla/Firefox/DeveloperEdition",
+  "type": "dir",
+  "html_url": "https://github.com/microsoft/winget-pkgs/tree/master/manifests/m/Mozilla/Firefox/DeveloperEdition"
+ },
+ {
+  "name": "ESR",
+  "path": "manifests/m/Mozilla/Firefox/ESR",
+  "type": "dir",
+  "html_url": "https://github.com/microsoft/winget-pkgs/tree/master/manifests/m/Mozilla/Firefox/ESR"
+ },
+ {
+  "name": "de",
+  "path": "manifests/m/Mozilla/Firefox/de",
+  "type": "dir",
+  "html_url": "https://github.com/microsoft/winget-pkgs/tree/master/manifests/m/Mozilla/Firefox/de"
+ },
+ {
+  "name": "en-GB",
+  "path": "manifests/m/Mozilla/Firefox/en-GB",
+  "type": "dir",
+  "html_url": "https://github.com/microsoft/winget-pkgs/tree/master/manifests/m/Mozilla/Firefox/en-GB"
+ }
+]

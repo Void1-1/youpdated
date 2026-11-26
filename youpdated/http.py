@@ -5,7 +5,9 @@ All outbound go through :class:`Client`
 
 from __future__ import annotations
 
+import logging
 import random
+import re
 import socket
 import threading
 import time
@@ -21,6 +23,7 @@ import httpx
 
 from . import __version__
 from .config import PrivacyConfig
+from .errors import YoupdatedError
 from .state import State
 
 # failures before the request leaves
@@ -56,6 +59,24 @@ USER_AGENTS: tuple[str, ...] = (
 
 # `user_agent: youpdated`: states the tool, version, and where to get info
 YOUPDATED_USER_AGENT = f"Youpdated/{__version__} (+https://github.com/Void1-1/youpdated)"
+
+# A host's own product token, before Youpdated's: RFC 9110 `product` (`token ["/" token]`), then more products or `(comments)`
+_TOKEN = r"[!#$%&'*+\-.^_`|~0-9A-Za-z]+"
+_PRODUCT = rf"{_TOKEN}(?:/{_TOKEN})?"
+_COMMENT = r"\([\x20-\x27\x2a-\x5b\x5d-\x7e]*\)"
+_PRODUCT_RE = re.compile(rf"{_PRODUCT}(?: (?:{_PRODUCT}|{_COMMENT}))*")
+
+# Where :meth:`Client.note` goes when no ``logger`` is given
+_LOG = logging.getLogger("youpdated")
+
+
+def check_product(product: str) -> str:
+    """``product`` if it's a valid User-Agent product token, else :class:`ValueError`"""
+    if not isinstance(product, str) or not _PRODUCT_RE.fullmatch(product):
+        raise ValueError(
+            f"product {product!r} is not a User-Agent product token; expected a name and optional version with no spaces, like `MyApp/1.2`, then optionally more of those or a `(comment)` in plain ASCII"
+        )
+    return product
 
 RETRY_STATUSES = frozenset({429, 500, 502, 503, 504})
 # Statuses whose ``Retry-After`` header is honored (RFC 6585 §4, RFC 9110 §10.2.3).
@@ -108,12 +129,15 @@ def redact_url(url: str) -> str:
     return f"{parts.scheme}://{parts.netloc.rpartition('@')[2]}{tail}"
 
 
-class FetchError(Exception):
+class FetchError(YoupdatedError):
     """Network or unexpected-status failure for one URL."""
 
 
-class ProxyUnavailable(Exception):
-    """The configured proxy could not be reached. Raised before any source runs."""
+class ProxyUnavailable(FetchError):
+    """The configured proxy could not be reached. Raised before any source runs.
+
+    A :class:`FetchError`, so a host catching failed fetches also catches a proxy that's down
+    """
 
 
 # Where a proxy listens when the URL omits the port.
@@ -253,8 +277,14 @@ class Client:
         use_conditional: bool = True,
         transport: httpx.BaseTransport | None = None,
         logger=None,
+        product: str | None = None,
+        proxy_probed: bool = False,
     ):
+        """``privacy`` defaults to :class:`PrivacyConfig`'s, which names Youpdated in the User-Agent; CLI and engine pass the config's, `rotate` by default.
+        ``product`` is the host's token, sent before Youpdated's with `user_agent: youpdated`.
+        ``proxy_probed``: the caller has just probed the proxy, so the next :meth:`check_proxy` doesn't again"""
         self.privacy = privacy or PrivacyConfig()
+        self.product = None if product is None else check_product(product)
         self.state = state
         self.test = test
         self.verbose = verbose
@@ -266,6 +296,7 @@ class Client:
         # Longest ``Retry-After`` the client will wait
         self.retry_after_max = 60.0
         self._log = logger
+        self._proxy_probed = proxy_probed
         self.requested_urls: list[str] = []
 
         self._hosts: dict[str, _Host] = {}
@@ -284,6 +315,8 @@ class Client:
         # Only reuse bodies inside :meth:`run_scope`. A client used directly,
         # outside a run, keeps the plain one-GET-per-call contract.
         self._run_active = False
+        # Scopes open, so a nested one (a source calling `newer()` inside `run()`) doesn't end the outer
+        self._run_depth = 0
         # GETs in progress, by the same key
         self._flights: dict[tuple[str, tuple[tuple[str, str], ...]], threading.Event] = {}
         # Hosts that gave up on this run (unreachable, rate limited), by pace key
@@ -321,23 +354,37 @@ class Client:
             f"concurrency={self.privacy.concurrency} timeout={self.privacy.timeout}s"
         ) + (" fast_mode=on" if self.privacy.fast_mode else "")
 
+    def check_proxy(self) -> None:
+        """:class:`ProxyUnavailable` if the configured proxy can't be reached, before anything is fetched"""
+        if self._proxy_probed:
+            # Only the check right after the caller's own probe; a later run asks again
+            self._proxy_probed = False
+            return
+        if self.privacy.proxy and not self.test:
+            probe_proxy(self.privacy.proxy, timeout=self.privacy.timeout)
+
     @contextmanager
     def run_scope(self) -> "Generator[Client, None, None]":
         """Reuse each fetched document for the duration of one run.
 
-        Bodies are dropped again on exit so a client reused for a later run never serves stale data.
+        Bodies are dropped again when the last open scope exits, so a client reused for a later run never serves stale data.
+        Scopes that overlap share a run: a nested scope joins the outer one instead of clearing
         """
         with self._bodies_lock:
-            self._run_bodies.clear()
-            self._down.clear()
-            self._run_active = True
+            if self._run_depth == 0:
+                self._run_bodies.clear()
+                self._down.clear()
+                self._run_active = True
+            self._run_depth += 1
         try:
             yield self
         finally:
             with self._bodies_lock:
-                self._run_bodies.clear()
-                self._down.clear()
-                self._run_active = False
+                self._run_depth -= 1
+                if self._run_depth == 0:
+                    self._run_bodies.clear()
+                    self._down.clear()
+                    self._run_active = False
 
     @contextmanager
     def unconditional(self) -> "Generator[Client, None, None]":
@@ -375,6 +422,8 @@ class Client:
 
     def _user_agent(self, host: str) -> str:
         if self.privacy.user_agent == "youpdated":
+            if self.product:
+                return f"{self.product} {YOUPDATED_USER_AGENT}"
             return YOUPDATED_USER_AGENT
         if self.privacy.user_agent != "rotate":
             return self.privacy.user_agent
@@ -507,7 +556,10 @@ class Client:
         return retries
 
     def note(self, message: str) -> None:
-        if self.verbose and self._log:
+        if self._log is None:
+            # No CLI listening
+            _LOG.debug(message)
+        elif self.verbose:
             self._log(message)
 
     # request method

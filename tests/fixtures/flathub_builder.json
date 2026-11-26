@@ -1,0 +1,38 @@
+{
+ "id": "org.gnome.Builder",
+ "name": "Builder",
+ "summary": "Create applications for GNOME",
+ "is_eol": false,
+ "releases": [
+  {
+   "urgency": null,
+   "url": null,
+   "date_eol": null,
+   "version": "50.0",
+   "description": null,
+   "timestamp": "1773705600",
+   "type": "stable",
+   "date": null
+  },
+  {
+   "urgency": null,
+   "url": null,
+   "date_eol": null,
+   "version": "49.1",
+   "description": null,
+   "timestamp": "1761609600",
+   "type": "stable",
+   "date": null
+  },
+  {
+   "urgency": null,
+   "url": null,
+   "date_eol": null,
+   "version": "49.0",
+   "description": null,
+   "timestamp": "1757635200",
+   "type": "stable",
+   "date": null
+  }
+ ]
+}

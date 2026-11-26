@@ -30,6 +30,8 @@ from concurrent.futures import Future
 from contextlib import suppress
 from pathlib import Path
 
+from .errors import YoupdatedError
+
 __all__ = [
     "EncryptionError",
     "KeyCache",
@@ -74,7 +76,7 @@ _INSTALL_HINT = (
 )
 
 
-class EncryptionError(Exception):
+class EncryptionError(YoupdatedError):
     """Raised with a message for the user."""
 
 

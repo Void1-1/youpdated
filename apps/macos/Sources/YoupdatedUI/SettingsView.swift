@@ -414,8 +414,10 @@ struct PrivacySettings: View {
 /// Settings → Advanced
 struct AdvancedSettings: View {
     @Environment(AppModel.self) private var model
+    @Environment(Removal.self) private var removal
     @State private var logging = AppLog.shared.enabled
     @State private var logExists = AppLog.shared.exists
+    @State private var confirmingRemoval = false
 
     var body: some View {
         @Bindable var model = model
@@ -449,9 +451,83 @@ struct AdvancedSettings: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
+            Section {
+                LabeledContent {
+                    Button(String(localized: "Remove…")) { confirmingRemoval = true }
+                } label: {
+                    Text(String(localized: "Remove Youpdated from this Mac"))
+                    Text(String(localized: "Turns off Start at login, clears notifications, passphrases, and app settings."))
+                }
+            }
         }
         .formStyle(.grouped)
         .onAppear { logExists = AppLog.shared.exists }
+        .sheet(isPresented: $confirmingRemoval) { RemoveFromMacSheet() }
+        .alert(
+            String(localized: "Youpdated has been removed"),
+            isPresented: Binding(
+                get: { if case .removed = removal.state { !removal.quitting } else { false } },
+                set: { _ in })
+        ) {
+            if removal.canTrashApp {
+                Button(String(localized: "Move to Trash and Quit")) { removal.quit(trash: true) }
+                    .keyboardShortcut(.defaultAction)
+            }
+            Button(String(localized: "Quit")) { removal.quit(trash: false) }
+        } message: {
+            Text(removedMessage)
+        }
+    }
+
+    private var removedMessage: String {
+        guard case .removed(let dataRemoved) = removal.state else { return "" }
+        switch dataRemoved {
+        case true: return String(localized: "Your config and history are removed.")
+        case false: return String(localized: "Some of your config and history couldn't be deleted. Run youpdated uninstall in Terminal.")
+        case nil: return String(localized: "Your config and history were kept.")
+        }
+    }
+}
+
+/// Asks before Remove Youpdated from this Mac
+struct RemoveFromMacSheet: View {
+    @Environment(AppModel.self) private var model
+    @Environment(Removal.self) private var removal
+    @Environment(\.dismiss) private var dismiss
+    @State private var alsoData = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(String(localized: "Remove Youpdated from this Mac?"))
+                .font(.headline)
+            Text(String(localized: "This turns off Start at login, clears notifications, passphrases, app settings, caches, and logs."))
+                .fixedSize(horizontal: false, vertical: true)
+            Toggle(String(localized: "Also delete my config and history"), isOn: $alsoData)
+                .disabled(!removal.canRemoveData)
+            if !removal.canRemoveData {
+                Text(String(localized: "This development build uses its own config and history, existing ones are kept."))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            HStack {
+                if removal.state == .removing {
+                    ProgressView().controlSize(.small)
+                }
+                Spacer()
+                Button(String(localized: "Cancel"), role: .cancel) { dismiss() }
+                    .keyboardShortcut(.cancelAction)
+                Button(String(localized: "Remove"), role: .destructive) {
+                    Task {
+                        await removal.remove(model: model, alsoData: alsoData && removal.canRemoveData)
+                        dismiss()
+                    }
+                }
+                .disabled(removal.state != .idle)
+            }
+        }
+        .padding(20)
+        .frame(width: 400)
+        .interactiveDismissDisabled(removal.state == .removing)
     }
 }
 

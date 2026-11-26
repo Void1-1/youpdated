@@ -30,7 +30,7 @@ To start over, delete the history database (the path is [findable here](configur
 
 ## Uninstalling
 
-Youpdated writes two files, but it will find and remove them for you, and the package itself. **Always check first:**
+Youpdated will find and remove its files for you, what the desktop apps left on this computer, and the package itself. **Always check first:**
 
 ```sh
 youpdated uninstall --test
@@ -46,12 +46,20 @@ It lists everything again and waits for you to confirm. Add `--yes` to skip the 
 
 ```sh
 youpdated uninstall --keep-config     # remove everything but your config
-youpdated uninstall --keep-config --keep-package  # only wipe history
+youpdated uninstall --keep-config --keep-package --keep-app  # only wipe history
 youpdated uninstall --keep-package    # delete the files, leave Youpdated installed
+youpdated uninstall --keep-app        # leave the desktop app's settings alone
 youpdated uninstall --state ./test.db # also remove a database from --state
 ```
 
 Two rules: a directory is removed only if it is named `youpdated` and is empty once the tool's own files are gone. Anything else is kept and reported.
+
+From the desktop apps, it removes:
+
+- **Mac:** the app's settings (`~/Library/Preferences/io.github.void1-1.Youpdated.plist`), its saved window positions and caches, the diagnostic log in `~/Library/Logs/Youpdated/`, and the passphrase saved in your keychain.
+- **Windows:** the app's settings and diagnostic log in `%LOCALAPPDATA%\youpdated\app\`, the Start menu shortcut, starting at sign-in, `youpdated://` links, the notification registration and its icon, and the passphrase saved in Credential Manager.
+
+Quit the app first. The app itself stays where you installed it, and `uninstall` prints that path after: drag `Youpdated.app` to the Trash, or delete the Windows app's folder. In the apps, **Settings → Advanced → Remove Youpdated from this Mac** and **Settings → Remove Youpdated from this PC** do the same, and also turn off starting at login. The Mac app can optionally move itself to the Trash when it's done.
 
 The package is removed last, using it's installer: `pipx uninstall youpdated` for pipx, `uv tool uninstall youpdated` for uv, and `python -m pip uninstall youpdated` with the Python it runs on otherwise. If that fails, it says why, prints the command to run yourself, and exits 1.
 

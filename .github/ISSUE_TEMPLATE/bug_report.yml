@@ -60,8 +60,21 @@ body:
         - npm
         - pypi
         - homebrew
+        - crates
+        - go
+        - rubygems
+        - packagist
+        - nuget
+        - maven
+        - sparkle
+        - appstore
+        - flathub
+        - fdroid
+        - winget
         - steam
         - itch
+        - gog
+        - modrinth
         - youtube
         - browser
         - feed

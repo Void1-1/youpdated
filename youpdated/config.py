@@ -18,6 +18,7 @@ import yaml
 from platformdirs import PlatformDirs
 
 from . import crypto
+from .errors import YoupdatedError
 from .versions import ANY_BUMP, BUMPS, release
 
 # appauthor=False for Windows: left unset, platformdirs falls back to app name as the author and nests everything under
@@ -31,14 +32,15 @@ LEGACY_CONFIG_NAME = "config.yaml"
 LEGACY_STATE_NAME = "state.sqlite3"
 
 
-class ConfigError(Exception):
+class ConfigError(YoupdatedError):
     """Raised with a message meant to be shown to the user."""
 
 
-@dataclass
+@dataclass(kw_only=True)
 class PrivacyConfig:
     proxy: str | None = None
-    user_agent: str = "rotate"
+    # Names Youpdated, same as the library; the CLI and engine parse configs with `rotate` instead
+    user_agent: str = "youpdated"
     jitter: tuple[float, float] = (0.5, 3.0)
     concurrency: int = 4
     timeout: float = 20.0
@@ -264,7 +266,12 @@ def load_config(
 
 
 def parse_config_text(
-    text: str, path: Path | None = None, *, allow_empty: bool = False
+    text: str,
+    path: Path | None = None,
+    *,
+    allow_empty: bool = False,
+    default_user_agent: str = "rotate",
+    fix_hint: bool = True,
 ) -> Config:
     """:func:`parse_config` for YAML text"""
     try:
@@ -272,7 +279,13 @@ def parse_config_text(
     except yaml.YAMLError as exc:
         where = f"{path}: " if path else ""
         raise ConfigError(f"{where}invalid YAML: {exc}") from exc
-    return parse_config(raw, path=path, allow_empty=allow_empty)
+    return parse_config(
+        raw,
+        path=path,
+        allow_empty=allow_empty,
+        default_user_agent=default_user_agent,
+        fix_hint=fix_hint,
+    )
 
 
 def read_config_text(path: Path, passphrase: str | None = None) -> str:
@@ -293,14 +306,26 @@ def read_config_text(path: Path, passphrase: str | None = None) -> str:
         ) from exc
 
 
-def parse_config(raw: Any, path: Path | None = None, *, allow_empty: bool = False) -> Config:
-    """``allow_empty``: a config watching nothing is fine, as it is for the app"""
+def parse_config(
+    raw: Any,
+    path: Path | None = None,
+    *,
+    allow_empty: bool = False,
+    default_user_agent: str = "rotate",
+    fix_hint: bool = True,
+) -> Config:
+    """``allow_empty``: a config watching nothing is fine, as it is for the app
+
+    ``default_user_agent``: `settings.privacy.user_agent` when unset.
+    The library passes ``youpdated``, so a host's traffic names itself unless changed.
+    ``fix_hint``: warnings and errors suggest CLI commands to fix them, which the library turns off
+    """
     where = f"{path}: " if path else ""
     if not isinstance(raw, dict):
         raise ConfigError(f"{where}top level must be a mapping")
 
     settings, legacy = _settings(raw, where)
-    privacy = _parse_privacy(settings.get("privacy") or {}, where)
+    privacy = _parse_privacy(settings.get("privacy") or {}, where, default_user_agent)
 
     sources_raw = raw.get("sources")
     # `sources:` holding only comments, as `init` writes it, is empty rather than missing
@@ -321,9 +346,8 @@ def parse_config(raw: Any, path: Path | None = None, *, allow_empty: bool = Fals
             sources[str(name)] = entries
 
     if not sources and not allow_empty:
-        raise ConfigError(
-            f"{where}`sources` has no entries. Nothing to check: start with `youpdated add`"
-        )
+        hint = ": start with `youpdated add`" if fix_hint else ""
+        raise ConfigError(f"{where}`sources` has no entries. Nothing to check{hint}")
 
     return Config(
         privacy=privacy,
@@ -335,7 +359,7 @@ def parse_config(raw: Any, path: Path | None = None, *, allow_empty: bool = Fals
         notify=_parse_notify(settings.get("notify"), where),
         editor=_parse_editor(settings.get("editor"), where),
         path=path,
-        warnings=[legacy_settings_warning(legacy)] if legacy else [],
+        warnings=[legacy_settings_warning(legacy, fix_hint=fix_hint)] if legacy else [],
     )
 
 
@@ -344,12 +368,14 @@ SETTINGS_KEYS = ("privacy", "notify", "expiry", "track_latest", "editor")
 _TOP_LEVEL_KEYS = ("ignore", "versions", "sources")
 
 
-def legacy_settings_warning(keys: list[str]) -> str:
-    """Settings still at the top level, accepted until v1.0.0"""
+def legacy_settings_warning(keys: list[str], *, fix_hint: bool = True) -> str:
+    """Settings still at the top level, accepted until v1.0.0
+
+    ``fix_hint`` points at `youpdated edit`, which a library's host may not have
+    """
     named = ", ".join(f"`{key}`" for key in keys)
-    return (
-        f"{named} {'belongs' if len(keys) == 1 else 'belong'} under `settings:`, and will stop working as is in v1.0.0. Run `youpdated edit` to fix"
-    )
+    warning = f"{named} {'belongs' if len(keys) == 1 else 'belong'} under `settings:`, and will stop working as is in v1.0.0"
+    return f"{warning}. Run `youpdated edit` to fix" if fix_hint else warning
 
 
 def _settings(raw: dict[Any, Any], where: str) -> tuple[dict[str, Any], list[str]]:
@@ -694,11 +720,11 @@ def _parse_notify(raw: Any, where: str) -> NotifyConfig:
     return notify
 
 
-def _parse_privacy(raw: Any, where: str) -> PrivacyConfig:
+def _parse_privacy(raw: Any, where: str, default_user_agent: str = "rotate") -> PrivacyConfig:
     if not isinstance(raw, dict):
         raise ConfigError(f"{where}`settings.privacy` must be a mapping")
 
-    privacy = PrivacyConfig()
+    privacy = PrivacyConfig(user_agent=default_user_agent)
 
     proxy = raw.get("proxy")
     if proxy is not None:

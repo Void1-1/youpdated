@@ -22,8 +22,9 @@ public static class Bind
     public static string SourceGlyph(string source) => source switch
     {
         "git" => "\uE943", // Code
-        "npm" or "pypi" or "homebrew" => "\uE7B8", // Package
-        "steam" or "itch" => "\uE7FC", // Game
+        "npm" or "pypi" or "homebrew" or "crates" or "go" or "rubygems" or "packagist" or "nuget" or "maven" => "\uE7B8", // Package
+        "sparkle" or "appstore" or "flathub" or "fdroid" or "winget" => "\uE719", // Shop
+        "steam" or "itch" or "gog" or "modrinth" => "\uE7FC", // Game
         "youtube" => "\uE714", // Video
         "browser" => "\uE774", // Globe
         "feed" => "\uE8A1", // PreviewLink

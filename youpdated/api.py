@@ -790,7 +790,8 @@ class Engine:
             self._opening = False
             self._cond.notify_all()
         # kept open after the reply when icons are fetched
-        client = Client(config.privacy, state)
+        # The proxy was probed above, before the history was opened
+        client = Client(config.privacy, state, proxy_probed=True)
         due: list[Target] = []
         try:
             result = run(
@@ -1014,7 +1015,8 @@ class Engine:
         config = self._config() if self.config_path().is_file() else None
         if config is not None:
             self._require_named_ua_confirmed(config)
-        with Client(config.privacy if config else PrivacyConfig()) as client:
+        # With no config yet, the engine still defaults to `rotate`, like a parsed config
+        with Client(config.privacy if config else PrivacyConfig(user_agent="rotate")) as client:
             why = None
             if resolving is not None:
                 try:

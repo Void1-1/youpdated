@@ -67,7 +67,19 @@ More details and options beyond the [basics](../README.md#where-to-find-identifi
 - **git:** `host/owner/repo` as well as a URL, and GitLab subgroups (`group/sub/project`) work. A dotted first segment reads as a host, so give a dotted group a `host:` (`repo: my.group/sub/project` with `host: gitlab.com`). A pasted page within a repo (`/releases/tag/v1`) is trimmed to the repo, but `owner/repo/extra` is refused instead of read as `owner/repo`. Self-hosted servers are covered in [Git forges](#git-forges).
 - **homebrew:** only `homebrew/core` and `homebrew/cask` are covered, not third-party taps.
 - **pypi:** case, `-`, `_`, and `.` don't matter. Ex: `typing_extensions` and `Typing-Extensions` are the same package.
+- **crates, rubygems:** the name as published; crates.io doesn't tell `-` from `_`.
+- **go:** a module path with a `/` after its domain. A major version past 1 is its own module (`github.com/jackc/pgx/v5`). The proxy has no dates, so only the versions listed are looked up, once each.
+- **packagist:** `vendor/package`, tagged versions only. Dev branches aren't read.
+- **nuget:** ids aren't case-sensitive. Unlisted versions are skipped.
+- **maven:** `group:artifact`, or `group:` and `artifact:`. `repository:` points at a repository other than Maven Central, such as `https://dl.google.com/android/maven2`. Maven metadata has no dates, so versions are listed in the order they were published, and `-SNAPSHOT` builds are skipped.
+- **sparkle:** the URL of the appcast a Mac app checks for updates. Builds on a Sparkle channel (usually `beta`) are tagged `prerelease` and the channel's name.
+- **appstore:** an Apple app's number or bundle id (`com.apple.dt.Xcode`), from the US store unless `country:` (two letters) says otherwise, or written `gb/284882215`. Only the current version is listed.
+- **flathub:** the app's releases come from its own metadata, so they're as complete as its developer keeps them.
+- **fdroid:** F-Droid gives no dates. Versions newer than the one F-Droid suggests are tagged `prerelease`.
+- **winget:** versions are read from the `microsoft/winget-pkgs` repo through GitHub's API, with no dates. Anonymous requests are limited to 60 an hour, shared with the `git` source; `GITHUB_TOKEN` raises it.
 - **steam:** the game's name is looked up for you; set `name:` to override it.
+- **gog:** the product id, from `windows` builds unless `os: mac`. Builds on a branch other than the default are tagged `prerelease` and the branch's name.
+- **modrinth:** a project's slug or id. `loaders:` and `game_versions:` narrow it to builds for them. A version's uid is its Modrinth id, since one version number is often published once per loader.
 - **youtube:** a `UC…` channel id or a full channel URL also works.
 - **browser:** narrow it with `platform:` and `channel:`, as in the [full example](#full-example).
 - **json:** a URL of a JSON or YAML document. Set `name:` to title it. Which version is read, and how to watch a list of them, is under [JSON documents](#json-documents).
@@ -137,6 +149,26 @@ sources:
       ignore: [prerelease]           # skip alphas, betas, rcs, and dev releases
       versions: {bump: minor}        # 5.2.0 and 6.0.0, but not 5.2.1
 
+  crates: [serde]                    # crates.io
+  go: [github.com/spf13/cobra]       # the module proxy
+  rubygems: [rails]
+  packagist: [monolog/monolog]
+  nuget: [Newtonsoft.Json]
+  maven:
+    - com.google.guava:guava         # Maven Central
+    - package: androidx.core:core
+      repository: https://dl.google.com/android/maven2
+
+  sparkle:                           # a Mac app's update feed
+    - https://www.iterm2.com/appcasts/final_modern.xml
+  appstore:
+    - 284882215                      # the number after `id` in the App Store URL
+    - app: com.apple.dt.Xcode        # or a bundle id
+      country: gb
+  flathub: [org.mozilla.firefox]
+  fdroid: [org.fdroid.fdroid]
+  winget: [Mozilla.Firefox]
+
   steam:
     - 440                            # appid; the store name is resolved for you
     - appid: 730
@@ -146,6 +178,17 @@ sources:
     - https://hempuli.itch.io/baba-is-you # devlogs and builds (default)
     - url: https://aak581.itch.io/engineering-marvels-from-hell
       watch: [devlog, releases]      # choose one if you prefer
+
+  gog:
+    - 1207658924                     # product id
+    - product: 1207658924
+      os: mac                        # windows (default) or mac
+
+  modrinth:
+    - sodium
+    - project: iris
+      loaders: [fabric]
+      game_versions: ["1.21.1"]      # quote versions
 
   youtube:
     - "@NASA"                        # handle, channel id, or channel URL
@@ -316,6 +359,12 @@ These are the tags each default source sets:
 | `npm` | `release`, `prerelease`, `latest` |
 | `homebrew` | `release` |
 | `pypi` | `release`, `prerelease`, `latest`; `status` plus `archived`, `deprecated`, or `quarantined` |
+| `crates`, `go`, `rubygems`, `packagist`, `nuget`, `maven` | `release`, `prerelease`, `latest` |
+| `sparkle` | `release`, `latest`, `critical`; `prerelease` and the channel's name |
+| `appstore` | `release`, `latest` |
+| `flathub`, `fdroid`, `winget` | `release`, `prerelease`, `latest` |
+| `gog` | `release`, `latest`; `prerelease` and the branch's name |
+| `modrinth` | `release`, `latest`; `prerelease` and `beta` or `alpha` |
 | `itch` | `devlog`, `build`, `page` |
 | `browser` | `release`, and channel (`stable`, `beta`, `dev`, `canary`, `esr`, `nightly`) |
 | `youtube` | `video` |
