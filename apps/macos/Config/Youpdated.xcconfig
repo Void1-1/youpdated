@@ -9,7 +9,7 @@ DEVELOPMENT_TEAM =
 YOUPDATED_APP_GROUP = $(DEVELOPMENT_TEAM).$(YOUPDATED_BUNDLE_ID)
 
 // app's version, released on `app-macos-v*` tags; the release workflow checks it against the tag.
-MARKETING_VERSION = 0.10.0
+MARKETING_VERSION = 0.11.0-beta.1
 CURRENT_PROJECT_VERSION = 1
 
 MACOSX_DEPLOYMENT_TARGET = 15.0

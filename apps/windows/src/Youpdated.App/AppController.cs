@@ -1,3 +1,4 @@
+using System.Reflection;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.Windows.AppLifecycle;
@@ -60,10 +61,10 @@ internal sealed class AppController
 
     public string Exe { get; } = Environment.ProcessPath ?? Path.Combine(AppContext.BaseDirectory, "Youpdated.exe");
 
-    public static Version AppVersion =>
-        typeof(AppController).Assembly.GetName().Version is { } version
-            ? new Version(version.Major, version.Minor, Math.Max(version.Build, 0))
-            : new Version(0, 9, 0);
+    // The informational version keeps a beta's label (0.11.0-beta.1), which the assembly version drops
+    public static InstalledVersion AppVersion { get; } = InstalledVersion.FromAssembly(
+        typeof(AppController).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion,
+        typeof(AppController).Assembly.GetName().Version);
 
     public async Task LaunchAsync(AppActivationArguments activation)
     {
@@ -80,7 +81,7 @@ internal sealed class AppController
             new Shell(), AppLog.State, new EngineDataRemover(directory), new HttpClient(), AppVersion);
         var host = new EngineHost(
             () => ProcessTransport.Start(EngineCommand.Resolve(directory, Environment.GetEnvironmentVariable), Log),
-            new ClientInfo("Youpdated", AppVersion.ToString(3), "windows"),
+            new ClientInfo("Youpdated", AppVersion.Display, "windows"),
             TimeProvider.System,
             Log);
         var app = _app = new AppViewModel(host, services);

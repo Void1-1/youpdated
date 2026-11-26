@@ -102,6 +102,8 @@ Publishing is done by [.github/workflows/release.yml](.github/workflows/release.
    gh release create v0.4.0 --verify-tag --notes-from-tag
    ```
 
+   A beta uses PEP 440's spelling in `pyproject.toml`, `__version__`, and the tag alike (`0.7.0b1`, tagged `v0.7.0b1`), because `release.yml` compares the tag to `pyproject.toml` as text. Add `--prerelease` to `gh release create`: it still goes to PyPI, where pip and pipx skip it unless asked with `--pre`.
+
 ## Style
 
 Match the surrounding code rather than a style guide, but generally:

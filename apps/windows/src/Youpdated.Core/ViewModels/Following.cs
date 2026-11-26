@@ -34,7 +34,7 @@ public sealed record FollowingLayout(FollowingRow? Starred, bool SelfMissing, IR
 public static class FollowingBuilder
 {
     public static FollowingLayout Build(
-        IEnumerable<Target> targets, string? filter, Version appVersion, string browsers = "Browsers")
+        IEnumerable<Target> targets, string? filter, InstalledVersion appVersion, string browsers = "Browsers")
     {
         var all = targets.ToList();
         var starred = all.FirstOrDefault(target => target.Starred);
@@ -51,7 +51,7 @@ public static class FollowingBuilder
 
         // The starred row shows the version that's running
         var starredRow = starred is not null && Matches(starred, filter, browsers)
-            ? new FollowingRow(starred, appVersion.ToString(3))
+            ? new FollowingRow(starred, appVersion.Display)
             : null;
         return new FollowingLayout(starredRow, starred is null, groups);
     }
@@ -75,9 +75,9 @@ public static class FollowingBuilder
 public sealed partial class FollowingViewModel : ObservableObject
 {
     private readonly SourcesViewModel _sources;
-    private readonly Version _appVersion;
+    private readonly InstalledVersion _appVersion;
 
-    public FollowingViewModel(SourcesViewModel sources, Version appVersion)
+    public FollowingViewModel(SourcesViewModel sources, InstalledVersion appVersion)
     {
         _sources = sources;
         _appVersion = appVersion;
