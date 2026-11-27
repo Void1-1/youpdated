@@ -12,7 +12,9 @@ on:
       - "youpdated/**"
       - "pyproject.toml"
       - ".github/workflows/macos-app.yml"
+  # labeled and unlabeled: taking skip-actions off starts the held-back run
   pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
     paths:
       - "apps/macos/**"
       - "apps/contract/**"
@@ -25,9 +27,15 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   macos:
     name: macOS app
+    # The skip-actions label holds CI back on an in-progress PR (see tests.yml)
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'skip-actions') }}
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v7

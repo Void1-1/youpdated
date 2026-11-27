@@ -19,9 +19,9 @@ public sealed record AppUpdate(Version Version, string ItemId, string ReleaseUrl
     public Uri DownloadUrl => new(
         $"https://github.com/{Repository}/releases/download/{TagPrefix}{Version.ToString(3)}/{FileName}");
 
-    public static AppUpdate? From(InboxItem item, Version current)
+    public static AppUpdate? From(InboxItem item, InstalledVersion current)
     {
-        if (!item.Starred || ParseTag(item.Version ?? item.Title) is not { } version || version <= Normalize(current))
+        if (!item.Starred || ParseTag(item.Version ?? item.Title) is not { } version || !current.IsOlderThan(version))
         {
             return null;
         }
@@ -29,7 +29,7 @@ public sealed record AppUpdate(Version Version, string ItemId, string ReleaseUrl
     }
 
     /// <summary>The newest update in <paramref name="items"/>, if any is newer than <paramref name="current"/></summary>
-    public static AppUpdate? Newest(IEnumerable<InboxItem> items, Version current) =>
+    public static AppUpdate? Newest(IEnumerable<InboxItem> items, InstalledVersion current) =>
         items.Select(item => From(item, current)).OfType<AppUpdate>().MaxBy(update => update.Version);
 
 
@@ -53,8 +53,6 @@ public sealed record AppUpdate(Version Version, string ItemId, string ReleaseUrl
         return new Version(numbers[0], numbers[1], numbers.Length == 3 ? numbers[2] : 0);
     }
 
-    private static Version Normalize(Version version) =>
-        new(version.Major, version.Minor, Math.Max(version.Build, 0));
 }
 
 /// <summary>Fetches an update's .zip into a folder</summary>

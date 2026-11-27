@@ -6,7 +6,7 @@ They follow semantic versioning from v1.0.0. (other modules and names are intern
 
 from __future__ import annotations
 
-__version__ = "0.6.0"
+__version__ = "0.7.0b1"
 
 from typing import TYPE_CHECKING, Any
 

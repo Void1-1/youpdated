@@ -3,7 +3,10 @@ name: tests
 on:
   push:
     branches: [main]
+  # labeled and unlabeled are here so that taking the skip-actions label off
+  # starts the run it held back.
   pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
   workflow_dispatch:
   # Lets the release workflow run this exact suite before publishing, rather
   # than keeping a second, drifting copy of it.
@@ -18,9 +21,34 @@ on:
 permissions:
   contents: read
 
+# A new push or a label change starts another run on the PR, so the older one
+# is cancelled rather than finishing for nothing. Only PR runs share a group:
+# the name is fixed because a release calls this file, and github.workflow
+# would then be the caller's name.
+concurrency:
+  group: tests-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
+  # The skip-actions label marks a PR as still in progress. While it's on, the
+  # other jobs here are skipped and this one fails, so the PR can't merge until
+  # the label comes off and the suite passes. It has to be a required check of
+  # its own: GitHub counts a skipped job as passing, and keeps counting results
+  # from an earlier run on the same commit.
+  skip-actions:
+    name: skip-actions label
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: The skip-actions label must be off to merge
+        if: contains(github.event.pull_request.labels.*.name, 'skip-actions')
+        run: |
+          echo "::error::This PR has the skip-actions label, so CI did not run. Remove the label to run CI and allow merging."
+          exit 1
+
   test:
     name: ${{ matrix.os }} · py${{ matrix.python-version }}
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'skip-actions') }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -75,6 +103,7 @@ jobs:
 
   build:
     name: build + verify artifacts
+    if: ${{ !contains(github.event.pull_request.labels.*.name, 'skip-actions') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7

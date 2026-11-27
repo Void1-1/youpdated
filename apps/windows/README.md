@@ -77,7 +77,7 @@ gh release edit app-windows-v<version> --draft=false --latest=false
 
 - **Upload while it's a draft: publishing makes a release's files permanent.**
 - `--latest=false` keeps the CLI's release as the repo's latest.
-- Use a plain version number, as the Mac app does: the app follows its own repo with `ignore: [prerelease]`.
+- A beta is `<Version><x.y.z>-beta.<n></Version>`, tagged `app-windows-v<x.y.z>-beta.<n>` and created with `--prerelease` as well. Leave `app.manifest` at `<x.y.z>.0`, which takes numbers only. The app follows its own repo with `ignore: [prerelease]`, so installed apps don't get notified about a beta. A beta does get notified about its final release: the app reads its label from the informational version, because the assembly version drops it.
 - Tag with `app-windows-v`: the app takes only those as its updates, and the asset name has to be `Youpdated-<version>-Windows-x64.zip`.
 
 Link [docs/windows-app.md](../../docs/windows-app.md) in the notes.

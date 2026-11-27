@@ -29,7 +29,8 @@ jobs:
         shell: pwsh
         run: |
           $tag = "${{ inputs.tag || github.ref_name }}"
-          if ($tag -notmatch '^app-windows-v(\d+\.\d+\.\d+)$') { throw "Not an app-windows-v<x.y.z> tag: $tag" }
+          # A beta is x.y.z-beta.N. The app itself only reads x.y.z, so its self-watch skips betas
+          if ($tag -notmatch '^app-windows-v(\d+\.\d+\.\d+(?:-[0-9A-Za-z.]+)?)$') { throw "Not an app-windows-v<x.y.z>[-beta.N] tag: $tag" }
           $version = $Matches[1]
           $props = [xml](Get-Content apps/windows/Directory.Build.props)
           $declared = "$($props.Project.PropertyGroup.Version)".Trim()

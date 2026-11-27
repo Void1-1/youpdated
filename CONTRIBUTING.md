@@ -52,7 +52,9 @@ git push -u origin my-change
 gh pr create --fill
 ```
 
-CI runs the suite on Linux, macOS, and Windows across Python 3.11–3.14. All 13 jobs must be green, and the branch must be up to date with `main`. No review approvals are required.
+CI runs the suite on Linux, macOS, and Windows across Python 3.11–3.14. All 13 jobs must be green, along with the `skip-actions label` check, and the branch must be up to date with `main`. No review approvals are required.
+
+To open a PR before it's ready without running CI on every push, add the `skip-actions` label. CI is skipped while it's on, and the PR can't be merged. Remove the label to run CI.
 
 ## Tests
 
@@ -114,6 +116,8 @@ gh release create scanning-v0.1.0 --verify-tag --notes-from-tag --latest=false
 ```
 
 `--latest=false` keeps the CLI's release as the repo's latest. The `pypi` environment has to allow `scanning-v*` tags, and PyPI needs a trusted publisher for `youpdated-scanning` naming `scanning-release.yml` and the `pypi` environment.
+
+For both packages, a beta uses PEP 440's spelling in `pyproject.toml`, `__version__`, and the tag (`0.7.0b1`, tagged `v0.7.0b1`), because `release.yml` compares the tag to `pyproject.toml` as text. Add `--prerelease` to `gh release create`: it will still go to PyPI, where pip and pipx skip it unless asked with `--pre`.
 
 ## Style
 
