@@ -201,17 +201,23 @@ class _Dist:
 def installed(monkeypatch):
     """Pretend Youpdated is installed in an environment at `prefix` and runs from there"""
 
-    def install(prefix, installer="pip\n", runs_from=None):
+    def install(prefix, installer="pip\n", runs_from=None, addons=None):
+        """``addons`` maps an add-on's name to the site-packages it's in, ``None`` for this one"""
         site = prefix / "lib" / "site-packages"
         site.mkdir(parents=True, exist_ok=True)
-        dist = _Dist(site, installer)
+        dists = {"youpdated": _Dist(site, installer)}
+        for name, where in (addons or {}).items():
+            dists[name] = _Dist(where or site, installer)
+
+        def distribution(name):
+            if name not in dists:
+                raise metadata.PackageNotFoundError(name)
+            return dists[name]
+
         monkeypatch.setattr(
             cleanup,
             "metadata",
-            SimpleNamespace(
-                distribution=lambda name: dist,
-                PackageNotFoundError=metadata.PackageNotFoundError,
-            ),
+            SimpleNamespace(distribution=distribution, PackageNotFoundError=metadata.PackageNotFoundError),
         )
         monkeypatch.setattr(cleanup, "tool_dir", lambda: (runs_from or site).resolve())
         monkeypatch.setattr(sys, "prefix", str(prefix))
@@ -265,6 +271,22 @@ def test_uv_pip_install_is_removed_with_uv(installed, tmp_path):
     assert package is not None
 
     assert package.command == ["uv", "pip", "uninstall", "--python", sys.executable, "youpdated"]
+
+
+def test_scanning_installed_beside_it_is_removed_too(installed, tmp_path):
+    """`pip install 'youpdated[scanning]'`: uninstalling only youpdated would leave youpdated-scanning behind"""
+    installed(tmp_path / "venv", addons={"youpdated-scanning": None})
+    assert find_package().command == [
+        sys.executable, "-m", "pip", "uninstall", "--yes", "youpdated", "youpdated-scanning",
+    ]
+
+    installed(tmp_path / "venv", installer="uv\n", addons={"youpdated-scanning": None})
+    assert find_package().command[-2:] == ["youpdated", "youpdated-scanning"]
+
+
+def test_scanning_installed_elsewhere_is_left_alone(installed, tmp_path):
+    installed(tmp_path / "venv", addons={"youpdated-scanning": tmp_path / "other" / "site-packages"})
+    assert find_package().command[-1] == "youpdated"
 
 
 def test_pipx_install_is_removed_with_pipx_from_its_own_home(installed, tmp_path):

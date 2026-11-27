@@ -30,6 +30,7 @@ APP_DIR_NAME = "youpdated"
 # Folders inside the app folder that hold configs and history files
 SUB_DIR_NAMES = ("configs", "history")
 DIST_NAME = "youpdated"
+ADDON_NAMES = ("youpdated-scanning",)
 
 
 @dataclass
@@ -212,14 +213,27 @@ def find_package() -> Package | None:
     elif installer == "uv":
         # environments uv made usually have no pip
         package = Package(
-            dist.version, "uv", ["uv", "pip", "uninstall", "--python", sys.executable, DIST_NAME]
+            dist.version, "uv", ["uv", "pip", "uninstall", "--python", sys.executable, DIST_NAME, *_addons()]
         )
     else:
         package = Package(
-            dist.version, "pip", [sys.executable, "-m", "pip", "uninstall", "--yes", DIST_NAME]
+            dist.version, "pip", [sys.executable, "-m", "pip", "uninstall", "--yes", DIST_NAME, *_addons()]
         )
     package.after_exit = os.name == "nt"
     return package
+
+
+def _addons() -> list[str]:
+    """add-ons installed in the same place as this copy"""
+    found = []
+    for name in ADDON_NAMES:
+        try:
+            dist = metadata.distribution(name)
+        except metadata.PackageNotFoundError:
+            continue
+        if Path(str(dist.locate_file(""))).resolve() == tool_dir():
+            found.append(name)
+    return found
 
 
 # Waits for the process that started it to exit, which closes its stdin, then runs the

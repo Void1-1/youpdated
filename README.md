@@ -177,6 +177,7 @@ youpdated list               # everything you watch and its latest version
 youpdated add npm react      # start watching something
 youpdated remove npm react   # stop watching it
 youpdated import Brewfile    # watch everything a dependency file lists
+youpdated scan --test        # what's installed here that could be watched (needs youpdated[scanning])
 youpdated edit               # open the config in your default editor
 youpdated uninstall          # remove Youpdated and its files
 ```

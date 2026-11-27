@@ -1,0 +1,4 @@
+gh
+git
+openssl@3
+python@3.12

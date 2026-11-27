@@ -21,8 +21,9 @@ jobs:
   # never gets as far as building.
   verify:
     # Releases tagged `app-macos-v*` and `app-windows-v*` (`app-v0.9.0` before them)
-    # are the desktop apps, which don't go to PyPI. A skipped job skips the ones
-    # that need it, so this also covers build and publish.
+    # are the desktop apps, which don't go to PyPI, and `scanning-v*` is
+    # youpdated-scanning, which scanning-release.yml publishes. A skipped job skips
+    # the ones that need it, so this also covers build and publish.
     if: github.event_name != 'release' || startsWith(github.event.release.tag_name, 'v')
     uses: ./.github/workflows/tests.yml
     # tests.yml also holds the CodeQL job, which asks for security-events:

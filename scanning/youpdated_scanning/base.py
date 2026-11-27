@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import os
+import shutil
+import subprocess
 from dataclasses import dataclass
 from pathlib import Path
-from typing import ClassVar, Iterable, Protocol
+from typing import ClassVar, Iterable, Mapping, Protocol
 
 from youpdated.errors import YoupdatedError
 
@@ -37,3 +40,24 @@ class Scanner(Protocol):
     def scan(self) -> Iterable[Installed]:
         """What's installed. Reads local files and runs local programs only"""
         ...
+
+
+def run(program: str, *args: str, timeout: float, env: Mapping[str, str] | None = None) -> str:
+    """``program args`` output, found on PATH and run with ``env`` added to the environment"""
+    command = " ".join((program, *args))
+    path = shutil.which(program)
+    if path is None:
+        raise ScanError(f"{program} is not on PATH")
+    try:
+        done = subprocess.run(
+            [path, *args], capture_output=True, text=True, encoding="utf-8", errors="replace",
+            timeout=timeout, env={**os.environ, **(env or {})},
+        )
+    except subprocess.TimeoutExpired:
+        raise ScanError(f"`{command}` took longer than {timeout:g} seconds") from None
+    except OSError as exc:
+        raise ScanError(f"cannot run `{command}`: {exc.strerror or exc}") from None
+    if done.returncode != 0:
+        lines = (done.stderr or done.stdout or "").strip().splitlines()
+        raise ScanError(f"`{command}` exited with {done.returncode}" + (f": {lines[-1].strip()}" if lines else ""))
+    return done.stdout

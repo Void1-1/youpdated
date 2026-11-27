@@ -75,3 +75,34 @@ def test_only_names_known_scanners(scanners):
     scanners["fake"] = Fake()
     with pytest.raises(ValueError, match="no scanner named nope"):
         scan(Found(), ["nope"])
+
+
+def test_a_package_managers_app_is_not_also_watched_by_its_feed(scanners, tmp_path):
+    app = tmp_path / "Applications" / "UTM.app"
+    scanners["homebrew"] = Fake([Installed("homebrew", "cask:utm", where=app)])
+    scanners["apps"] = Fake([
+        Installed("sparkle", "https://example.com/utm/appcast.xml", where=app),
+        Installed("sparkle", "https://example.com/other/appcast.xml", where=tmp_path / "Other.app"),
+    ])
+    found = Found()
+    installed = scan(found)
+    assert found.entries == {"homebrew": ["cask:utm"], "sparkle": ["https://example.com/other/appcast.xml"]}
+    assert [item.entry for item in installed] == ["cask:utm", "https://example.com/other/appcast.xml"]
+
+
+def test_only_runs_in_scanner_order(scanners, tmp_path):
+    app = tmp_path / "UTM.app"
+    scanners["homebrew"] = Fake([Installed("homebrew", "cask:utm", where=app)])
+    scanners["apps"] = Fake([Installed("sparkle", "https://example.com/utm/appcast.xml", where=app)])
+    found = Found()
+    scan(found, ["apps", "homebrew"])
+    assert found.entries == {"homebrew": ["cask:utm"]}
+    # with apps alone, the feed is how it's watched
+    found = Found()
+    scan(found, ["apps"])
+    assert found.entries == {"sparkle": ["https://example.com/utm/appcast.xml"]}
+
+
+def test_package_managers_run_before_apps():
+    order = list(SCANNERS)
+    assert order.index("homebrew") < order.index("apps")

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sys
 import types
+from types import SimpleNamespace
 
 import pytest
 
@@ -20,7 +21,7 @@ def config(tmp_path):
 
 @pytest.fixture
 def scanning(monkeypatch):
-    """A stand-in youpdated_scanning whose scan adds what ``finds`` lists"""
+    """A stand-in youpdated_scanning whose scan adds what ``finds`` lists: (source, entry) or (source, entry, name)"""
     module = types.ModuleType("youpdated_scanning")
     module.finds = []
     module.calls = []
@@ -29,9 +30,11 @@ def scanning(monkeypatch):
         module.calls.append(only)
         if only and "nope" in only:
             raise ValueError("no scanner named nope; expected one of steam")
-        for source, entry in module.finds:
+        installed = []
+        for source, entry, *name in module.finds:
             found.add(source, entry)
-        return []
+            installed.append(SimpleNamespace(source=source, entry=entry, name=name[0] if name else None))
+        return installed
 
     module.scan = scan
     monkeypatch.setitem(sys.modules, "youpdated_scanning", module)
@@ -73,3 +76,17 @@ def test_only_is_passed_through_and_an_unknown_scanner_is_an_error(config, scann
     assert scanning.calls == [["steam", "apps"]]
     assert main(["scan", "--only", "nope", "-c", str(config)]) == 1
     assert "no scanner named nope" in capsys.readouterr().out
+
+
+def test_a_find_its_entry_doesnt_name_is_shown_by_name(config, scanning, capsys):
+    scanning.finds = [
+        ("steam", "275850", "No Man's Sky"),
+        ("appstore", "com.apple.dt.Xcode", "Xcode"),
+        ("winget", "Microsoft.VisualStudioCode", "Microsoft Visual Studio Code"),
+        # already watched by the example config
+        ("steam", "440", "Team Fortress 2"),
+    ]
+    assert main(["scan", "--test", "-c", str(config)]) == 0
+    out = capsys.readouterr().out
+    assert "steam 275850 is No Man's Sky" in out
+    assert " is Xcode" not in out and "Visual Studio Code" not in out and "Team Fortress" not in out

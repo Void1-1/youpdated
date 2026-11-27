@@ -9,7 +9,7 @@ description = "Find installed sources on this machine and watch them with Youpda
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
-license-files = ["../LICENSE"]
+license-files = ["LICENSE"]
 authors = [{ name = "Void1-1", email = "161782542+Void1-1@users.noreply.github.com" }]
 keywords = ["updates", "release-tracking", "steam", "sparkle", "winget", "youpdated"]
 classifiers = [
@@ -22,7 +22,7 @@ classifiers = [
     "Topic :: Utilities",
     "Typing :: Typed",
 ]
-dependencies = ["youpdated>=0.6"]
+dependencies = ["youpdated>=0.7.0b2"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0"]

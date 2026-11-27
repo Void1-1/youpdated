@@ -15,7 +15,7 @@ from contextlib import ExitStack, nullcontext
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, Iterable
+from typing import Any, Callable, Iterable, Mapping
 
 from rich.console import Console, ConsoleOptions, RenderableType, RenderResult
 from rich.control import Control
@@ -707,8 +707,10 @@ def cmd_edit(
     plan: Plan | None = None,
     *,
     pick: Picker | None = None,
+    labels: Mapping[tuple[str, str], str] | None = None,
 ) -> int:
-    """`add`/`remove`, or `import`/`scan` with the ``plan`` it read. ``pick`` makes the plan once the config is read"""
+    """`add`/`remove`, or `import`/`scan` with the ``plan`` it read. ``pick`` makes the plan once the config is read.
+    ``labels`` names (source, entry) pairs whose entry doesn't say what they are"""
     adding = args.command in ("add", "import", "scan")
     wipe = getattr(args, "wipe", False)
     if plan is None and pick is None:
@@ -746,6 +748,11 @@ def cmd_edit(
                 console.print(
                     f"[yellow]Not watching {escape(entry)}[/] under {escape(change.section)}"
                 )
+    for change in changes if adding and labels else ():
+        for entry in change.applied:
+            name = labels.get((change.section, entry))
+            if name:
+                console.print(f"[dim]{escape(change.section)} {escape(entry)} is[/] {escape(name)}")
     applied = [c for c in changes if c.applied]
     wiped = [c for c in changes if c.dropped] if wipe else []
     if not applied and not wiped:
@@ -823,15 +830,29 @@ def cmd_scan(args: argparse.Namespace, console: Console) -> int:
         return 1
     found = Found()
     try:
-        youpdated_scanning.scan(found, args.only)
+        installed = youpdated_scanning.scan(found, args.only)
     except ValueError as exc:
         # an unknown --only name
         console.print(f"[red]Error:[/] {escape(str(exc))}")
         return 1
-    return _add_found(args, console, found, "Found nothing to watch on this machine.")
+    # A Steam app id doesn't say which game it is, and the config only gets the id
+    labels = {
+        (item.source, item.entry): item.name
+        for item in installed if item.name and not _names(item.entry, item.name)
+    }
+    return _add_found(args, console, found, "Found nothing to watch on this machine.", labels)
 
 
-def _add_found(args: argparse.Namespace, console: Console, found: Found, nothing: str) -> int:
+def _names(entry: str, name: str) -> bool:
+    """``entry`` spells ``name`` out, ignoring case and punctuation: ``com.apple.dt.Xcode`` names Xcode"""
+    letters = "".join(char for char in name.casefold() if char.isalnum())
+    return bool(letters) and letters in "".join(char for char in entry.casefold() if char.isalnum())
+
+
+def _add_found(
+    args: argparse.Namespace, console: Console, found: Found, nothing: str,
+    labels: Mapping[tuple[str, str], str] | None = None,
+) -> int:
     """report what ``found`` skipped, then add the rest to the config"""
     for what, why in found.skipped:
         console.print(f"[yellow]Skipped[/] {escape(what)} [dim]: {escape(why)}[/]")
@@ -840,7 +861,7 @@ def _add_found(args: argparse.Namespace, console: Console, found: Found, nothing
     if not found.entries:
         console.print(f"[dim]{nothing}[/]")
         return 0
-    return cmd_edit(args, console, list(found.entries.items()))
+    return cmd_edit(args, console, list(found.entries.items()), labels=labels)
 
 
 # An editor returning before this with nothing changed didn't wait for the file
