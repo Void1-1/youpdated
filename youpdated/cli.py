@@ -71,6 +71,7 @@ from .edit import (
     remove_from_config,
     requested_urls,
     tidy_config,
+    watching,
     write_config,
 )
 from .http import Client, ProxyUnavailable, probe_proxy
@@ -828,19 +829,24 @@ def cmd_scan(args: argparse.Namespace, console: Console) -> int:
     except ImportError:
         console.print(f"[red]Error:[/] {escape(SCANNING_HINT)}")
         return 1
-    found = Found()
-    try:
-        installed = youpdated_scanning.scan(found, args.only)
-    except ValueError as exc:
-        # an unknown --only name
-        console.print(f"[red]Error:[/] {escape(str(exc))}")
+    known = list(youpdated_scanning.SCANNERS)
+    unknown = [name for name in args.only or () if name not in known]
+    if unknown:
+        console.print(
+            f"[red]Error:[/] no scanner named {escape(', '.join(unknown))}; "
+            f"expected one of {escape(', '.join(known))}"
+        )
         return 1
+    found = Found()
+    installed = youpdated_scanning.scan(found, args.only)
     # A Steam app id doesn't say which game it is, and the config only gets the id
     labels = {
         (item.source, item.entry): item.name
         for item in installed if item.name and not _names(item.entry, item.name)
     }
-    return _add_found(args, console, found, "Found nothing to watch on this machine.", labels)
+    # An App Store app is found by its bundle id, and the config may list it by number
+    aliases = {(item.source, item.entry): item.aliases for item in installed if item.aliases}
+    return _add_found(args, console, found, "Found nothing to watch on this machine.", labels, aliases)
 
 
 def _names(entry: str, name: str) -> bool:
@@ -852,8 +858,10 @@ def _names(entry: str, name: str) -> bool:
 def _add_found(
     args: argparse.Namespace, console: Console, found: Found, nothing: str,
     labels: Mapping[tuple[str, str], str] | None = None,
+    aliases: Mapping[tuple[str, str], tuple[str, ...]] | None = None,
 ) -> int:
-    """report what ``found`` skipped, then add the rest to the config"""
+    """report what ``found`` skipped, then add the rest to the config.
+    ``aliases`` are other entries for a (source, entry) pair, which keep it out if the config has one"""
     for what, why in found.skipped:
         console.print(f"[yellow]Skipped[/] {escape(what)} [dim]: {escape(why)}[/]")
     for warning in found.warnings:
@@ -861,7 +869,41 @@ def _add_found(
     if not found.entries:
         console.print(f"[dim]{nothing}[/]")
         return 0
-    return cmd_edit(args, console, list(found.entries.items()), labels=labels)
+    plan = list(found.entries.items())
+    if not aliases:
+        return cmd_edit(args, console, plan, labels=labels)
+    return cmd_edit(
+        args, console, pick=lambda text, *_: _unaliased(console, text, plan, aliases), labels=labels
+    )
+
+
+def _unaliased(
+    console: Console, text: str, plan: Plan, aliases: Mapping[tuple[str, str], tuple[str, ...]]
+) -> Plan:
+    """``plan`` less the entries the config in ``text`` already lists as one of their ``aliases``"""
+    kept: Plan = []
+    for source, entries in plan:
+        handler = get_source(source)
+        left = []
+        for entry in entries:
+            listed = None
+            for alias in aliases.get((source, entry), ()) if handler else ():
+                try:
+                    keys = [target.key for target in handler.targets([alias])]
+                except ConfigEntryError:
+                    continue
+                if any(watching(text, source, key) for key in keys):
+                    listed = alias
+                    break
+            if listed is None:
+                left.append(entry)
+            else:
+                console.print(
+                    f"[dim]Already watching {escape(entry)} under {escape(source)}, as {escape(listed)}[/]"
+                )
+        if left:
+            kept.append((source, left))
+    return kept
 
 
 # An editor returning before this with nothing changed didn't wait for the file

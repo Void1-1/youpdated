@@ -48,6 +48,9 @@ def scan(found: Found, only: Iterable[str] | None = None) -> list[Installed]:
         except ScanError as exc:
             found.warn(f"{name}: {exc}")
             continue
+        except Exception as exc:
+            found.warn(f"{name} failed: {type(exc).__name__}: {exc}")
+            continue
         for item in finds:
             if item.where is not None:
                 if item.where in claimed:

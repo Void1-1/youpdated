@@ -27,9 +27,9 @@ def parse_versions(text: str) -> dict[str, str]:
     """``name 1.0 1.1`` lines, as name to the last version listed"""
     versions = {}
     for line in text.splitlines():
-        name, *installed = line.split()
-        if installed:
-            versions[name] = installed[-1]
+        words = line.split()
+        if len(words) > 1:
+            versions[words[0]] = words[-1]
     return versions
 
 

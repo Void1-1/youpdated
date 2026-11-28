@@ -119,15 +119,15 @@ If the config is written in a way these can't edit safely, they refuse and say t
 
 If a dependency is found that no source can watch, it is listed as skipped: a dependency installed from a path, URL, git repo, editable install, formula from a third-party tap, or `mas` and `vscode` lines.
 
-`scan` finds esisting installed sources and adds them, the way `import` adds a file's dependencies. It needs the optional youpdated-scanning package: `pipx install 'youpdated[scanning]'`, or `pipx inject youpdated youpdated-scanning` for an existing install. Each scanner runs only where it applies, and `--only` (repeatable) picks some:
+`scan` finds existing installed sources and adds them, the way `import` adds a file's dependencies. It needs the optional youpdated-scanning package: `pipx install 'youpdated[scanning]'`, or `pipx inject youpdated youpdated-scanning` for an existing install. While the release with `scan` is a beta, pipx installs it only when asked: `pipx install 'youpdated[scanning]' --pip-args=--pre`. Each scanner runs only where it applies, and `--only` (repeatable) picks some:
 
 - **steam**: games in every Steam library, from their app manifests.
 - **homebrew**: formulae and casks you installed. A cask's app isn't also added as its Sparkle feed.
 - **winget** (Windows): programs and Store apps winget can identify, under their winget id. Runtimes apps install on their own (VC++ Redistributable, the Windows App SDK) are left out.
 - **flatpak** (Linux): apps installed from Flathub, under `flathub`.
-- **apps** (macOS): apps in `/Applications` and `~/Applications` from the App Store, under `appstore`, or with a Sparkle feed, under `sparkle`. iPhone and iPad apps aren't read.
+- **apps** (macOS): apps in `/Applications` and `~/Applications` from the App Store, under `appstore`, or with a Sparkle feed, under `sparkle`. An App Store app is added by its bundle id, unless the config already lists it by number. iPhone and iPad apps aren't read.
 
-Scanning is local: it reads files and the registry, and runs `brew` and `flatpak`, which only read what's installed. Nothing is fetched.
+Scanning is local: it reads files and the registry, and runs `brew`, `flatpak`, and `mdls` (Spotlight's index), which only read what's installed. Nothing is fetched.
 
 ## Machine-readable output
 

@@ -25,6 +25,7 @@ class Installed:
     name: str | None = None
     version: str | None = None
     where: Path | None = None
+    aliases: tuple[str, ...] = ()
 
 
 class Scanner(Protocol):

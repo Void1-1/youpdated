@@ -135,6 +135,10 @@ def test_parse_versions_keeps_the_last_of_several():
     assert homebrew.parse_versions("python@3.12 3.12.15 3.12.16\nbare\n") == {"python@3.12": "3.12.16"}
 
 
+def test_parse_versions_passes_over_blank_lines():
+    assert homebrew.parse_versions("\ngh 2.0\n  \n\ngit 2.56.0\n") == {"gh": "2.0", "git": "2.56.0"}
+
+
 @pytest.fixture
 def ran(monkeypatch):
     """subprocess.run replaced: records the call and returns what ``ran.result`` says"""

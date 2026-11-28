@@ -17,5 +17,7 @@ youpdated scan
 youpdated scan --only steam --only apps   # certain scanners
 ```
 
-Scanning is local only. It reads files, runs package managers already installed, and makes no network requests on its own.
+While the Youpdated release with `scan` is a beta, add `--pip-args=--pre` to `pipx install`.
+
+Scanning is local only. It reads files, runs package managers already installed and Spotlight's `mdls`, and makes no network requests on its own.
 winget isn't run, because `winget export` refreshes its index over the network when that's over 15 minutes old.

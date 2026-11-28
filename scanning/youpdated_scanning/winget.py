@@ -65,23 +65,33 @@ class Index:
     """winget's ``index.db`` for the ``winget`` source, opened read-only"""
 
     def __init__(self, path: Path) -> None:
+        self.path = path
         try:
             self.db = sqlite3.connect(f"{path.resolve().as_uri()}?mode=ro&immutable=1", uri=True)
-            meta = dict(self.db.execute("SELECT name, value FROM metadata"))
         except sqlite3.Error as exc:
             raise ScanError(f"cannot read winget's index at {path}: {exc}") from None
+        meta = dict(self._query("SELECT name, value FROM metadata"))
         if meta.get("majorVersion") != "2":
+            self.close()
             raise ScanError(
                 f"winget's index at {path} is schema {meta.get('majorVersion', '?')}, expected 2. Update App Installer"
             )
+
+    def _query(self, sql: str, params: tuple = ()) -> list[tuple]:
+        """``sql``'s rows"""
+        try:
+            return self.db.execute(sql, params).fetchall()
+        except sqlite3.Error as exc:
+            self.close()
+            raise ScanError(f"cannot read winget's index at {self.path}: {exc}") from None
 
     def close(self) -> None:
         self.db.close()
 
     def package(self, package_id: str) -> tuple[str, str] | None:
         """(id, name) of ``package_id``, matched case-insensitively as winget does"""
-        row = self.db.execute("SELECT id, name FROM packages WHERE id = ? COLLATE NOCASE", (package_id,)).fetchone()
-        return (row[0], row[1]) if row else None
+        rows = self._query("SELECT id, name FROM packages WHERE id = ? COLLATE NOCASE", (package_id,))
+        return (rows[0][0], rows[0][1]) if rows else None
 
     def match_program(self, program: Program) -> tuple[str, str] | None:
         """The package ``program`` is, if exactly one is"""
@@ -94,7 +104,7 @@ class Index:
         names = [normalized.name_with_architecture()] if normalized.architecture else []
         names.append(normalized.name)
         for name in names:
-            rows = self.db.execute(
+            rows = self._query(
                 """
                 SELECT p.rowid, p.id, p.name, p.arp_min_version, p.arp_max_version, 1 FROM productcodes2 c
                     JOIN packages p ON p.rowid = c.package WHERE c.productcode = ?
@@ -105,22 +115,26 @@ class Index:
                     WHERE n.norm_name = ? AND u.norm_publisher = ?
                 """,
                 (program.key.casefold(), name, normalized.publisher),
-            ).fetchall()
+            )
             if rows:
                 return _pick(rows, program.version)
         return None
 
     def match_package(self, package: Package) -> tuple[str, str] | None:
-        rows = self.db.execute(
+        rows = self._query(
             "SELECT p.id, p.name FROM pfns2 f JOIN packages p ON p.rowid = f.package WHERE f.pfn = ?",
             (package.family.casefold(),),
-        ).fetchall()
+        )
         return (rows[0][0], rows[0][1]) if len(rows) == 1 else None
 
 
 def _pick(rows: list[tuple], version: str | None) -> tuple[str, str] | None:
     """One of several matches: by product code, then by ``version`` in each one's range of ARP versions"""
-    candidates = {row[1]: row for row in rows}
+    candidates: dict[str, tuple] = {}
+    for row in rows:
+        # A package matched both ways is a product code match, whichever row UNION gave first
+        if row[1] not in candidates or row[5]:
+            candidates[row[1]] = row
     if len(candidates) > 1:
         by_code = {pid: row for pid, row in candidates.items() if row[5]}
         candidates = by_code or candidates

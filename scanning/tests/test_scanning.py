@@ -106,3 +106,12 @@ def test_only_runs_in_scanner_order(scanners, tmp_path):
 def test_package_managers_run_before_apps():
     order = list(SCANNERS)
     assert order.index("homebrew") < order.index("apps")
+
+
+def test_an_unexpected_error_is_a_warning_and_the_rest_still_run(scanners):
+    scanners["broken"] = Fake(error=KeyError("CFBundleIdentifier"))
+    scanners["fake"] = Fake([Installed("steam", "440")])
+    found = Found()
+    assert [item.entry for item in scan(found)] == ["440"]
+    assert found.warnings == ["broken failed: KeyError: 'CFBundleIdentifier'"]
+    assert found.entries == {"steam": ["440"]}

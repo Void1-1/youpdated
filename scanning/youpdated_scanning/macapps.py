@@ -2,7 +2,8 @@
 
 Each ``.app`` in ``/Applications`` and ``~/Applications`` (and one folder deep) has a ``Contents/Info.plist``:
 
-- ``Contents/_MASReceipt/receipt`` means it came from the Mac App Store -> ``appstore``, by ``CFBundleIdentifier``
+- ``Contents/_MASReceipt/receipt`` means it came from the Mac App Store -> ``appstore``, by ``CFBundleIdentifier``.
+  Its App Store number, from Spotlight's ``kMDItemAppStoreAdamID``, is an alias, for a config that lists it by number
 - ``SUFeedURL`` is the app's Sparkle appcast -> ``sparkle``
 - ``CFBundleShortVersionString`` (or ``CFBundleVersion``) is the installed version
 
@@ -20,7 +21,9 @@ from pathlib import Path
 from typing import Any, ClassVar, Iterable, Iterator, Sequence
 from xml.parsers.expat import ExpatError
 
-from .base import Installed
+from .base import Installed, ScanError, run
+
+MDLS_TIMEOUT = 10
 
 
 def app_dirs() -> list[Path]:
@@ -89,7 +92,8 @@ class MacAppsScanner:
         where = app.resolve()
 
         if bundle_id and (app / "Contents" / "_MASReceipt" / "receipt").is_file():
-            return Installed("appstore", bundle_id, name, version, where)
+            number = self.app_store_number(app)
+            return Installed("appstore", bundle_id, name, version, where, (number,) if number else ())
         feed = _text(info, "SUFeedURL")
         if feed is None and bundle_id and "/" not in bundle_id:
             defaults = read_plist(preferences / f"{bundle_id}.plist")
@@ -97,3 +101,11 @@ class MacAppsScanner:
         if feed is not None:
             return Installed("sparkle", feed, name, version, where)
         return None
+
+    def app_store_number(self, app: Path) -> str | None:
+        """``app``'s App Store number as Spotlight indexed it, if it did. ``mdls`` only reads the local index"""
+        try:
+            number = run("mdls", "-raw", "-name", "kMDItemAppStoreAdamID", str(app), timeout=MDLS_TIMEOUT).strip()
+        except ScanError:
+            return None
+        return number if number.isdigit() else None
