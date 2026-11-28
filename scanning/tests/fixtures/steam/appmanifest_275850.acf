@@ -1,0 +1,40 @@
+"AppState"
+{
+	"appid"		"275850"
+	"universe"		"1"
+	"name"		"No Man's Sky"
+	"StateFlags"		"4"
+	"installdir"		"No Man's Sky"
+	"LastUpdated"		"1795623551"
+	"LastPlayed"		"1795629532"
+	"SizeOnDisk"		"33071845716"
+	"StagingSize"		"0"
+	"buildid"		"26924890"
+	"LastOwner"		"76561190000000000"
+	"DownloadType"		"1"
+	"UpdateResult"		"0"
+	"BytesToDownload"		"3653252768"
+	"BytesDownloaded"		"3653252768"
+	"BytesToStage"		"8617127862"
+	"BytesStaged"		"8617127862"
+	"TargetBuildID"		"26924890"
+	"AutoUpdateBehavior"		"0"
+	"AllowOtherDownloadsWhileRunning"		"0"
+	"ScheduledAutoUpdate"		"0"
+	"InstalledDepots"
+	{
+		"275852"
+		{
+			"manifest"		"1085985697907411390"
+			"size"		"33071845716"
+		}
+	}
+	"UserConfig"
+	{
+		"language"		"english"
+	}
+	"MountedConfig"
+	{
+		"language"		"english"
+	}
+}

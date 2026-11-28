@@ -33,3 +33,12 @@ dependencies:
       - any-glob-to-any-file:
           - apps/engine/requirements.txt
           - apps/macos/scripts/dmg-requirements.txt
+
+# The optional youpdated-scanning package, plus the CLI's side of it (`youpdated
+# scan` is tested in tests/test_scan.py) and its release workflow.
+youpdated-scanning:
+  - changed-files:
+      - any-glob-to-any-file:
+          - scanning/**
+          - tests/test_scan.py
+          - .github/workflows/scanning-release.yml

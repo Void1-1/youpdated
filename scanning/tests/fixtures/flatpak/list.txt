@@ -1,0 +1,6 @@
+org.mozilla.firefox	146.0	flathub	Firefox
+com.valvesoftware.Steam	1.0.0.85	flathub	Steam
+org.gnome.Calculator	49.1	fedora	Calculator
+com.example.Nightly		flathub-beta	Nightly
+org.mozilla.firefox	146.0	flathub	Firefox
+io.github.Hand.Made		flathub	Hand Made

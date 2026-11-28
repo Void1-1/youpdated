@@ -27,6 +27,7 @@ keywords = [
     "youtube",
     "notifications",
     "cli",
+    "youpdated",
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -56,6 +57,8 @@ dependencies = [
 
 [project.optional-dependencies]
 encryption = ["cryptography>=42.0"]
+# for `youpdated scan`
+scanning = ["youpdated-scanning>=0.1"]
 dev = ["pytest>=8.0", "respx>=0.21", "cryptography>=42.0", "jsonschema>=4.18"]
 publish = ["build>=1.2", "twine>=5.0"]
 

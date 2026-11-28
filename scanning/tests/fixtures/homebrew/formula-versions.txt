@@ -1,0 +1,5 @@
+ca-certificates 2026-10-20
+gh 2.104.0
+git 2.56.0_1
+openssl@3 3.5.9
+python@3.12 3.12.16

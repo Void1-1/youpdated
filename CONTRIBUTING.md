@@ -66,6 +66,8 @@ curl -s https://example.com/api/thing -o tests/fixtures/thing.json
 
 Trim large fixtures to the part that matters.
 
+The scanners in [scanning/](scanning/) have their own suite, run against captured listings, manifests, and plists in [scanning/tests/fixtures/](scanning/tests/fixtures/): `pip install --no-deps ./scanning`, then `python -m pytest scanning/tests`. CI runs that suite, and the `youpdated scan` smoke test, only on PRs and pushes that change `scanning/` or the youpdated code it relies on, listed in [tests.yml](.github/workflows/tests.yml) (scheduled and release runs always include it). Trim captures to a few generic entries before committing.
+
 ## Adding a source
 
 Read [ADDING_SOURCES.md](ADDING_SOURCES.md), it builds a complete working source.
@@ -102,7 +104,20 @@ Publishing is done by [.github/workflows/release.yml](.github/workflows/release.
    gh release create v0.4.0 --verify-tag --notes-from-tag
    ```
 
-   A beta uses PEP 440's spelling in `pyproject.toml`, `__version__`, and the tag alike (`0.7.0b1`, tagged `v0.7.0b1`), because `release.yml` compares the tag to `pyproject.toml` as text. Add `--prerelease` to `gh release create`: it still goes to PyPI, where pip and pipx skip it unless asked with `--pre`.
+### youpdated-scanning
+
+[scanning/](scanning/) is its own PyPI package, `youpdated-scanning`, with its own version in `scanning/pyproject.toml` and `__version__` in `scanning/youpdated_scanning/__init__.py`. [.github/workflows/scanning-release.yml](.github/workflows/scanning-release.yml) publishes it from a GitHub Release tagged `scanning-v<version>`. Its wheel is installed with `youpdated` from PyPI before uploading, so release the `youpdated` version required first.
+
+```sh
+git tag -s scanning-v0.1.0 -m "youpdated-scanning 0.1.0"
+git verify-tag scanning-v0.1.0
+git push origin scanning-v0.1.0
+gh release create scanning-v0.1.0 --verify-tag --notes-from-tag --latest=false
+```
+
+`--latest=false` keeps the CLI's release as the repo's latest. The `pypi` environment has to allow `scanning-v*` tags, and PyPI needs a trusted publisher for `youpdated-scanning` naming `scanning-release.yml` and the `pypi` environment.
+
+For both packages, a beta uses PEP 440's spelling in `pyproject.toml`, `__version__`, and the tag (`0.7.0b1`, tagged `v0.7.0b1`), because `release.yml` compares the tag to `pyproject.toml` as text. Add `--prerelease` to `gh release create`: it will still go to PyPI, where pip and pipx skip it unless asked with `--pre`.
 
 ## Style
 

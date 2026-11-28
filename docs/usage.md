@@ -67,6 +67,8 @@ youpdated rm --wipe 440                # and delete its history
 youpdated import package.json Brewfile # watch everything listed in dependency files
 youpdated import --test requirements.txt # show what it would add without writing
 youpdated import --format requirements.txt <(pip freeze) # a pipe works too
+youpdated scan --test                  # what's installed here that could be watched (needs youpdated[scanning])
+youpdated scan --only steam            # watch every installed Steam game
 youpdated edit                         # open the config in the default editor
 youpdated init --force                 # rewrite the starter config
 youpdated init --encrypt               # starter config written encrypted from the start
@@ -116,6 +118,16 @@ If the config is written in a way these can't edit safely, they refuse and say t
 - **Brewfile**: `brew` lines as formulae and `cask` lines as casks, under `homebrew`.
 
 If a dependency is found that no source can watch, it is listed as skipped: a dependency installed from a path, URL, git repo, editable install, formula from a third-party tap, or `mas` and `vscode` lines.
+
+`scan` finds existing installed sources and adds them, the way `import` adds a file's dependencies. It needs the optional youpdated-scanning package: `pipx install 'youpdated[scanning]'`, or `pipx inject youpdated youpdated-scanning` for an existing install. While the release with `scan` is a beta, pipx installs it only when asked: `pipx install 'youpdated[scanning]' --pip-args=--pre`. Each scanner runs only where it applies, and `--only` (repeatable) picks some:
+
+- **steam**: games in every Steam library, from their app manifests.
+- **homebrew**: formulae and casks you installed. A cask's app isn't also added as its Sparkle feed.
+- **winget** (Windows): programs and Store apps winget can identify, under their winget id. Runtimes apps install on their own (VC++ Redistributable, the Windows App SDK) are left out.
+- **flatpak** (Linux): apps installed from Flathub, under `flathub`.
+- **apps** (macOS): apps in `/Applications` and `~/Applications` from the App Store, under `appstore`, or with a Sparkle feed, under `sparkle`. An App Store app is added by its bundle id, unless the config already lists it by number. iPhone and iPad apps aren't read.
+
+Scanning is local: it reads files and the registry, and runs `brew`, `flatpak`, and `mdls` (Spotlight's index), which only read what's installed. Nothing is fetched.
 
 ## Machine-readable output
 

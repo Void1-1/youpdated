@@ -58,18 +58,57 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
+        with:
+          # HEAD^1 is what the scanning check below diffs against: the base branch
+          # for a PR's merge commit, the previous main for a push
+          fetch-depth: 2
 
       - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
+
+      # youpdated-scanning's steps run only when a PR or push to main changes
+      # scanning/, or the youpdated code it leans on: what it imports, the sources
+      # its scanners hand finds to (test_scanning.py checks those names exist), and
+      # the CLI and uninstall sides of `youpdated scan`. This file counts too, so
+      # edits to those steps get exercised. Scheduled, manual, and release runs
+      # always include them. A called workflow sees its
+      # caller's event, so scanning-release.yml's run counts as a release. The
+      # steps are skipped rather than the job, because the job is a required check.
+      - name: Did youpdated-scanning change?
+        id: scanning
+        shell: bash
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          if [[ "$EVENT" == pull_request || "$EVENT" == push ]] &&
+             git diff --quiet HEAD^1 HEAD -- scanning .github/workflows/tests.yml \
+               youpdated/importers.py youpdated/errors.py youpdated/registry.py \
+               youpdated/cli.py youpdated/cleanup.py youpdated/sources/__init__.py \
+               youpdated/sources/{steam,homebrew,winget,flathub,sparkle,appstore}.py; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "youpdated-scanning is unchanged, so its steps are skipped"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Install
         run: |
           python -m pip install --upgrade pip
           python -m pip install ".[dev]"
 
+      # --no-deps: it requires the youpdated release it ships with, which may not be the checkout's version yet
+      - name: Install youpdated-scanning
+        if: steps.scanning.outputs.changed == 'true'
+        run: python -m pip install --no-deps ./scanning
+
       - name: Run tests
         run: python -m pytest -q
+
+      # Against the installed copy: scanning/tests has no __init__.py, so pytest doesn't put scanning/ on sys.path
+      - name: Run youpdated-scanning tests
+        if: steps.scanning.outputs.changed == 'true'
+        run: python -m pytest -q scanning/tests
 
       - name: Smoke-test the installed command
         run: |
@@ -79,17 +118,26 @@ jobs:
           # `init` watches nothing, and `check` refuses an empty config
           youpdated add git Void1-1/youpdated
           youpdated check --test -v
-          youpdated uninstall --yes
 
-      # On Windows the package is removed in the background, once uninstall exits
+      # Each runner's real Homebrew, /Applications, and registry. Writes nothing
+      - name: Smoke-test youpdated scan
+        if: steps.scanning.outputs.changed == 'true'
+        run: youpdated scan --test
+
+      - name: Uninstall
+        run: youpdated uninstall --yes
+
+      # On Windows the package is removed in the background, once uninstall exits.
+      # youpdated-scanning, when installed, goes with it. `pip show` fails only once
+      # neither is installed
       - name: Uninstall must remove the package
         shell: bash
         run: |
           for _ in $(seq 30); do
-            python -m pip show youpdated > /dev/null 2>&1 || exit 0
+            python -m pip show youpdated youpdated-scanning > /dev/null 2>&1 || exit 0
             sleep 1
           done
-          echo "::error::youpdated is still installed after uninstall"
+          echo "::error::youpdated or youpdated-scanning is still installed after uninstall"
           exit 1
 
   build:
@@ -111,6 +159,11 @@ jobs:
 
       - name: Check metadata
         run: twine check dist/*
+
+      - name: Build and check youpdated-scanning
+        run: |
+          python -m build scanning --outdir scanning-dist
+          twine check scanning-dist/*
 
       - name: Install from the wheel and run it
         run: |
