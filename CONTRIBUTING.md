@@ -66,7 +66,7 @@ curl -s https://example.com/api/thing -o tests/fixtures/thing.json
 
 Trim large fixtures to the part that matters.
 
-The scanners in [scanning/](scanning/) have their own suite, run against captured listings, manifests, and plists in [scanning/tests/fixtures/](scanning/tests/fixtures/): `pip install --no-deps ./scanning`, then `python -m pytest scanning/tests`. Trim captures to a few generic entries before committing.
+The scanners in [scanning/](scanning/) have their own suite, run against captured listings, manifests, and plists in [scanning/tests/fixtures/](scanning/tests/fixtures/): `pip install --no-deps ./scanning`, then `python -m pytest scanning/tests`. CI runs that suite, and the `youpdated scan` smoke test, only on PRs and pushes that change `scanning/` or the youpdated code it relies on, listed in [tests.yml](.github/workflows/tests.yml) (scheduled and release runs always include it). Trim captures to a few generic entries before committing.
 
 ## Adding a source
 

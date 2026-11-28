@@ -18,8 +18,9 @@ name: issue triage
 # Labels (only ever added, never removed):
 #
 #   PR changes files                     -> by path, from .github/labeler.yml
-#   Issue or PR opened mentioning a      -> privacy / accessibility
-#     proxy, Tor, telemetry, VoiceOver...
+#   Issue or PR opened mentioning a      -> privacy / accessibility /
+#     proxy, Tor, telemetry, VoiceOver,     youpdated-scanning
+#     youpdated-scanning, a scanner...
 #   Bug filed against an app             -> app
 #   PR closes an issue                   -> the issue's descriptive labels
 #
@@ -185,12 +186,15 @@ jobs:
             // label someone took off. Template comments are dropped first, so the PR
             // template's own words never count. Keep these to terms that rarely mean
             // anything else here: "anonymous" and "tracking" are out, because of
-            // anonymous registry tokens and "tracking a package".
+            // anonymous registry tokens and "tracking a package". Bare "scanning" is
+            // out too, because of CodeQL's code scanning.
             if (action === "opened") {
               const text = `${item.title}\n${item.body ?? ""}`.replace(/<!--[\s\S]*?-->/g, "");
               const keywords = {
                 privacy: /\b(prox(y|ies)|tor|socks5?h?|telemetry|anonymity|fingerprint(ing)?|user[- ]agents?)\b/i,
                 accessibility: /\b(accessibility|a11y|screen ?readers?|voiceover|narrator|nvda|jaws|high contrast|reduced? motion|dynamic type|keyboard navigation)\b/i,
+                // youpdated-scanning, youpdated_scanning, youpdated[scanning], `youpdated scan`
+                "youpdated-scanning": /\byoupdated(?:[-_ ]scanning|\[scanning\]| scan\b)|\bscanners?\b/i,
               };
               for (const [label, re] of Object.entries(keywords)) if (re.test(text)) add.add(label);
             }
@@ -202,7 +206,7 @@ jobs:
             // in the sidebar). Not triage labels like question or help wanted, which
             // are about the issue's discussion, not the change.
             if (pr) {
-              const inherit = new Set(["app", "platform", "privacy", "accessibility", "source request", "documentation"]);
+              const inherit = new Set(["app", "platform", "privacy", "accessibility", "source request", "documentation", "youpdated-scanning"]);
               const linked = await github.graphql(`
                 query($owner: String!, $repo: String!, $number: Int!) {
                   repository(owner: $owner, name: $repo) {
